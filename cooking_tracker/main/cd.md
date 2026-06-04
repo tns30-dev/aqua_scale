@@ -42,15 +42,15 @@ flowchart LR
 
 | Status | Application | Source Path | Target Namespace |
 |---|---|---|---|
-| [ ] | `identity-access-service-dev` | `deploy/k8s/overlays/dev/identity-access-service` | `aquashield-dev` |
-| [ ] | `project-service-dev` | `deploy/k8s/overlays/dev/project-service` | `aquashield-dev` |
-| [ ] | `pond-service-dev` | `deploy/k8s/overlays/dev/pond-service` | `aquashield-dev` |
-| [ ] | `sensor-service-dev` | `deploy/k8s/overlays/dev/sensor-service` | `aquashield-dev` |
-| [ ] | `ingestion-service-dev` | `deploy/k8s/overlays/dev/ingestion-service` | `aquashield-dev` |
-| [ ] | `notification-service-dev` | `deploy/k8s/overlays/dev/notification-service` | `aquashield-dev` |
-| [ ] | `realtime-gateway-dev` | `deploy/k8s/overlays/dev/realtime-gateway` | `aquashield-dev` |
-| [ ] | `analytics-service-dev` | `deploy/k8s/overlays/dev/analytics-service` | `aquashield-dev` |
-| [ ] | `audit-service-dev` | `deploy/k8s/overlays/dev/audit-service` | `aquashield-dev` |
+| [ ] | `identity-access-service-dev` | `k8s/overlays/dev/identity-access-service` | `aquashield-dev` |
+| [ ] | `project-service-dev` | `k8s/overlays/dev/project-service` | `aquashield-dev` |
+| [ ] | `pond-service-dev` | `k8s/overlays/dev/pond-service` | `aquashield-dev` |
+| [ ] | `sensor-service-dev` | `k8s/overlays/dev/sensor-service` | `aquashield-dev` |
+| [ ] | `ingestion-service-dev` | `k8s/overlays/dev/ingestion-service` | `aquashield-dev` |
+| [ ] | `notification-service-dev` | `k8s/overlays/dev/notification-service` | `aquashield-dev` |
+| [ ] | `realtime-gateway-dev` | `k8s/overlays/dev/realtime-gateway` | `aquashield-dev` |
+| [ ] | `analytics-service-dev` | `k8s/overlays/dev/analytics-service` | `aquashield-dev` |
+| [ ] | `audit-service-dev` | `k8s/overlays/dev/audit-service` | `aquashield-dev` |
 
 ## Sync Policy Checklist
 

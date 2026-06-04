@@ -39,9 +39,10 @@ when an item is fully done. Use **`/sync-tracker`** to do this consistently.
 - **IoT boundary: AWS** — IoT Core (MQTT/TLS, X.509 device certs, topic-scoped policies) →
   IoT Rule → **TypeScript Lambda bridge** → (Workload Identity Federation, `pubsub.publisher`
   only) → GCP Pub/Sub `iot.telemetry.received`.
-- **Services (in `services/`):** Java 21 + Spring Boot: `identity-access`, `project`, `pond`,
-  `sensor`, `ingestion`, `notification`, `audit`; **Java WebFlux**: `realtime-gateway`;
-  **TypeScript/Express**: `analytics`. ML/LLM = Python/FastAPI **placeholders only**.
+- **Services (one folder per service at repo root; Maven multi-module):** Java 21 + Spring
+  Boot: `identity-access`, `project`, `pond`, `sensor`, `ingestion`, `notification`, `audit`;
+  **Java WebFlux**: `realtime-gateway`; **TypeScript/Express**: `analytics`.
+  ML/LLM = Python/FastAPI **placeholders only**.
 - **APIs:** REST/JSON externally via gateway; **gRPC** service-to-service; events via Pub/Sub
   (JSON envelope, versioned schemas, DLQ per important subscription, idempotent consumers).
 - **Auth model:** short-lived JWT (compact; carries authz **version**, not the matrix) +
@@ -58,12 +59,18 @@ when an item is fully done. Use **`/sync-tracker`** to do this consistently.
   `module_*` code and preserve its business semantics (esp. `module_user` authorization,
   chart contract `GET /api/projects/{id}/charts/`).
 
-## Planned monorepo layout (implementation lives at repo root)
+## Monorepo layout (FLAT — one service per repo-root folder, ChronoFlow style)
 
 ```
-services/<service-name>/     libs/proto-contracts/     contracts/events/*.v1.json
-deploy/k8s/{base,overlays}/  infra/ (terraform)        tests/jmeter/*.jmx
+identity-access-service/  project-service/  pond-service/  sensor-service/
+ingestion-service/  notification-service/  realtime-gateway/  analytics-service/
+audit-service/  ml-service/  llm-service/          ← service roots
+common/ (shared Java lib)   shared-api/{proto,events}/   k8s/{base,overlays}/
+infra/ (terraform)   jmeter/   scripts/  local/  docs/evidence/  .github/workflows/
+pom.xml  ← Maven multi-module parent (Java 21, Boot 3.4.x); modules enabled as built
 ```
+Everything lives in THIS repo (`tns30-dev/aqua_scale`); `cooking_tracker/` is deleted
+before submission. No separate implementation repo.
 
 ## Roles
 
@@ -98,6 +105,15 @@ deploy/k8s/{base,overlays}/  infra/ (terraform)        tests/jmeter/*.jmx
 
 Agents: `system-design-reviewer` (pre-Codex design check) · `monolith-parity-checker`
 (extracts Django business rules for a service). Commands: `/sync-tracker` · `/adr` · `/handoff-codex`.
+
+## Git & repo safety rules
+
+- **Repo:** ONE repo — `AQ_Cook` → `tns30-dev/aqua_scale` (private) holds planning AND
+  implementation (flat layout). `AquaMonitoringv2/` and `AquaMonitoring-Pi/` point to
+  **AquaShield-Solutions/** (inherited upstream) — **NEVER push to those remotes**;
+  pull/read only; both git-ignored here.
+- **Authorship:** commits/pushes are authored as the user (tns30-dev) — **no Claude
+  Co-Authored-By trailers, ever.**
 
 ## Working conventions
 

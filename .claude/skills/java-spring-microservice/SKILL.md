@@ -1,6 +1,6 @@
 ---
 name: java-spring-microservice
-description: Use when implementing or scaffolding any AquaShield backend service — Java 21 + Spring Boot (identity-access, project, pond, sensor, ingestion, notification, audit), Java WebFlux (realtime-gateway), or the TypeScript/Express analytics service. Covers project layout, gRPC server/client, Pub/Sub consumers, Redis, Flyway, Testcontainers, Dockerfile, probes. Trigger on "implement <service>", "Spring Boot", "gRPC", "service skeleton", "WebFlux".
+description: Use when implementing or scaffolding any AquaShield backend service — Java 21 + Spring Boot (identity-access, project, pond, sensor, ingestion, notification, audit), Java WebFlux (realtime-gateway), or the TypeScript/Express analytics service. Covers Maven multi-module layout, gRPC server/client, Pub/Sub consumers, Redis, Flyway, Testcontainers, Dockerfile, probes. Trigger on "implement <service>", "Spring Boot", "gRPC", "service skeleton", "WebFlux".
 ---
 
 # AquaShield service implementation (Java/Spring + TS/Express)
@@ -11,28 +11,29 @@ the `monolith-parity-checker` agent on the matching Django `module_*` for busine
 
 ## Stack defaults (Java services)
 
-- **Java 21, Spring Boot 3.x, Gradle (Kotlin DSL)** — one Gradle project per service under
-  `services/<service-name>/`; share nothing except `libs/proto-contracts/` and (sparingly) a
-  small common lib for envelope/auth-snapshot helpers.
+- **Java 21, Spring Boot 3.4.x, Maven multi-module** — one module per service at **repo
+  root** (`identity-access-service/`, `pond-service/`, …) under the root `pom.xml` parent
+  (uncomment the module there when starting a service). Shared code ONLY via `common/`
+  (envelope, auth-snapshot helpers) and `shared-api/` (generated gRPC stubs).
 - Spring Web (MVC) for REST; **WebFlux only for realtime-gateway**.
-- **gRPC**: `grpc-spring-boot-starter` (server) + generated stubs from `libs/proto-contracts/`
-  (buf or protobuf-gradle-plugin). Internal calls use K8s DNS names
-  (`<service>.<ns>.svc.cluster.local`).
+- **gRPC**: grpc-spring-boot starter (server) + stubs generated from `shared-api/proto/`
+  (protobuf-maven-plugin). Internal calls use K8s DNS (`<service>.<ns>.svc.cluster.local`).
 - **Data:** Spring Data JPA + PostgreSQL; **Flyway** migrations in
-  `src/main/resources/db/migration` (each service owns its schema — set
-  `spring.flyway.schemas` / default schema per service).
+  `src/main/resources/db/migration` — each service migrates ONLY its own schema
+  (matches `local/postgres-init/01-schemas.sql` and Cloud SQL ownership).
 - **Redis:** Lettuce via Spring Data Redis. Every key has a TTL. Key patterns from
   `main/redis.md` — never invent new patterns without updating that doc.
-- **Pub/Sub:** Spring Cloud GCP Pub/Sub. Consumers idempotent (see `pubsub-eventing` skill).
-- **Observability:** Micrometer + OpenTelemetry exporter; structured JSON logs with
+- **Pub/Sub:** Spring Cloud GCP Pub/Sub (works against the compose emulator via
+  `PUBSUB_EMULATOR_HOST`). Consumers idempotent (see `pubsub-eventing` skill).
+- **Observability:** Micrometer + OpenTelemetry; structured JSON logs with
   `correlationId`/`traceId`; `/actuator/health/{liveness,readiness}` wired to K8s probes.
 - **Config:** all env-driven (`application.yml` + env overrides). No secrets in repo.
 
 ## Standard service layout
 
 ```
-services/<name>/
-  build.gradle.kts  settings.gradle.kts  Dockerfile
+<service-name>/                       (repo root)
+  pom.xml          Dockerfile
   src/main/java/com/aquashield/<name>/
     api/        REST controllers + DTOs (request/response records)
     grpc/       gRPC service impls + clients to other services
@@ -41,8 +42,8 @@ services/<name>/
     service/    application services (business rules — parity with Django here)
     events/     Pub/Sub publishers/consumers + outbox if used
     config/     security, redis, grpc, pubsub config
-  src/main/resources/db/migration/  V1__init.sql ...
-  src/test/java/...                 unit + Testcontainers integration tests
+  src/main/resources/db/migration/    V1__init.sql ...
+  src/test/java/...                   unit + Testcontainers integration tests
 ```
 
 ## Auth enforcement (every service, from `main/authn_authz.md`)
@@ -51,37 +52,37 @@ services/<name>/
 2. Load Redis authz snapshot `authz:snapshot:{userId}:{version}` (version from JWT claim).
 3. Check feature/action permission, then project/pond/device ACL from the snapshot.
 4. Snapshot missing/stale → **fail closed** or rebuild via Identity gRPC (fallback only).
-Implement once as a shared auth filter/helper; reuse across services.
+Implement once in `common/` as a shared auth filter/helper; reuse across services.
 
 ## Testing bar (per service)
 
 - Unit tests for business rules (parity cases from the Django module are the test oracle).
 - **Testcontainers**: PostgreSQL + Redis + Pub/Sub emulator integration tests.
-- Contract: REST via spring-mockmvc/openapi validation; gRPC via generated stubs;
-  event schemas validated against `contracts/events/*.v1.json`.
+- Contract: REST via MockMvc/OpenAPI validation; gRPC via generated stubs; event payloads
+  validated against `shared-api/events/*.v1.json`.
 - Spec's "Test Checklist" table in `main/<service>.md` = the minimum acceptance list.
+- Run: `mvn -pl <service-name> test` (path-aware CI mirrors this).
 
 ## Dockerfile pattern
 
-Multi-stage: gradle build → `eclipse-temurin:21-jre` (or distroless-java21), non-root user,
-`EXPOSE` REST + gRPC ports, JVM container-aware flags. Image name = spec's image name
-(e.g. `identity-access-service`), tagged with Git SHA (see `devsecops-pipeline`).
+Multi-stage: `maven:3.9-eclipse-temurin-21` build → `eclipse-temurin:21-jre` (or distroless),
+non-root user, EXPOSE REST + gRPC ports, container-aware JVM flags. Image name = spec's
+name (e.g. `identity-access-service`), tagged with Git SHA (see `devsecops-pipeline`).
 
 ## Analytics service (TypeScript/Express) deviations
 
-Node 20 + Express + TS under `services/analytics-service/`. **Preserve the existing chart
-contract exactly**: `GET /api/projects/{projectId}/charts/` with `pondId,startDate,endDate[,grouping]`
-returning the documented response keys (`multiParameterTrends`, `correlationHeatmap`, …) —
-see `main/analytics_service.md`. No new public chart endpoints. Reads: Cloud SQL chart
-config (or Project gRPC), Bigtable time-series, BigQuery bounded queries
-(`maximum_bytes_billed`). Cache metadata only — never raw readings.
+Node 20 + Express + TS in `analytics-service/` (outside the Maven reactor). **Preserve the
+existing chart contract exactly**: `GET /api/projects/{projectId}/charts/` with
+`pondId,startDate,endDate[,grouping]` returning the documented keys (`multiParameterTrends`,
+`correlationHeatmap`, …) — see `main/analytics_service.md`. No new public chart endpoints.
+Reads: Cloud SQL chart config (or Project gRPC), Bigtable time-series, BigQuery bounded
+queries (`maximum_bytes_billed`). Cache metadata only — never raw readings.
 
 ## Build order recommendation
 
 `identity-access` → `project` → `sensor` → `pond` → `ingestion` → `notification` →
-`realtime-gateway` → `analytics` → `audit`. (Identity unblocks auth for everything;
-ingestion needs sensor's `ResolveDevicePort`.) Local dev: Docker Compose with Postgres,
-Redis, Pub/Sub emulator, Bigtable emulator.
+`realtime-gateway` → `analytics` → `audit`. (Identity unblocks auth; ingestion needs
+sensor's `ResolveDevicePort`.) Local dev: `docker compose up -d` + `scripts/pubsub-bootstrap.sh`.
 
 ## After every milestone
 

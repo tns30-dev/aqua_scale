@@ -1,13 +1,50 @@
-# Nested repos with their own remotes — NEVER tracked by this planning repo.
-# AquaMonitoringv2 + AquaMonitoring-Pi push to AquaShield-Solutions (inherited upstream);
-# aquashield/ is the implementation monorepo (gets its own GitHub repo).
+# Nested repos with their own remotes — NEVER tracked here.
+# Both push to AquaShield-Solutions (inherited upstream): pull/read only.
 AquaMonitoringv2/
 AquaMonitoring-Pi/
-aquashield/
 
-# OS / editor junk
+# Secrets & credentials — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*credentials*.json
+device-certs/
+**/secrets/
+
+# Java / Maven
+**/target/
+*.class
+*.jar
+!**/maven-wrapper.jar
+
+# Node / TypeScript
+**/node_modules/
+**/dist/
+*.tsbuildinfo
+
+# Python (ML/LLM placeholders)
+**/__pycache__/
+**/.venv/
+*.pyc
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
+# IDE / OS
+.idea/
+.vscode/
 .DS_Store
 **/.DS_Store
+
+# Test & evidence working files
+**/test-results/
+*.jtl
 
 # scratch
 temp.txt

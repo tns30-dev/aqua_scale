@@ -59,7 +59,7 @@
 | Status | Evidence | File/Location |
 |---|---|---|
 | [ ] | Load balancer screenshot | Cloud Console |
-| [ ] | Gateway/Ingress manifest | `deploy/k8s` |
+| [ ] | Gateway/Ingress manifest | `k8s` |
 | [ ] | Cloud Armor policy screenshot | Cloud Console |
 | [ ] | TLS certificate screenshot | Cloud Console |
 | [ ] | Successful API call through gateway | API test output |

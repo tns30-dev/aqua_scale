@@ -30,7 +30,7 @@ Subscription naming: `<service>.<topic>.sub`.
 
 ## Schemas
 
-Versioned JSON Schema files at `contracts/events/<eventType>.v1.json` (minimum set:
+Versioned JSON Schema files at `shared-api/events/<eventType>.v1.json` (minimum set:
 `iot.telemetry.received`, `reading.ingested`, `alert.created`, `alert.resolved`,
 `audit.event.recorded`). Evolution must be backward-compatible; breaking change = new
 `vN` file + new `schemaVersion`. Validate on publish (tests) and on consume (runtime —

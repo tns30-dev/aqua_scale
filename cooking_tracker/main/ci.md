@@ -60,17 +60,18 @@ flowchart LR
 
 | Changed Path | Action |
 |---|---|
-| `services/identity-access-service/**` | Build/test/scan Identity only |
-| `services/project-service/**` | Build/test/scan Project only |
-| `services/pond-service/**` | Build/test/scan Pond only |
-| `services/sensor-service/**` | Build/test/scan Sensor only |
-| `services/ingestion-service/**` | Build/test/scan Ingestion only |
-| `services/notification-service/**` | Build/test/scan Notification only |
-| `services/realtime-gateway/**` | Build/test/scan Realtime Gateway only |
-| `services/analytics-service/**` | Build/test/scan Analytics only |
-| `services/audit-service/**` | Build/test/scan Audit only |
-| `libs/proto-contracts/**` | Run contract generation/tests for affected services |
-| `deploy/k8s/**` | Validate manifests |
+| `identity-access-service/**` | Build/test/scan Identity only |
+| `project-service/**` | Build/test/scan Project only |
+| `pond-service/**` | Build/test/scan Pond only |
+| `sensor-service/**` | Build/test/scan Sensor only |
+| `ingestion-service/**` | Build/test/scan Ingestion only |
+| `notification-service/**` | Build/test/scan Notification only |
+| `realtime-gateway/**` | Build/test/scan Realtime Gateway only |
+| `analytics-service/**` | Build/test/scan Analytics only |
+| `audit-service/**` | Build/test/scan Audit only |
+| `shared-api/proto/**` | Run gRPC contract generation/tests for affected services |
+| `shared-api/events/**` | Run Pub/Sub event schema validation |
+| `k8s/**` | Validate manifests |
 | `infra/**` | Terraform validate/plan |
 
 ## Branch Strategy Checklist
@@ -86,7 +87,7 @@ flowchart LR
 
 | Status | Task | Output |
 |---|---|---|
-| [ ] | Store JMeter test plans | `tests/jmeter/*.jmx` |
+| [ ] | Store JMeter test plans | `jmeter/*.jmx` |
 | [ ] | Parameterize base URL, users, ramp-up, duration | Reusable test plans |
 | [ ] | Run load test from `performance-test` branch | Normal expected-traffic result |
 | [ ] | Run stress test from `performance-test` branch | Breaking-point or saturation result |

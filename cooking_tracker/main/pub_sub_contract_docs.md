@@ -54,11 +54,11 @@ This optional Analytics topic is only for future precomputed aggregate jobs. It 
 
 | Status | Event | Schema File |
 |---|---|---|
-| [ ] | `iot.telemetry.received` | `contracts/events/iot.telemetry.received.v1.json` |
-| [ ] | `reading.ingested` | `contracts/events/reading.ingested.v1.json` |
-| [ ] | `alert.created` | `contracts/events/alert.created.v1.json` |
-| [ ] | `alert.resolved` | `contracts/events/alert.resolved.v1.json` |
-| [ ] | `audit.event.recorded` | `contracts/events/audit.event.recorded.v1.json` |
+| [ ] | `iot.telemetry.received` | `shared-api/events/iot.telemetry.received.v1.json` |
+| [ ] | `reading.ingested` | `shared-api/events/reading.ingested.v1.json` |
+| [ ] | `alert.created` | `shared-api/events/alert.created.v1.json` |
+| [ ] | `alert.resolved` | `shared-api/events/alert.resolved.v1.json` |
+| [ ] | `audit.event.recorded` | `shared-api/events/audit.event.recorded.v1.json` |
 
 ## Operational Checklist
 

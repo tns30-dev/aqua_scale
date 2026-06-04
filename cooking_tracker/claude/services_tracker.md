@@ -31,3 +31,4 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔
 |---|---|
 | 2026-06-04 | Tracker initialized. Claude `.claude` skillset rebuilt for GCP/Java/Kustomize/ArgoCD stack per `main/` specs. No service code yet. |
 | 2026-06-04 | Clean repo `aquashield/` created with full monorepo layout; local compose foundation verified (postgres/redis/pubsub/bigtable). Service development unblocked — no service code yet. |
+| 2026-06-04 | RESTRUCTURE (user decision): single repo `tns30-dev/aqua_scale`; `aquashield/` layer dissolved. Flat ChronoFlow-style layout — one service folder per repo root + `common/` + `shared-api/{proto,events}` + `k8s/` + `infra/` + `jmeter/`; root `pom.xml` Maven multi-module parent (Java 21, Boot 3.4.x). CI path filters/Argo paths now `<service>/**` and `k8s/overlays/...` — Codex notified to update `main/ci.md`, `main/cd.md`, `main/pub_sub_contract_docs.md` paths. |

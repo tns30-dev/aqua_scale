@@ -8,17 +8,17 @@ description: Use when writing Kubernetes manifests for GKE — Kustomize bases/o
 Cluster/VPC/mesh **provisioning is Codex's scope** (cloud foundation). My scope: everything
 that runs *on* it — workload manifests, Kustomize, Argo CD apps, policies per service.
 
-## Layout (decided)
+## Layout (decided — flat repo, k8s/ at root)
 
 ```
-deploy/k8s/
+k8s/
   base/<service>/            deployment.yaml service.yaml hpa.yaml pdb.yaml
                              networkpolicy.yaml kustomization.yaml
   overlays/dev/<service>/    kustomization.yaml (image tag, replicas, env, namespace aquashield-dev)
   overlays/staging/<service>/ …
 ```
 Argo CD `Application` per service per env: `<service>-dev` → path
-`deploy/k8s/overlays/dev/<service>` → namespace `aquashield-dev`. Dev auto-sync;
+`k8s/overlays/dev/<service>` → namespace `aquashield-dev`. Dev auto-sync;
 staging manual/approved. CI bumps the Kustomize image tag — **nothing deploys via kubectl**.
 
 ## Workload checklist (every service Deployment)

@@ -17,23 +17,24 @@ push → detect-changes → [per changed service matrix]
 performance-test branch / manual dispatch only → JMeter load + stress → .jtl + HTML reports
 ```
 
-## Path filters (decided)
+## Path filters (decided — flat layout, services at repo root)
 
-`services/<name>/**` → that service only · `libs/proto-contracts/**` → contract gen + affected
-services · `deploy/k8s/**` → manifest validation (kustomize build + kubeconform) ·
-`infra/**` → terraform fmt/validate/plan. **Evidence requirement:** a commit touching only
-Identity runs only the Identity pipeline — capture that run.
+`<service-name>/**` (e.g. `identity-access-service/**`) → that service only ·
+`shared-api/**` or `common/**` → contract/lib build + affected services · `k8s/**` →
+manifest validation (kustomize build + kubeconform) · `infra/**` → terraform
+fmt/validate/plan. **Evidence requirement:** a commit touching only Identity runs only the
+Identity pipeline — capture that run.
 
 ## Job/tool matrix
 
-| Concern | Java services | TS (analytics, lambda) |
+| Concern | Java services (Maven) | TS (analytics, lambda) |
 |---|---|---|
 | Lint | spotless/checkstyle | eslint |
-| Unit/integration | gradle test (+ Testcontainers) | npm test |
+| Unit/integration | `mvn -pl <service> test` (+ Testcontainers) | npm test |
 | SAST | Semgrep (+ CodeQL if quota) | Semgrep/eslint-security |
-| SCA | OWASP Dependency-Check or `gradle dependencyCheck` | `npm audit` + Dependabot |
+| SCA | OWASP Dependency-Check maven plugin | `npm audit` + Dependabot |
 | Secrets | Gitleaks (repo-wide job) | same |
-| SBOM | CycloneDX gradle plugin | CycloneDX npm |
+| SBOM | CycloneDX maven plugin | CycloneDX npm |
 | Container scan | Trivy image | Trivy image |
 
 Upload every report as a workflow artifact — they ARE the security evidence.
@@ -55,7 +56,7 @@ GitOps commit (restore previous tag/digest), not rebuild.
 
 ## JMeter (kept out of daily CI)
 
-Plans in `tests/jmeter/*.jmx`, parameterized (baseURL, users, ramp-up, duration). Run against
+Plans in `jmeter/*.jmx`, parameterized (baseURL, users, ramp-up, duration). Run against
 deployed dev/staging from the `performance-test` branch or manual dispatch. Keep raw `.jtl`,
 HTML report, and a throughput/p95/p99/error-rate summary as artifacts.
 
