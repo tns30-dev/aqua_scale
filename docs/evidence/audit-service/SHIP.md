@@ -74,3 +74,13 @@ All 13 spec fields map 1:1 to columns; `category` added for the security review 
 Required-field validation: auditId, eventType, serviceName (payload or envelope source),
 resourceType, action, outcome, occurredAt, correlationId (payload or envelope). Missing →
 REJECTED (acked, logged) — never stored partially.
+
+## CI verdict (post-push)
+
+Run `26952061112` (push `7e08019`, 2026-06-04): **SUCCESS.**
+- `java-verify` fanned out to ALL EIGHT java services (root pom change) — including
+  `audit-service`'s first CI run (1m37s) ✓
+- `container (audit-service)` image build + Trivy CRITICAL gate ✓ (1m17s)
+- all security gates (gitleaks / semgrep / trivy-fs / sbom) ✓
+- analytics lanes correctly SKIPPED (no analytics-service or proto changes) —
+  path-awareness working as designed
