@@ -1,0 +1,29 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: project-service-allow-http-grpc
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: project-service
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            ports:
+              - "8082"
+            paths:
+              - /api/projects
+              - /api/projects/*
+              - /api/profile-types
+              - /api/profile-types/*
+              - /api/parameter-types
+              - /api/parameter-types/*
+              - /api/growth-indicators
+              - /api/growth-indicators/*
+              - /actuator/health
+              - /actuator/health/*
+    - to:
+        - operation:
+            ports:
+              - "9092"

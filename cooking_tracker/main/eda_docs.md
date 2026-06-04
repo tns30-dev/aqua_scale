@@ -35,6 +35,14 @@ flowchart LR
   T2 --> Audit
   T3 --> Audit
   T5 --> Audit
+
+  Project[Project Service] --> P1[project.created]
+  Project --> P2[project.updated]
+  Project --> P3[project.settings.updated]
+  P1 --> Audit
+  P2 --> Audit
+  P3 --> Notification
+  P3 --> Audit
 ```
 
 ## Contract Checklist
@@ -58,6 +66,8 @@ flowchart LR
 | [ ] | Notification on `reading.ingested` | `reading.ingested.dlq` |
 | [ ] | Realtime on `alert.created` | `alert.created.dlq` |
 | [ ] | Audit on audit events | `audit.event.recorded.dlq` |
+| [ ] | Notification on `project.settings.updated` | `project.settings.updated.dlq` |
+| [ ] | Audit on Project events | `project.created.dlq`, `project.updated.dlq`, `project.settings.updated.dlq` |
 
 ## Evidence Checklist
 

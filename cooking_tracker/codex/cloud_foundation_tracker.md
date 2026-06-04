@@ -7,7 +7,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary for Claude
 
 - Current focus: Root `k8s/` platform skeleton and Terraform GCP foundation scaffold are restored/validated.
-- Last completed: Identity Access K8s workload manifests added and dev/staging overlays render successfully.
+- Last completed: Project Service K8s workload manifests added and dev/staging overlays render successfully.
 - Blockers / questions: Real cloud provisioning still needs GCP project ID, region, domain/certificate decision, and repo URL for Argo CD.
 
 ## Items
@@ -26,6 +26,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Istio service mesh | IN_PROGRESS | Namespace mesh labels, strict mTLS, and namespace default-deny AuthorizationPolicy created; service-specific allow policies pending. | `../../k8s/base/mesh/` | 2026-06-04 |
 | Namespaces | IN_PROGRESS | Dev and staging namespace manifests created; not applied to a live cluster yet. | `../../k8s/overlays/dev/namespace.yaml`, `../../k8s/overlays/staging/namespace.yaml` | 2026-06-04 |
 | Identity Access workload manifests | IN_PROGRESS | Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, and AuthorizationPolicy created; cloud apply not started. | `../../k8s/base/services/identity-access-service/`, `../../docs/evidence/k8s-identity-access/2026-06-04-identity-kustomize-validation.md` | 2026-06-04 |
+| Project Service workload manifests | IN_PROGRESS | Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, AuthorizationPolicy, REST route, and gRPC port created; cloud apply not started. | `../../k8s/base/services/project-service/`, `../../docs/evidence/k8s-project-service/2026-06-04-project-kustomize-validation.md` | 2026-06-04 |
 | Artifact Registry | IN_PROGRESS | Terraform module scaffold creates service image repositories; cloud apply not started. | `../../infra/modules/artifact-registry/`, `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
 | Terraform remote state | IN_PROGRESS | Bootstrap config and dev `gcs` backend example created; state bucket not applied yet. | `../../infra/bootstrap-state/`, `../../infra/environments/dev/backend.tf.example` | 2026-06-04 |
 
@@ -37,6 +38,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | `kubectl kustomize k8s/overlays/staging` | PASS; evidence in `../../docs/evidence/k8s-foundation/2026-06-04-kustomize-validation.md` | 2026-06-04 |
 | `kubectl kustomize k8s/overlays/dev` after Identity workload | PASS; evidence in `../../docs/evidence/k8s-identity-access/2026-06-04-identity-kustomize-validation.md` | 2026-06-04 |
 | `kubectl kustomize k8s/overlays/staging` after Identity workload | PASS; evidence in `../../docs/evidence/k8s-identity-access/2026-06-04-identity-kustomize-validation.md` | 2026-06-04 |
+| `kubectl kustomize k8s/overlays/dev` after Project workload | PASS; evidence in `../../docs/evidence/k8s-project-service/2026-06-04-project-kustomize-validation.md` | 2026-06-04 |
+| `kubectl kustomize k8s/overlays/staging` after Project workload | PASS; evidence in `../../docs/evidence/k8s-project-service/2026-06-04-project-kustomize-validation.md` | 2026-06-04 |
 | `terraform fmt -check -recursive infra` | PASS; evidence in `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
 | `terraform -chdir=infra/bootstrap-state validate` | PASS; evidence in `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
 | `terraform -chdir=infra/environments/dev validate` | PASS; evidence in `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
@@ -45,6 +48,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 
 | Date | Update |
 |---|---|
+| 2026-06-04 | Added Project Service K8s workload manifests, REST/gRPC ports, NetworkPolicy, Istio AuthorizationPolicy, and updated HTTPRoute to service port `8082`; dev/staging overlays validated. |
 | 2026-06-04 | Added Identity Access Service K8s workload manifests and updated API Gateway HTTPRoute to service port `8081`; dev/staging overlays validated. |
 | 2026-06-04 | Added validated Terraform scaffold for GCS remote state bootstrap, dev network, private GKE, Artifact Registry repositories, and Cloud Armor policy foundation. No cloud resources applied. |
 | 2026-06-04 | Repo flattened to root layout; platform manifests restored under root `k8s` and dev/staging overlays validated. |

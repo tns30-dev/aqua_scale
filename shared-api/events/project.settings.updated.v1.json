@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aquashield.local/events/project.settings.updated.v1.json",
+  "title": "project.settings.updated v1",
+  "type": "object",
+  "required": ["eventId", "eventType", "schemaVersion", "occurredAt", "publishedAt", "source", "correlationId", "projectId", "payload"],
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1 },
+    "eventType": { "const": "project.settings.updated" },
+    "schemaVersion": { "const": "v1" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "publishedAt": { "type": "string", "format": "date-time" },
+    "source": { "type": "string", "minLength": 1 },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "causationId": { "type": "string" },
+    "projectId": { "type": "string", "minLength": 1 },
+    "pondId": { "type": "string" },
+    "payload": {
+      "type": "object",
+      "required": ["updatedParameters"],
+      "properties": {
+        "updatedParameters": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

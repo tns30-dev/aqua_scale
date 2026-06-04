@@ -26,6 +26,9 @@
 | [ ] | `notification.requested` | Notification Service | Notification dispatcher |
 | [ ] | `notification.sent` | Notification dispatcher | Audit |
 | [ ] | `audit.event.recorded` | All services | Audit Service |
+| [ ] | `project.created` | Project Service | Audit |
+| [ ] | `project.updated` | Project Service | Audit |
+| [ ] | `project.settings.updated` | Project Service | Notification, Audit |
 
 ## Future Optional Topics
 

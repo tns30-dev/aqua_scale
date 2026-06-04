@@ -25,9 +25,18 @@ spec:
         - path:
             type: PathPrefix
             value: /api/projects
+        - path:
+            type: PathPrefix
+            value: /api/profile-types
+        - path:
+            type: PathPrefix
+            value: /api/parameter-types
+        - path:
+            type: PathPrefix
+            value: /api/growth-indicators
       backendRefs:
         - name: project-service
-          port: 8080
+          port: 8082
     - matches:
         - path:
             type: PathPrefix

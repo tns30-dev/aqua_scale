@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: project-service-config
+data:
+  SERVER_PORT: "8082"
+  GRPC_PORT: "9092"
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_NAME: "aquashield"
+  DB_USER: "project_svc"
+  DB_POOL_SIZE: "10"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  PUBSUB_PROJECT_ID: "aquashield-dev"
+  PUBSUB_EMULATOR_HOST: ""
+  JWT_ISSUER: "aquashield"
+  JWT_AUDIENCE: "aquashield-api"
+  CACHE_CATALOGUE_TTL: "PT1H"
+  CACHE_SETTINGS_TTL: "PT15M"
+  EVENTS_ENABLED: "true"

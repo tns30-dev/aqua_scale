@@ -31,6 +31,9 @@ Event schemas use a shared envelope shape:
 | `notification.requested` | `notification.requested.v1.json` | Notification | Dispatcher | `notification.requested.dlq` |
 | `notification.sent` | `notification.sent.v1.json` | Dispatcher | Audit | `notification.sent.dlq` |
 | `audit.event.recorded` | `audit.event.recorded.v1.json` | All services | Audit | `audit.event.recorded.dlq` |
+| `project.created` | `project.created.v1.json` | Project | Audit | `project.created.dlq` |
+| `project.updated` | `project.updated.v1.json` | Project | Audit | `project.updated.dlq` |
+| `project.settings.updated` | `project.settings.updated.v1.json` | Project | Notification, Audit | `project.settings.updated.dlq` |
 
 ## Validation
 

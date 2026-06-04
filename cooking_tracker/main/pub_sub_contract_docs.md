@@ -41,6 +41,9 @@
 | [ ] | `notification.requested` | Notification | Dispatcher | `notification.requested.dlq` |
 | [ ] | `notification.sent` | Dispatcher | Audit | `notification.sent.dlq` |
 | [ ] | `audit.event.recorded` | All services | Audit | `audit.event.recorded.dlq` |
+| [ ] | `project.created` | Project | Audit | `project.created.dlq` |
+| [ ] | `project.updated` | Project | Audit | `project.updated.dlq` |
+| [ ] | `project.settings.updated` | Project | Notification, Audit | `project.settings.updated.dlq` |
 
 ## Future Optional Topic Contract
 
@@ -65,6 +68,9 @@ This optional Analytics topic is only for future precomputed aggregate jobs. It 
 | [ ] | `notification.requested` | `shared-api/events/notification.requested.v1.json` |
 | [ ] | `notification.sent` | `shared-api/events/notification.sent.v1.json` |
 | [ ] | `audit.event.recorded` | `shared-api/events/audit.event.recorded.v1.json` |
+| [ ] | `project.created` | `shared-api/events/project.created.v1.json` |
+| [ ] | `project.updated` | `shared-api/events/project.updated.v1.json` |
+| [ ] | `project.settings.updated` | `shared-api/events/project.settings.updated.v1.json` |
 
 ## Operational Checklist
 
