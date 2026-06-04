@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package aquashield.ingestion.v1;
+
+option java_multiple_files = true;
+option java_package = "com.aquashield.api.ingestion.v1";
+
+// Ingestion Service — internal READ contract over the telemetry store.
+// The long-flagged [XSVC] dependency: Analytics (charts), Pond (comparison) and Project
+// (energy dashboard) consume readings through THIS seam instead of touching the store.
+// Backed today by the Postgres demo store; the Bigtable target sits behind the same
+// ReadingStore seam (main/polyglot_persistence.md).
+service IngestionReadService {
+
+  // Time-range query for one pond. Returns rows ordered by measured_at ASC.
+  rpc GetReadings (GetReadingsRequest) returns (GetReadingsResponse);
+}
+
+message GetReadingsRequest {
+  string pond_id = 1;
+  string start = 2;              // ISO-8601 instant (inclusive)
+  string end = 3;                // ISO-8601 instant (inclusive)
+  // optional filter; empty = all parameters present in each row
+  repeated string parameters = 4;
+  // safety valve; server clamps to its maximum (default 50000)
+  int32 limit = 5;
+}
+
+message ReadingRow {
+  string measured_at = 1;        // ISO-8601 instant
+  string project_sensor_id = 2;
+  string port = 3;
+  // parameter_code -> numeric value for this row (non-numeric values omitted)
+  map<string, double> values = 4;
+}
+
+message GetReadingsResponse {
+  string pond_id = 1;
+  repeated ReadingRow rows = 2;
+  bool truncated = 3;            // true when the limit clipped the range
+}

@@ -29,6 +29,10 @@ spring:
 server:
   port: ${SERVER_PORT:8084}
 
+grpc:
+  server:
+    port: ${GRPC_PORT:9095}   # IngestionReadService (GetReadings) — in-cluster only
+
 management:
   endpoints:
     web:

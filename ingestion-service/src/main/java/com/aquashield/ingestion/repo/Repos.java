@@ -18,6 +18,9 @@ public final class Repos {
   public interface SensorReadingRepository extends JpaRepository<SensorReadingRow, UUID> {
     List<SensorReadingRow> findByPondIdOrderByMeasuredAtDesc(UUID pondId);
 
+    List<SensorReadingRow> findByPondIdAndMeasuredAtBetweenOrderByMeasuredAtAsc(
+        UUID pondId, java.time.OffsetDateTime start, java.time.OffsetDateTime end);
+
     long countBySensorMessageId(UUID sensorMessageId);
   }
 }

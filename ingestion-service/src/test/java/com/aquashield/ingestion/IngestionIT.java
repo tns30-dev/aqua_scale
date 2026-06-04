@@ -152,6 +152,8 @@ class IngestionIT {
     registry.add("aquashield.grpc.sensor.in-process-name", () -> DEPS);
     registry.add("aquashield.grpc.project.in-process-name", () -> DEPS);
     registry.add("aquashield.ingestion.max-skew", () -> "PT5M");
+    registry.add("grpc.server.port", () -> -1);
+    registry.add("grpc.server.in-process-name", () -> "ingestion-grpc-it");
   }
 
   static void setupPubsub() throws Exception {
@@ -354,6 +356,44 @@ class IngestionIT {
     p.put(PayloadHmac.SIG_FIELD, PayloadHmac.sign(p, KEY));
     publish(p);
     awaitRejected("Timestamp skew exceeded");
+  }
+
+  // The telemetry READ seam: GetReadings serves what t01 persisted
+  @Test
+  void t08b_getReadings_servesPersistedRows() {
+    var channel = io.grpc.inprocess.InProcessChannelBuilder.forName("ingestion-grpc-it")
+        .usePlaintext().build();
+    try {
+      var stub = com.aquashield.api.ingestion.v1.IngestionReadServiceGrpc.newBlockingStub(channel);
+      var resp = stub.getReadings(com.aquashield.api.ingestion.v1.GetReadingsRequest.newBuilder()
+          .setPondId(POND_ID.toString())
+          .setStart(Instant.now().minusSeconds(3600).toString())
+          .setEnd(Instant.now().toString())
+          .build());
+      assertThat(resp.getRowsCount()).isGreaterThanOrEqualTo(1);
+      var row = resp.getRows(0);
+      assertThat(row.getValuesMap()).containsEntry("ph", 7.2).containsEntry("temperature", 28.5);
+      assertThat(row.getPort()).isEqualTo("A1");
+
+      // parameter filter
+      var filtered = stub.getReadings(com.aquashield.api.ingestion.v1.GetReadingsRequest.newBuilder()
+          .setPondId(POND_ID.toString())
+          .setStart(Instant.now().minusSeconds(3600).toString())
+          .setEnd(Instant.now().toString())
+          .addParameters("ph")
+          .build());
+      assertThat(filtered.getRows(0).getValuesMap()).containsOnlyKeys("ph");
+
+      // invalid args -> INVALID_ARGUMENT
+      org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+          stub.getReadings(com.aquashield.api.ingestion.v1.GetReadingsRequest.newBuilder()
+              .setPondId("not-a-uuid").setStart("now").setEnd("later").build()))
+          .isInstanceOfSatisfying(io.grpc.StatusRuntimeException.class, e ->
+              assertThat(e.getStatus().getCode())
+                  .isEqualTo(io.grpc.Status.Code.INVALID_ARGUMENT));
+    } finally {
+      channel.shutdownNow();
+    }
   }
 
   // Oracle #10 — empty allow-list: port silently skipped, message persisted, no reading
