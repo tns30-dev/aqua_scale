@@ -1,10 +1,12 @@
 import Redis from 'ioredis';
 import { JwtVerifier, KV } from './auth/auth';
 import { createApp } from './app';
+import { setTimezoneOffsetMinutes } from './charts/engine';
 import { loadConfig } from './config';
 import { createGrpcBackends } from './grpc/backends';
 
 const config = loadConfig();
+setTimezoneOffsetMinutes(config.tzOffsetMinutes);
 
 if (!config.jwtPublicKeyPem) {
   // fail fast: without Identity's public key every request would 401 anyway

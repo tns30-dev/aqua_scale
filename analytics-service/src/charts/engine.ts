@@ -44,6 +44,31 @@ const NITROGEN_PARAMS = ['ammonia', 'nitrite', 'nitrate', 'ammonium', 'tan'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+/**
+ * PARITY CORRECTION: the monolith's ACTIVE settings are config/settings/base.py with
+ * TIME_ZONE='Asia/Singapore' (+08:00, no DST) — the config/settings.py 'UTC' file is
+ * shadowed dead code. All bucketing/labels run in local (+08) time.
+ */
+export const DEFAULT_TZ_OFFSET_MINUTES = 480;
+let tzOffsetMinutes = DEFAULT_TZ_OFFSET_MINUTES;
+
+export function setTimezoneOffsetMinutes(minutes: number): void {
+  tzOffsetMinutes = minutes;
+}
+
+export function timezoneOffsetMinutes(): number {
+  return tzOffsetMinutes;
+}
+
+/** ±HH:MM suffix for ISO timestamps in the active zone. */
+export function timezoneSuffix(): string {
+  const sign = tzOffsetMinutes < 0 ? '-' : '+';
+  const abs = Math.abs(tzOffsetMinutes);
+  const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+  const mm = String(abs % 60).padStart(2, '0');
+  return `${sign}${hh}:${mm}`;
+}
+
 /** chart_service.py:200-214 — auto grouping from integer day span (may be negative). */
 export function groupingStrategy(days: number): Grouping {
   if (days <= 3) {
@@ -64,26 +89,28 @@ function pad2(n: number): string {
 }
 
 /**
- * chart_service.py:216-239 (_get_period_key_and_label), UTC (monolith TIME_ZONE=UTC).
+ * chart_service.py:216-239 (_get_period_key_and_label) in LOCAL time (Asia/Singapore;
+ * fixed offset — no DST — so shift-then-UTC-getters is exact).
  * Unknown grouping values fall through to monthly — parity with the else branch.
  */
 export function periodKeyLabel(ts: Date, grouping: Grouping): [string, string] {
-  const y = ts.getUTCFullYear();
-  const mon = MONTHS[ts.getUTCMonth()];
-  const m = pad2(ts.getUTCMonth() + 1);
-  const d = pad2(ts.getUTCDate());
-  const h = pad2(ts.getUTCHours());
+  const local = new Date(ts.getTime() + tzOffsetMinutes * 60_000);
+  const y = local.getUTCFullYear();
+  const mon = MONTHS[local.getUTCMonth()];
+  const m = pad2(local.getUTCMonth() + 1);
+  const d = pad2(local.getUTCDate());
+  const h = pad2(local.getUTCHours());
   if (grouping === 'hourly') {
     // label keeps the reading's RAW minutes (strftime %H:%M on the timestamp)
-    return [`${y}-${m}-${d} ${h}:00`, `${mon} ${d} ${h}:${pad2(ts.getUTCMinutes())}`];
+    return [`${y}-${m}-${d} ${h}:00`, `${mon} ${d} ${h}:${pad2(local.getUTCMinutes())}`];
   }
   if (grouping === 'daily') {
     return [`${y}-${m}-${d}`, `${mon} ${d}`];
   }
   if (grouping === 'weekly') {
     // Monday of the ISO week: timestamp - weekday() days (Python weekday: Mon=0)
-    const weekday = (ts.getUTCDay() + 6) % 7;
-    const ws = new Date(Date.UTC(y, ts.getUTCMonth(), ts.getUTCDate() - weekday));
+    const weekday = (local.getUTCDay() + 6) % 7;
+    const ws = new Date(Date.UTC(y, local.getUTCMonth(), local.getUTCDate() - weekday));
     const wmon = MONTHS[ws.getUTCMonth()];
     const wd = pad2(ws.getUTCDate());
     return [`${ws.getUTCFullYear()}-${pad2(ws.getUTCMonth() + 1)}-${wd}`, `${wmon} ${wd}`];

@@ -23,9 +23,9 @@ function r(iso: string, values: Record<string, number>): Reading {
 
 // Setup A from the parity spec
 const SETUP_A: Reading[] = [
-  r('2026-03-17T08:00:00Z', { temperature: 28.0, ph: 7.8, dissolved_oxygen: 6.2, turbidity: 4.0 }),
-  r('2026-03-17T20:00:00Z', { temperature: 29.0, ph: 7.9, dissolved_oxygen: 6.0, turbidity: 4.4 }),
-  r('2026-03-18T08:00:00Z', { temperature: 27.0, ph: 8.0, turbidity: 3.6 }), // do = null
+  r('2026-03-17T08:00:00+08:00', { temperature: 28.0, ph: 7.8, dissolved_oxygen: 6.2, turbidity: 4.0 }),
+  r('2026-03-17T20:00:00+08:00', { temperature: 29.0, ph: 7.9, dissolved_oxygen: 6.0, turbidity: 4.4 }),
+  r('2026-03-18T08:00:00+08:00', { temperature: 27.0, ph: 8.0, turbidity: 3.6 }), // do = null
 ];
 
 const Y_PARAMS = ['temperature', 'ph', 'dissolved_oxygen'];
@@ -47,12 +47,12 @@ describe('grouping resolution (chart_service.py:200-214)', () => {
     expect(resolveGrouping('weekly', 0)).toBe('weekly');
     expect(resolveGrouping('auto', 10)).toBe('daily');
     expect(resolveGrouping(undefined, 10)).toBe('daily');
-    expect(periodKeyLabel(new Date('2026-03-17T08:15:00Z'), 'bogus')[0]).toBe('2026-03');
+    expect(periodKeyLabel(new Date('2026-03-17T08:15:00+08:00'), 'bogus')[0]).toBe('2026-03');
   });
 });
 
-describe('period keys and labels (chart_service.py:216-239, UTC)', () => {
-  const ts = new Date('2026-03-17T08:15:00Z');
+describe('period keys and labels (chart_service.py:216-239, Asia/Singapore local time)', () => {
+  const ts = new Date('2026-03-17T08:15:00+08:00');
 
   it('hourly key zeroes minutes; label keeps RAW minutes (%H:%M)', () => {
     expect(periodKeyLabel(ts, 'hourly')).toEqual(['2026-03-17 08:00', 'Mar 17 08:15']);
@@ -65,9 +65,9 @@ describe('period keys and labels (chart_service.py:216-239, UTC)', () => {
 
   it('weekly buckets to the Monday of the week (oracle 14)', () => {
     // Tue 2026-03-17 and Thu 2026-03-19 -> Monday 2026-03-16
-    expect(periodKeyLabel(new Date('2026-03-17T08:00:00Z'), 'weekly'))
+    expect(periodKeyLabel(new Date('2026-03-17T08:00:00+08:00'), 'weekly'))
       .toEqual(['2026-03-16', 'Mar 16']);
-    expect(periodKeyLabel(new Date('2026-03-19T23:00:00Z'), 'weekly'))
+    expect(periodKeyLabel(new Date('2026-03-19T23:00:00+08:00'), 'weekly'))
       .toEqual(['2026-03-16', 'Mar 16']);
   });
 });
@@ -113,8 +113,8 @@ describe('singleParameterTrend (oracles 3, 4)', () => {
 describe('nitrogenCycle (oracle 6)', () => {
   it('fixed params; absent params omitted; phosphate NEVER appears', () => {
     const readings = [
-      r('2026-03-17T08:00:00Z', { ammonia: 0.5, phosphate: 1.0 }),
-      r('2026-03-17T12:00:00Z', { ammonia: 0.7, nitrate: 10 }),
+      r('2026-03-17T08:00:00+08:00', { ammonia: 0.5, phosphate: 1.0 }),
+      r('2026-03-17T12:00:00+08:00', { ammonia: 0.7, nitrate: 10 }),
     ];
     expect(buildNitrogenCycle(readings, 'daily')).toEqual([
       { date: '2026-03-17', label: 'Mar 17', ammonia: 0.6, nitrate: 10.0 },
@@ -140,15 +140,15 @@ describe('correlationHeatmap (oracle 9)', () => {
   });
 
   it('params with <=1 sample are excluded; <2 qualifying params -> empty shape', () => {
-    const single = [r('2026-03-17T08:00:00Z', { temperature: 28.0, ph: 7.8 })];
+    const single = [r('2026-03-17T08:00:00+08:00', { temperature: 28.0, ph: 7.8 })];
     expect(buildCorrelationHeatmap(single))
       .toEqual({ parameters: [], parameterLabels: {}, matrix: [] });
   });
 
   it('constant series (zero variance) yields 0.0, not an error', () => {
     const flat = [
-      r('2026-03-17T08:00:00Z', { temperature: 25.0, ph: 7.0 }),
-      r('2026-03-17T09:00:00Z', { temperature: 25.0, ph: 7.5 }),
+      r('2026-03-17T08:00:00+08:00', { temperature: 25.0, ph: 7.0 }),
+      r('2026-03-17T09:00:00+08:00', { temperature: 25.0, ph: 7.5 }),
     ];
     const heatmap = buildCorrelationHeatmap(flat);
     const ti = heatmap.parameters.indexOf('temperature');
@@ -205,8 +205,8 @@ describe('top-level package shapes (oracles 7, 8, 10, 11, 12)', () => {
 
   it('weekly grouping merges Tue+Thu into the Monday bucket (oracle 14)', () => {
     const readings = [
-      r('2026-03-17T08:00:00Z', { temperature: 28.0 }),
-      r('2026-03-19T08:00:00Z', { temperature: 30.0 }),
+      r('2026-03-17T08:00:00+08:00', { temperature: 28.0 }),
+      r('2026-03-19T08:00:00+08:00', { temperature: 30.0 }),
     ];
     expect(buildSingleParameterTrend(readings, 'temperature', 'weekly')).toEqual([
       { date: '2026-03-16', label: 'Mar 16', temperature: 29.0 },

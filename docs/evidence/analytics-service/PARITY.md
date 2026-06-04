@@ -1,5 +1,12 @@
 # Analytics Service — Parity Evidence (historical charts)
 
+> **CORRECTION (2026-06-04, xsvc-readings ship):** the "UTC" timezone claim below was
+> wrong — the monolith's active settings are `config/settings/base.py` with
+> `TIME_ZONE='Asia/Singapore'` (the flat `settings.py` UTC file is shadowed dead code).
+> The engine now buckets/labels in +08 (configurable `TZ_OFFSET_MINUTES`, default 480)
+> and the readings window uses +08 day bounds. All 49 oracles re-anchored. See
+> `docs/evidence/xsvc-readings/SHIP.md`.
+
 Ship date: 2026-06-04. Source of truth: `AquaMonitoringv2/backend/module_chart/services/chart_service.py`
 (engine) + `module_project/views.py:95-143` (contract) + `module_sensor/services.py` (`get_readings`).
 Spec: `cooking_tracker/main/analytics_service.md`.

@@ -10,6 +10,8 @@ export interface Config {
   pondGrpcTarget: string;
   ingestionGrpcTarget: string;
   chartConfigTtlSeconds: number;
+  /** monolith TIME_ZONE = Asia/Singapore (+480); fixed offset, no DST */
+  tzOffsetMinutes: number;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -24,5 +26,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     pondGrpcTarget: env.POND_GRPC_TARGET ?? 'localhost:9094',
     ingestionGrpcTarget: env.INGESTION_GRPC_TARGET ?? 'localhost:9095',
     chartConfigTtlSeconds: Number(env.CHART_CONFIG_CACHE_TTL_SECONDS ?? 60),
+    tzOffsetMinutes: Number(env.TZ_OFFSET_MINUTES ?? 480),
   };
 }

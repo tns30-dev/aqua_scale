@@ -11,7 +11,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { hasProjectAccess, KV } from '../auth/auth';
-import { buildHistoricalChartPackage, ChartConfigEntry, Reading, resolveGrouping } from '../charts/engine';
+import { buildHistoricalChartPackage, ChartConfigEntry, Reading, resolveGrouping, timezoneSuffix } from '../charts/engine';
 import type { Backends } from '../grpc/backends';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -113,11 +113,13 @@ export function chartsRouter(deps: ChartsDeps): Router {
 
       const config = await loadChartConfig(deps, projectId);
 
-      // monolith get_readings window: [start 00:00:00, end 23:59:59.999999], TZ=UTC
+      // monolith get_readings window: [start 00:00:00, end 23:59:59.999999] in the
+      // ACTIVE timezone (Asia/Singapore — config/settings/base.py)
+      const tz = timezoneSuffix();
       let readings: Reading[];
       try {
         readings = await deps.backends.getReadings(
-          pondId, `${startDateStr}T00:00:00Z`, `${endDateStr}T23:59:59.999999Z`);
+          pondId, `${startDateStr}T00:00:00${tz}`, `${endDateStr}T23:59:59.999999${tz}`);
       } catch {
         readings = []; // PARITY: get_readings swallows errors -> [] -> empty package
       }

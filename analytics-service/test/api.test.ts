@@ -93,8 +93,8 @@ function snapshotJson(userId: string, version: number, projectIds: string[]): st
 }
 
 const READINGS: Reading[] = [
-  { timestamp: new Date('2026-03-17T08:00:00Z'), values: { temperature: 28.0, ph: 7.8 } },
-  { timestamp: new Date('2026-03-17T20:00:00Z'), values: { temperature: 29.0, ph: 7.9 } },
+  { timestamp: new Date('2026-03-17T08:00:00+08:00'), values: { temperature: 28.0, ph: 7.8 } },
+  { timestamp: new Date('2026-03-17T20:00:00+08:00'), values: { temperature: 29.0, ph: 7.9 } },
 ];
 
 const CONFIG: ChartConfigEntry[] = [
@@ -209,7 +209,7 @@ describe('chart package responses', () => {
       { date: '2026-03-17', label: 'Mar 17', temperature: 28.5, ph: 7.85 },
     ]);
     expect(backends.lastReadingsArgs).toEqual(
-      [POND, '2026-03-17T00:00:00Z', '2026-03-18T23:59:59.999999Z']);
+      [POND, '2026-03-17T00:00:00+08:00', '2026-03-18T23:59:59.999999+08:00']);
   });
 
   it('no readings -> full 8-key empty package, HTTP 200', async () => {
