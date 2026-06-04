@@ -58,7 +58,7 @@ public final class Entities {
     public long getSeqNo() { return seqNo; }
   }
 
-  @Entity
+  @Entity(name = "SensorReadingRow") // nested class: explicit JPQL entity name
   @Table(name = "sensor_readings")
   public static class SensorReadingRow {
 

@@ -14,9 +14,30 @@ service IngestionReadService {
 
   // Time-range query for one pond. Returns rows ordered by measured_at ASC.
   rpc GetReadings (GetReadingsRequest) returns (GetReadingsResponse);
+
+  // First/last measured_at per pond (Pond comparison options: hasSensorData,
+  // firstReadingAt, lastReadingAt — the monolith's batched Min/Max aggregate).
+  rpc GetReadingWindows (GetReadingWindowsRequest) returns (GetReadingWindowsResponse);
+}
+
+message GetReadingWindowsRequest {
+  repeated string pond_ids = 1;
+}
+
+message ReadingWindow {
+  string pond_id = 1;
+  string first_at = 2;           // ISO-8601 instant (UTC)
+  string last_at = 3;
+}
+
+message GetReadingWindowsResponse {
+  // only ponds that HAVE readings appear
+  repeated ReadingWindow windows = 1;
 }
 
 message GetReadingsRequest {
+  // Selector: exactly one of pond_id / project_id (pond_id wins when both set).
+  // project_id serves project-wide consumers (Project energy dashboard).
   string pond_id = 1;
   string start = 2;              // ISO-8601 instant (inclusive)
   string end = 3;                // ISO-8601 instant (inclusive)
@@ -24,6 +45,7 @@ message GetReadingsRequest {
   repeated string parameters = 4;
   // safety valve; server clamps to its maximum (default 50000)
   int32 limit = 5;
+  string project_id = 6;
 }
 
 message ReadingRow {
@@ -32,10 +54,11 @@ message ReadingRow {
   string port = 3;
   // parameter_code -> numeric value for this row (non-numeric values omitted)
   map<string, double> values = 4;
+  string pond_id = 5;            // row attribution for project-wide queries
 }
 
 message GetReadingsResponse {
-  string pond_id = 1;
+  string pond_id = 1;            // echo of the pond selector (empty for project queries)
   repeated ReadingRow rows = 2;
   bool truncated = 3;            // true when the limit clipped the range
 }

@@ -374,6 +374,35 @@ class IngestionIT {
       var row = resp.getRows(0);
       assertThat(row.getValuesMap()).containsEntry("ph", 7.2).containsEntry("temperature", 28.5);
       assertThat(row.getPort()).isEqualTo("A1");
+      assertThat(row.getPondId()).isEqualTo(POND_ID.toString());
+
+      // project-wide selector (Project energy dashboard path) returns the same rows
+      var byProject = stub.getReadings(com.aquashield.api.ingestion.v1.GetReadingsRequest.newBuilder()
+          .setProjectId(PROJECT_ID.toString())
+          .setStart(Instant.now().minusSeconds(3600).toString())
+          .setEnd(Instant.now().toString())
+          .build());
+      assertThat(byProject.getRowsCount()).isEqualTo(resp.getRowsCount());
+      assertThat(byProject.getRows(0).getPondId()).isEqualTo(POND_ID.toString());
+
+      // no selector at all -> INVALID_ARGUMENT
+      org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+          stub.getReadings(com.aquashield.api.ingestion.v1.GetReadingsRequest.newBuilder()
+              .setStart(Instant.now().toString()).setEnd(Instant.now().toString()).build()))
+          .isInstanceOfSatisfying(io.grpc.StatusRuntimeException.class, e ->
+              assertThat(e.getStatus().getCode())
+                  .isEqualTo(io.grpc.Status.Code.INVALID_ARGUMENT));
+
+      // reading windows: min/max per pond; unknown ponds absent
+      var windows = stub.getReadingWindows(
+          com.aquashield.api.ingestion.v1.GetReadingWindowsRequest.newBuilder()
+              .addPondIds(POND_ID.toString())
+              .addPondIds(UUID.randomUUID().toString())
+              .build());
+      assertThat(windows.getWindowsCount()).isEqualTo(1);
+      assertThat(windows.getWindows(0).getPondId()).isEqualTo(POND_ID.toString());
+      assertThat(Instant.parse(windows.getWindows(0).getFirstAt()))
+          .isBeforeOrEqualTo(Instant.parse(windows.getWindows(0).getLastAt()));
 
       // parameter filter
       var filtered = stub.getReadings(com.aquashield.api.ingestion.v1.GetReadingsRequest.newBuilder()

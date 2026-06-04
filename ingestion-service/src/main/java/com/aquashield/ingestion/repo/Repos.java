@@ -21,6 +21,15 @@ public final class Repos {
     List<SensorReadingRow> findByPondIdAndMeasuredAtBetweenOrderByMeasuredAtAsc(
         UUID pondId, java.time.OffsetDateTime start, java.time.OffsetDateTime end);
 
+    List<SensorReadingRow> findByProjectIdAndMeasuredAtBetweenOrderByMeasuredAtAsc(
+        UUID projectId, java.time.OffsetDateTime start, java.time.OffsetDateTime end);
+
+    /** Batched min/max per pond (pond-comparison options window). */
+    @org.springframework.data.jpa.repository.Query(
+        "select r.pondId, min(r.measuredAt), max(r.measuredAt) from SensorReadingRow r"
+        + " where r.pondId in :pondIds group by r.pondId")
+    List<Object[]> findReadingWindows(java.util.Collection<UUID> pondIds);
+
     long countBySensorMessageId(UUID sensorMessageId);
   }
 }
