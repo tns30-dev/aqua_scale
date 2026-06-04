@@ -94,7 +94,7 @@ kubectl kustomize k8s/overlays/staging >/tmp/aquashield-staging.yaml
 
 ## Next Test
 
-The remote-state bucket, Artifact Registry repositories, GitHub OIDC/WIF deploy identity, and one Git-SHA-tagged image push are already complete. The next test is applying the remaining dev foundation plan after accepting the GKE/network cost surface.
+The remote-state bucket, Artifact Registry repositories, GitHub OIDC/WIF deploy identity, and all nine Git-SHA-tagged service image pushes are already complete. The next test is applying the remaining dev foundation plan after accepting the GKE/network cost surface.
 
 ## Current Status
 
@@ -122,13 +122,22 @@ sensor-service
 
 GitHub OIDC/WIF also succeeded. GitHub Actions can impersonate `aquashield-github-deployer@aerobic-guide-498413-u6.iam.gserviceaccount.com` from `tns30-dev/aqua_scale` on `refs/heads/main` and can push only to the nine service repositories.
 
-The deploy handoff proof run succeeded for `identity-access-service`:
+The first deploy handoff proof run succeeded for `identity-access-service`:
 
 ```text
 Run: https://github.com/tns30-dev/aqua_scale/actions/runs/26970676442
 Image tags: 88db1611e9a4, 88db1611e9a4f91141efe00208c67023406e79e3
 Digest: sha256:b6b9d8d5e25ee1577336bf54528ed820e8a7a401adb684a72496501bf9f3bd07
 GitOps commit: f2c55fb
+```
+
+The all-service image backfill also succeeded:
+
+```text
+Run: https://github.com/tns30-dev/aqua_scale/actions/runs/26971844902
+Image tags: 783c78a16381, 783c78a16381c7ce2056d0aae7b67d29395b1481
+Services: analytics-service, audit-service, identity-access-service, ingestion-service, notification-service, pond-service, project-service, realtime-gateway, sensor-service
+GitOps commit: a0d64a4
 ```
 
 The original full dev plan at `/tmp/aquashield-dev-foundation.tfplan` is now stale because the registry and WIF resources have already been applied. A fresh post-WIF dev foundation plan succeeds and is saved locally at `/tmp/aquashield-dev-foundation-after-wif.tfplan`. It proposes 9 resources: VPC/subnet/NAT/firewall, Cloud Armor policy, and a single-zone private-node GKE cluster/node pool.

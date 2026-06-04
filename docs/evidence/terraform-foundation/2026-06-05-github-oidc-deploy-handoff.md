@@ -111,7 +111,7 @@ Trigger behavior:
 | `terraform -chdir=infra/environments/dev plan -var-file=terraform.tfvars` after WIF apply | PASS; remaining plan is `9 to add, 0 to change, 0 to destroy` for network/GKE/Cloud Armor only |
 | Ruby YAML parse for `deploy-handoff.yml` | PASS |
 
-## GitHub Proof Run
+## Initial GitHub Proof Run
 
 Run:
 
@@ -137,6 +137,40 @@ Jobs:
 | `build-push (identity-access-service)` | PASS; WIF auth, Docker login, build, Trivy image scan, and push completed |
 | `gitops-update` | PASS; dev Kustomize image tag committed back to `main` |
 
+## All-Service Backfill Run
+
+Run:
+
+```text
+https://github.com/tns30-dev/aqua_scale/actions/runs/26971844902
+```
+
+Run summary:
+
+```text
+event: workflow_dispatch
+conclusion: success
+headSha: 783c78a16381c7ce2056d0aae7b67d29395b1481
+createdAt: 2026-06-04T18:35:55Z
+updatedAt: 2026-06-04T18:38:51Z
+```
+
+Jobs:
+
+| Job | Result |
+|---|---|
+| `detect-changes` | PASS |
+| `build-push (analytics-service)` | PASS; WIF auth, Docker login, build, Trivy image scan, and push completed |
+| `build-push (audit-service)` | PASS; WIF auth, Docker login, build, Trivy image scan, and push completed |
+| `build-push (identity-access-service)` | PASS; WIF auth, Docker login, build, Trivy image scan, and push completed |
+| `build-push (ingestion-service)` | PASS; WIF auth, Docker login, build, Trivy image scan, and push completed |
+| `build-push (notification-service)` | PASS; WIF auth, Docker login, build, Trivy image scan, and push completed |
+| `build-push (pond-service)` | PASS; WIF auth, Docker login, build, Trivy image scan, and push completed |
+| `build-push (project-service)` | PASS; WIF auth, Docker login, build, Trivy image scan, and push completed |
+| `build-push (realtime-gateway)` | PASS; WIF auth, Docker login, build, Trivy image scan, and push completed |
+| `build-push (sensor-service)` | PASS; WIF auth, Docker login, build, Trivy image scan, and push completed |
+| `gitops-update` | PASS; dev Kustomize image tags committed back to `main` |
+
 ## Artifact Registry Proof
 
 Command:
@@ -155,21 +189,65 @@ Observed tags:
 | `88db1611e9a4` | `sha256:b6b9d8d5e25ee1577336bf54528ed820e8a7a401adb684a72496501bf9f3bd07` |
 | `88db1611e9a4f91141efe00208c67023406e79e3` | `sha256:b6b9d8d5e25ee1577336bf54528ed820e8a7a401adb684a72496501bf9f3bd07` |
 
+All-service backfill verification:
+
+```text
+analytics-service: 783c78a16381, 783c78a16381c7ce2056d0aae7b67d29395b1481
+audit-service: 783c78a16381, 783c78a16381c7ce2056d0aae7b67d29395b1481
+identity-access-service: 783c78a16381, 783c78a16381c7ce2056d0aae7b67d29395b1481
+ingestion-service: 783c78a16381, 783c78a16381c7ce2056d0aae7b67d29395b1481
+notification-service: 783c78a16381, 783c78a16381c7ce2056d0aae7b67d29395b1481
+pond-service: 783c78a16381, 783c78a16381c7ce2056d0aae7b67d29395b1481
+project-service: 783c78a16381, 783c78a16381c7ce2056d0aae7b67d29395b1481
+realtime-gateway: 783c78a16381, 783c78a16381c7ce2056d0aae7b67d29395b1481
+sensor-service: 783c78a16381, 783c78a16381c7ce2056d0aae7b67d29395b1481
+```
+
 ## GitOps Manifest Proof
 
-Workflow-generated commit:
+Initial workflow-generated commit:
 
 ```text
 f2c55fb chore(gitops): update dev images to 88db1611e9a4 [skip ci]
 ```
 
-Dev overlay now contains:
+All-service workflow-generated commit:
+
+```text
+a0d64a4 chore(gitops): update dev images to 783c78a16381 [skip ci]
+```
+
+Dev overlay now points all nine services to Artifact Registry images with tag `783c78a16381`:
 
 ```yaml
 images:
+- name: analytics-service
+  newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/analytics-service/analytics-service
+  newTag: 783c78a16381
+- name: audit-service
+  newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/audit-service/audit-service
+  newTag: 783c78a16381
 - name: identity-access-service
   newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/identity-access-service/identity-access-service
-  newTag: 88db1611e9a4
+  newTag: 783c78a16381
+- name: ingestion-service
+  newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/ingestion-service/ingestion-service
+  newTag: 783c78a16381
+- name: notification-service
+  newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/notification-service/notification-service
+  newTag: 783c78a16381
+- name: pond-service
+  newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/pond-service/pond-service
+  newTag: 783c78a16381
+- name: project-service
+  newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/project-service/project-service
+  newTag: 783c78a16381
+- name: realtime-gateway
+  newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/realtime-gateway/realtime-gateway
+  newTag: 783c78a16381
+- name: sensor-service
+  newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/sensor-service/sensor-service
+  newTag: 783c78a16381
 ```
 
 Validation:

@@ -7,9 +7,9 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns platform security architecture, cloud/network controls, service-to-service protection, and security evidence.
-- Current state: Application-layer authn/authz is implemented and tested. CI security gates exist. Cloud firewall, mesh evidence, DAST, and final security screenshots are pending.
-- Current test: Existing auth integration tests, Redis snapshot evidence, CI gates, container scans, and local e2e security paths.
-- Next test: Prove GKE/Istio mTLS and AuthorizationPolicy behavior on a live cluster, then run post-deploy DAST against dev/staging.
+- Current state: Application-layer authn/authz is implemented and tested. CI security gates exist, and all nine deployable service images passed Trivy image scan during deploy handoff. Cloud firewall, mesh evidence, DAST, and final security screenshots are pending.
+- Current test: Existing auth integration tests, Redis snapshot evidence, CI gates, all-service container scans, and local e2e security paths.
+- Next test: Apply the GKE/network/Cloud Armor foundation, then prove GKE/Istio mTLS and AuthorizationPolicy behavior on a live cluster before post-deploy DAST.
 
 ## Items
 
@@ -20,7 +20,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Token lifecycle | DONE | Login, refresh rotation, reuse detection, logout, and jti revocation are implemented and tested. MFA remains optional/deferred. | `../../docs/evidence/identity-access/` | 2026-06-04 |
 | Three-layer firewall model | IN_PROGRESS | Network and Cloud Armor Terraform scaffolds exist. Live VPC/firewall/LB policy evidence pending. | `../../infra/modules/network/`, `../../infra/modules/security/`, `../main/network_security.md` | 2026-06-05 |
 | Service-to-service protection | IN_PROGRESS | K8s service accounts, NetworkPolicy, strict mTLS manifests, and AuthorizationPolicy skeletons exist. Live mesh evidence pending. | `../../k8s/base/service-accounts.yaml`, `../../k8s/base/mesh/`, `../../k8s/base/services/` | 2026-06-05 |
-| Security evidence | IN_PROGRESS | CI gates include Gitleaks, Semgrep, Trivy fs/image scans, and CycloneDX SBOM. DAST and cloud security screenshots are pending. | `../../docs/evidence/ci/2026-06-04-ci-skeleton-and-dependency-hardening.txt` | 2026-06-04 |
+| Security evidence | IN_PROGRESS | CI gates include Gitleaks, Semgrep, Trivy fs/image scans, CycloneDX SBOM, and all-service deploy-handoff image scans. DAST and cloud security screenshots are pending. | `../../docs/evidence/ci/2026-06-04-ci-skeleton-and-dependency-hardening.txt`, `../../docs/evidence/terraform-foundation/2026-06-05-github-oidc-deploy-handoff.md` | 2026-06-05 |
 
 ## Validation
 
@@ -29,6 +29,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Authn/authz cross-service smoke | PASS in evidence. | 2026-06-04 |
 | CI security gates | PASS in CI evidence after dependency hardening. | 2026-06-04 |
 | Tracker ownership rewrite | PASS; security is Codex-owned. | 2026-06-05 |
+| All-service image scan | PASS; deploy-handoff run `26971844902` scanned all nine built images before push. | 2026-06-05 |
 
 ## Log
 
@@ -37,3 +38,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-04 | Authn/authz workflow, Redis snapshot, token lifecycle, WebSocket security, analytics auth port, and audit trail evidence landed through service work. |
 | 2026-06-04 | CI security gates found and drove remediation of real Tomcat/Spring Security critical CVEs. |
 | 2026-06-05 | Rephrased security tracker under Codex ownership; cloud security proof remains the next major step. |
+| 2026-06-05 | All nine deployable images passed Trivy image scan during Artifact Registry backfill; live Cloud Armor/Istio/DAST evidence remains next. |
