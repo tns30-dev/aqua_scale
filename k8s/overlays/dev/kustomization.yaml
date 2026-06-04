@@ -4,10 +4,14 @@ kind: Kustomization
 namespace: aquashield-dev
 
 resources:
-  - namespace.yaml
-  - ../../base
+- namespace.yaml
+- ../../base
 
 labels:
-  - pairs:
-      app.kubernetes.io/environment: dev
-    includeSelectors: true
+- includeSelectors: true
+  pairs:
+    app.kubernetes.io/environment: dev
+images:
+- name: identity-access-service
+  newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/identity-access-service/identity-access-service
+  newTag: 88db1611e9a4
