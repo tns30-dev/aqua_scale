@@ -1,0 +1,58 @@
+# JMeter load/stress lane — DELIBERATELY separated from daily CI (spec: main/ci.md):
+# slow, resource-hungry, and must target a DEPLOYED environment, never CI containers.
+# Triggers: the dedicated performance-test branch, or manual dispatch with a target URL.
+
+name: perf
+
+on:
+  push:
+    branches: [performance-test]
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Target base URL (deployed dev/staging)
+        required: true
+      users:
+        description: Concurrent users
+        default: '50'
+      duration:
+        description: Test duration seconds
+        default: '120'
+
+permissions:
+  contents: read
+
+jobs:
+  jmeter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check test plans exist
+        id: plans
+        run: |
+          if ls jmeter/*.jmx >/dev/null 2>&1; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No JMeter plans in jmeter/ yet — lane is wired, plans pending (tracked)."
+          fi
+      - name: Run JMeter
+        if: steps.plans.outputs.found == 'true'
+        run: |
+          sudo apt-get update -q && sudo apt-get install -yq jmeter
+          mkdir -p results
+          for plan in jmeter/*.jmx; do
+            name=$(basename "$plan" .jmx)
+            jmeter -n -t "$plan" \
+              -JbaseUrl="${{ inputs.base_url }}" \
+              -Jusers="${{ inputs.users || '50' }}" \
+              -Jduration="${{ inputs.duration || '120' }}" \
+              -l "results/${name}.jtl" -e -o "results/${name}-report"
+          done
+      - name: Upload performance evidence
+        if: steps.plans.outputs.found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: jmeter-results
+          path: results/
+          retention-days: 30

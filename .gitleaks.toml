@@ -1,0 +1,17 @@
+# Gitleaks config — allowlist for KNOWN test fixtures (never real credentials).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test vectors and local-dev placeholders"
+paths = [
+  # cross-language HMAC parity vector (a published test signature, not a secret)
+  '''common/src/test/java/com/aquashield/common/security/PayloadHmacTest\.java''',
+  # evidence transcripts may quote test tokens/signatures
+  '''docs/evidence/.*''',
+]
+regexes = [
+  # local-dev compose placeholders (documented as local-only)
+  '''aquashield_local''',
+  '''_local["']?$''',
+]

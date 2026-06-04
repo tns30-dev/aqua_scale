@@ -1,0 +1,217 @@
+# AquaShield path-aware CI (spec: cooking_tracker/main/ci.md)
+# Monorepo discipline: a commit touching only one service builds/tests/scans ONLY that
+# service; shared modules (common/, shared-api/, root pom) fan out to every Java service.
+# Image PUSH + GitOps handoff are a separate workflow (needs Artifact Registry + OIDC/WIF
+# from the cloud foundation). TODO(security): pin actions to commit SHAs before cloud go-live.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      java-matrix: ${{ steps.matrix.outputs.java }}
+      any-java: ${{ steps.matrix.outputs.any }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            shared:
+              - 'common/**'
+              - 'shared-api/**'
+              - 'pom.xml'
+            identity-access-service: ['identity-access-service/**']
+            project-service: ['project-service/**']
+            sensor-service: ['sensor-service/**']
+            ingestion-service: ['ingestion-service/**']
+            notification-service: ['notification-service/**']
+            realtime-gateway: ['realtime-gateway/**']
+      - id: matrix
+        name: Compose changed-service matrix
+        env:
+          SHARED: ${{ steps.filter.outputs.shared }}
+          CHANGES: ${{ toJSON(steps.filter.outputs) }}
+        run: |
+          SERVICES=(identity-access-service project-service sensor-service ingestion-service notification-service realtime-gateway)
+          SELECTED=()
+          for s in "${SERVICES[@]}"; do
+            flag=$(echo "$CHANGES" | jq -r --arg k "$s" '.[$k] // "false"')
+            if [ "$SHARED" = "true" ] || [ "$flag" = "true" ]; then
+              SELECTED+=("$s")
+            fi
+          done
+          if [ ${#SELECTED[@]} -eq 0 ]; then
+            echo "java=[]" >> "$GITHUB_OUTPUT"
+            echo "any=false" >> "$GITHUB_OUTPUT"
+          else
+            printf -v JOINED '"%s",' "${SELECTED[@]}"
+            echo "java=[${JOINED%,}]" >> "$GITHUB_OUTPUT"
+            echo "any=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Selected services: ${SELECTED[*]:-none}"
+
+  # ---------- build + unit + integration tests (Testcontainers) per changed service ----------
+  java-verify:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any-java == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.detect-changes.outputs.java-matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Verify ${{ matrix.service }} (unit + Testcontainers ITs)
+        run: mvn -B -ntp -pl ${{ matrix.service }} -am verify
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ matrix.service }}
+          path: |
+            ${{ matrix.service }}/target/surefire-reports/
+            ${{ matrix.service }}/target/failsafe-reports/
+          retention-days: 14
+
+  # ---------- security gates (repo-wide; always run — they ARE the evidence) ----------
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semgrep (java + security audit rules)
+        run: |
+          pip install --quiet semgrep
+          semgrep scan --config p/java --config p/security-audit \
+            --error --json --output semgrep-report.json || SEMGREP_EXIT=$?
+          semgrep scan --config p/java --config p/security-audit --text || true
+          exit ${SEMGREP_EXIT:-0}
+      - name: Upload SAST report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sast-semgrep-report
+          path: semgrep-report.json
+          retention-days: 30
+
+  sca-and-secrets-fs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy filesystem scan (dependencies + config + secrets)
+        # gate on CRITICAL (zero after the Boot 3.5.14 + tomcat 10.1.55 hardening);
+        # HIGH is reported in the json artifact — ratchet the gate once HIGHs are burned down
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          format: table
+      - name: Trivy report artifact (json)
+        if: always()
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: '0'
+          format: json
+          output: trivy-fs-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sca-trivy-fs-report
+          path: trivy-fs-report.json
+          retention-days: 30
+
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: CycloneDX aggregate SBOM
+        run: mvn -B -ntp -DskipTests org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: target/bom.*
+          retention-days: 30
+
+  # ---------- container build + image scan per changed service (no push yet) ----------
+  container:
+    needs: [detect-changes, java-verify]
+    if: needs.detect-changes.outputs.any-java == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.detect-changes.outputs.java-matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -f ${{ matrix.service }}/Dockerfile -t ${{ matrix.service }}:${{ github.sha }} .
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: ${{ matrix.service }}:${{ github.sha }}
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+      # push to Artifact Registry + Kustomize tag bump land in deploy-handoff.yml
+      # once the cloud foundation (registry + OIDC/WIF) exists.
+
+  ci-summary:
+    needs: [detect-changes, java-verify, secret-scan, sast, sca-and-secrets-fs, sbom, container]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evidence summary
+        env:
+          MATRIX: ${{ needs.detect-changes.outputs.java-matrix }}
+        run: |
+          {
+            echo "## CI evidence summary"
+            echo "- changed services: $MATRIX"
+            echo "- java-verify: ${{ needs.java-verify.result }}"
+            echo "- secret-scan (gitleaks): ${{ needs.secret-scan.result }}"
+            echo "- sast (semgrep): ${{ needs.sast.result }}"
+            echo "- sca/fs (trivy): ${{ needs.sca-and-secrets-fs.result }}"
+            echo "- sbom (cyclonedx): ${{ needs.sbom.result }}"
+            echo "- container build+scan: ${{ needs.container.result }}"
+          } >> "$GITHUB_STEP_SUMMARY"

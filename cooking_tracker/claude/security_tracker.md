@@ -18,7 +18,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔
 | Token lifecycle (login, refresh rotation, logout, revocation, MFA-optional) | ✅ | Login/refresh-rotation/reuse-detection/logout/jti-revocation done + tested. MFA = optional state, deferred by design | same file | 2026-06-04 |
 | Three-layer firewall model (internet→web→app→data) | ⬜ | — | — | — |
 | Service-to-service protection (SA identity, Istio mTLS, AuthorizationPolicy) | ⬜ | — | — | — |
-| Security evidence (SAST, SCA, secret scan, container scan, DAST reports) | ⬜ | — | — | — |
+| Security evidence (SAST, SCA, secret scan, container scan, DAST reports) | 🟨 | CI gates wired (Gitleaks, Semgrep p/java+security-audit, Trivy fs CRITICAL gate + HIGH report, Trivy image scan, CycloneDX SBOM artifacts). FIRST CATCH already evidenced: tomcat/spring-security CRITICAL CVEs found by the local dry-run → dependency hardening (Boot 3.5.14 + tomcat 10.1.55) → 0 CRITICALs. DAST pending deployment | `docs/evidence/ci/2026-06-04-ci-skeleton-and-dependency-hardening.txt` | 2026-06-04 |
 
 ## Log
 
@@ -29,3 +29,4 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔
 | 2026-06-04 | Authn/Authz workflow item ✅ — designed hot path proven across two services (cross-service smoke). |
 | 2026-06-04 | Refresh: auth model consumed by all REST services; IoT HMAC chain (cross-language vectors, device-key handling, skew, reject discipline) live in sensor+ingestion. CI security gates next. |
 | 2026-06-04 | WebSocket security model live + tested (realtime-gateway): one-time token consume, replay AUTH_FAILED, fail-closed mint, origin check, auth timeout, scoped fanout. |
+| 2026-06-04 | CI security gates live + first real catch (tomcat CVE-2026-41293/43512/43515, spring-security CVE-2025-41232) remediated via dependency hardening. |
