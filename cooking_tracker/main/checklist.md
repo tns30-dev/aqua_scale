@@ -81,7 +81,7 @@
 | [x] | Claude | Notification Service | Java alert and notification event flow | `notification_service.md` |
 | [x] | Claude | Realtime Gateway | Java WebFlux WSS gateway with Redis fanout | `websocket.md` |
 | [x] | Claude | Analytics Service | TypeScript/Express chart API with Bigtable/BigQuery read paths | `analytics_service.md` |
-| [ ] | Claude | Audit Service | Java append-only audit consumer and query path | `audit_service.md` |
+| [x] | Claude | Audit Service | Java append-only audit consumer and query path | `audit_service.md` |
 | [ ] | Claude | ML placeholder | Future add-on placeholder | `ml.md` |
 | [ ] | Claude | LLM placeholder | Future add-on placeholder | `llm.md` |
 
