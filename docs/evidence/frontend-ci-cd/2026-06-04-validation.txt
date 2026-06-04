@@ -38,3 +38,12 @@ Local validation (2026-06-04):
 Related fix shipped separately (62d8383): CI's container matrix caught that all service
 Dockerfiles broke once the root pom declared 7 modules ("Child module does not exist") —
 uniform COPY . . + root .dockerignore; verified with a local image build.
+
+=== GITHUB RUN VERDICTS (2026-06-04) ===
+frontend-ci-cd first run (1974684): SUCCESS — lint + 100 vitest + build green on the
+  runner; preview/hosting deploy jobs SKIPPED CLEANLY with the configure-me notice
+  (no Firebase credentials yet) — exactly the designed pre-credentials behavior.
+backend ci on the same frontend-only push: SUCCESS with ZERO services selected —
+  path isolation between the two pipelines proven live.
+Dockerfile-fix full matrix (rerun of 62d8383 after a concurrency cancel): SUCCESS —
+  every container build+scan job green. The multi-module COPY fix is CI-validated.
