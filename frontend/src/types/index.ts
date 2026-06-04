@@ -36,9 +36,8 @@ export interface User {
   featureActionAssigned: FeatureActionAssigned;
 }
 
-/** Session bootstrap payload — identical shape from POST /api/auth/login
- * and GET /api/auth/me. JWTs live in HttpOnly cookies; the body carries
- * identity (`user`) and the accessible projects list only.
+/** Session bootstrap payload from GET /api/auth/me. The body carries identity
+ * (`user`) and the accessible projects list only.
  *
  * Single canonical session envelope: changing either half (identity vs.
  * project access) means swapping one nested object, not touching five
@@ -48,13 +47,122 @@ export interface MeResponse {
   projects: Project[];
 }
 
-export type LoginResponse = MeResponse;
+export interface LoginResponse extends MeResponse {
+  token: string;
+  refreshToken: string;
+}
+
+export interface RefreshResponse {
+  token: string;
+  refreshToken: string;
+}
 
 export interface Project {
   projectId: string;
   name: string;
   profileTypeId: string;
   profileType: Theme;
+}
+
+// ---------------------------------------------------------------------------
+// Project Service admin/config contracts
+// ---------------------------------------------------------------------------
+
+export interface ProjectParameterSetting {
+  parameter_code: string;
+  parameter_name: string;
+  parameter_unit: string;
+  min_threshold: number | null;
+  max_threshold: number | null;
+  is_key_parameter: boolean;
+}
+
+export interface PutProjectParameterSetting {
+  parameter_code: string;
+  min_threshold?: number | null;
+  max_threshold?: number | null;
+  is_key_parameter?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Sensor Service admin contracts
+// ---------------------------------------------------------------------------
+
+export interface SensorType {
+  sensor_type_id: string;
+  name: string;
+  model_number: string | null;
+  parameter_ids: string[];
+  parameter_count: number;
+  manufacturer: string | null;
+  description: string | null;
+  is_active: boolean;
+}
+
+export interface CreateSensorTypeRequest {
+  name: string;
+  model_number?: string;
+  parameter_ids: string[];
+  manufacturer?: string;
+  description?: string;
+}
+
+export interface IoTDevice {
+  iot_device_id: string;
+  device_code: string;
+  device_name: string;
+  status: string;
+  config: Record<string, unknown> | null;
+  is_active: boolean;
+  has_device_key: boolean;
+}
+
+export interface RegisterIoTDeviceRequest {
+  device_code: string;
+  device_name: string;
+  config?: Record<string, unknown>;
+  device_key?: string;
+}
+
+export interface UpdateIoTDeviceRequest {
+  device_name?: string;
+  status?: string;
+  config?: Record<string, unknown>;
+  is_active?: boolean;
+  device_key?: string;
+}
+
+export interface ProjectSensor {
+  project_sensor_id: string;
+  project_id: string;
+  pond_id: string;
+  sensor_type_id: string;
+  sensor_type_name: string;
+  iot_device_id: string | null;
+  device_code: string | null;
+  port: string | null;
+  serial_number: string;
+  status: string;
+  installed_at: string | null;
+  sensor_location: string | null;
+}
+
+export interface CreateProjectSensorRequest {
+  pond_id: string;
+  sensor_type_id: string;
+  device_code?: string;
+  port?: string;
+  serial_number: string;
+  installed_at?: string;
+  sensor_location?: string;
+}
+
+export interface UpdateProjectSensorRequest {
+  device_code?: string;
+  port?: string;
+  status?: string;
+  installed_at?: string;
+  sensor_location?: string;
 }
 
 // Ponds

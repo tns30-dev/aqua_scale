@@ -5,8 +5,9 @@ import { Button, Input, Card, Toast, useTheme } from "../design-system";
 import { useAuth } from "../hooks/useAuth";
 
 /**
- * Part 2 login flow:
- *   submit → api.login() stores token + user + projects in localStorage
+ * Login flow:
+ *   submit → api.login() stores bearer tokens in sessionStorage
+ *   → hydrate SessionContext from the response
  *   → set theme from projects[0]
  *   → navigate to /overview (or ?next= if present)
  *

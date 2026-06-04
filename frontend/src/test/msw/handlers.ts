@@ -23,6 +23,21 @@ export const handlers = [
   // --- Auth / Session ---
   http.get("*/api/csrf", () => HttpResponse.json({ ok: true })),
 
+  http.post("*/api/auth/login", () =>
+    HttpResponse.json({
+      token: "test-access-token",
+      refreshToken: "test-refresh-token",
+      ...mockMeResponse,
+    }),
+  ),
+
+  http.post("*/api/auth/refresh", () =>
+    HttpResponse.json({
+      token: "test-access-token-refreshed",
+      refreshToken: "test-refresh-token-refreshed",
+    }),
+  ),
+
   http.get("*/api/auth/me", () => HttpResponse.json(mockMeResponse)),
 
   // --- Access Definitions (Phase 4 endpoint renames) ---
@@ -30,6 +45,7 @@ export const handlers = [
   http.get("*/api/action-controls", () => HttpResponse.json(mockActionControls)),
 
   // --- Projects (admin-only — full system list) ---
+  http.get("*/api/projects/all", () => HttpResponse.json(mockProjects)),
   http.get("*/api/projects/all/", () => HttpResponse.json(mockProjects)),
 
   // --- Users ---
@@ -63,7 +79,12 @@ export const handlers = [
 
   // --- User Access (Phase 4: role removed from this endpoint) ---
   http.get("*/api/users/:userId/access", ({ params }) =>
-    HttpResponse.json({ ...mockUserAccess, userId: params.userId as string }),
+    HttpResponse.json({
+      role: mockUserAccess.role,
+      featureActionAssigned: mockUserAccess.featureActionAssigned,
+      projectIds: mockUserAccess.projects.map((project) => project.projectId),
+      userId: params.userId as string,
+    }),
   ),
 
   // PUT carries projectIds + featureActionAssigned only. Role is silently
@@ -71,24 +92,22 @@ export const handlers = [
   http.put("*/api/users/:userId/access", async ({ request, params }) => {
     const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({
-      ...mockUserAccess,
+      role: mockUserAccess.role,
+      featureActionAssigned: mockUserAccess.featureActionAssigned,
+      projectIds: mockUserAccess.projects.map((project) => project.projectId),
       userId: params.userId as string,
       ...(body.featureActionAssigned
         ? { featureActionAssigned: body.featureActionAssigned }
         : {}),
       ...(Array.isArray(body.projectIds)
-        ? {
-            projects: mockProjects.filter((p) =>
-              (body.projectIds as string[]).includes(p.projectId),
-            ),
-          }
+        ? { projectIds: body.projectIds }
         : {}),
     });
   }),
 
-  // --- Admin Profile (Phase 4 new endpoint) ---
+  // --- Admin Profile ---
   // partial=True on the BE. Returns the updated UserListItem shape.
-  http.put("*/api/users/:userId/profile", async ({ request, params }) => {
+  http.patch("*/api/users/:userId", async ({ request, params }) => {
     const body = (await request.json()) as Record<string, unknown>;
     const target =
       mockUsers.find((u) => u.userId === params.userId) ?? mockUsers[0];

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { http, HttpResponse } from "msw";
 
 import { apiService } from "../../services/api.service";
+import { setAuthTokens } from "../../utils/auth";
 import { server } from "../msw/server";
 import {
   ADMIN_SENTINEL,
@@ -14,9 +15,8 @@ import {
   mockUsers,
 } from "../msw/data";
 
-// HttpOnly cookie auth — JS only needs to read csrftoken for the interceptor.
 beforeEach(() => {
-  document.cookie = "csrftoken=test-csrf-token; path=/";
+  sessionStorage.clear();
 });
 
 describe("apiService — session bootstrap", () => {
@@ -145,8 +145,8 @@ describe("apiService — user access (admin, Phase 4 split)", () => {
   });
 });
 
-describe("apiService — admin profile endpoint (Phase 4 new)", () => {
-  it("updateUserProfile hits PUT /api/users/<id>/profile and returns the updated user", async () => {
+describe("apiService — admin profile endpoint", () => {
+  it("updateUserProfile hits PATCH /api/users/<id> and returns the updated user", async () => {
     const result = await apiService.updateUserProfile("user-2", {
       firstName: "Renamed",
       role: "lab_lead",
@@ -163,12 +163,13 @@ describe("apiService — admin profile endpoint (Phase 4 new)", () => {
   });
 });
 
-describe("apiService — CSRF interceptor", () => {
-  it("attaches X-CSRFToken header on POST (unsafe method)", async () => {
+describe("apiService — bearer auth interceptor", () => {
+  it("attaches Authorization header on POST when an access token exists", async () => {
+    setAuthTokens("test-access-token", "test-refresh-token");
     let captured: string | null = null;
     server.use(
       http.post("*/api/users", ({ request }) => {
-        captured = request.headers.get("X-CSRFToken");
+        captured = request.headers.get("Authorization");
         return HttpResponse.json(mockOnboardResponse, { status: 201 });
       }),
     );
@@ -180,28 +181,29 @@ describe("apiService — CSRF interceptor", () => {
       role: "user",
       projectIds: [],
     });
-    expect(captured).toBe("test-csrf-token");
+    expect(captured).toBe("Bearer test-access-token");
   });
 
-  it("attaches X-CSRFToken header on PUT (unsafe method)", async () => {
+  it("attaches Authorization header on PUT when an access token exists", async () => {
+    setAuthTokens("test-access-token", "test-refresh-token");
     let captured: string | null = null;
     server.use(
       http.put("*/api/users/:userId/access", ({ request }) => {
-        captured = request.headers.get("X-CSRFToken");
+        captured = request.headers.get("Authorization");
         return HttpResponse.json(mockUserAccess);
       }),
     );
     await apiService.updateUserAccess("user-2", {
       featureActionAssigned: [],
     });
-    expect(captured).toBe("test-csrf-token");
+    expect(captured).toBe("Bearer test-access-token");
   });
 
-  it("does NOT attach X-CSRFToken on GET (safe method)", async () => {
+  it("does not attach Authorization when no access token exists", async () => {
     let captured: string | null = "sentinel";
     server.use(
       http.get("*/api/users", ({ request }) => {
-        captured = request.headers.get("X-CSRFToken");
+        captured = request.headers.get("Authorization");
         return HttpResponse.json(mockUsers);
       }),
     );

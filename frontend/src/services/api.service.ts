@@ -3,13 +3,17 @@ import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { config } from '../config/env';
 import {
   clearAuth,
+  getAccessToken,
+  getRefreshToken,
   setCurrentProfileType,
   setCurrentProjectId,
+  setAuthTokens,
 } from '../utils/auth';
 import type {
   LoginCredentials,
   LoginResponse,
   MeResponse,
+  RefreshResponse,
   Pond,
   Alert,
   Project,
@@ -29,20 +33,19 @@ import type {
   PondComparisonResponse,
   Treatment,
   PondTreatment,
+  ProjectParameterSetting,
+  PutProjectParameterSetting,
+  SensorType,
+  CreateSensorTypeRequest,
+  IoTDevice,
+  RegisterIoTDeviceRequest,
+  UpdateIoTDeviceRequest,
+  ProjectSensor,
+  CreateProjectSensorRequest,
+  UpdateProjectSensorRequest,
 } from '../types';
 import type { ProfileConfig } from '../types/profile';
 import type { EnergyDashboardData, GroupBy } from '../components/energy/types';
-
-// Read a non-HttpOnly cookie by name. Used to grab the `csrftoken` cookie
-function readCookie(name: string): string | null {
-  const escaped = name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-  const match = document.cookie.match(
-    new RegExp('(?:^|;\\s*)' + escaped + '=([^;]*)'),
-  );
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 // URLs the response interceptor must NOT refresh-and-retry:
 //   /auth/refresh → would loop on its own 401.
@@ -64,6 +67,47 @@ interface ProfileTypeApiRow {
   key_parameter_indicators: string[] | null;
   key_growth_indicators: string[] | null;
   theme: { primary: string; gradient: { from: string; to: string } };
+}
+
+interface SessionProjectRef {
+  projectId: string;
+  name?: string | null;
+  profileTypeId?: string | null;
+  profileType?: string | null;
+}
+
+interface MeApiResponse {
+  user: MeResponse['user'];
+  projects: SessionProjectRef[];
+}
+
+interface LoginApiResponse extends MeApiResponse {
+  token: string;
+  refreshToken: string;
+}
+
+interface ProjectDtoApiRow {
+  project_id: string;
+  name: string;
+  profile_type?: ProfileTypeApiRow | null;
+}
+
+interface ProjectAdminApiRow {
+  projectId: string;
+  name: string;
+  profileTypeId: string;
+  profileType: string;
+}
+
+interface UserAccessApiResponse {
+  userId?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+  featureActionAssigned: UserAccess['featureActionAssigned'];
+  projectIds?: string[];
+  projects?: Project[];
 }
 
 type HistoricalDataResponse = Record<string, unknown>;
@@ -97,6 +141,55 @@ function mapProfileTypeDTO(raw: ProfileTypeApiRow): ProfileConfig {
   };
 }
 
+function normalizeSessionProject(raw: SessionProjectRef): Project {
+  return {
+    projectId: raw.projectId,
+    name: raw.name ?? `Project ${raw.projectId.slice(0, 8)}`,
+    profileTypeId: raw.profileTypeId ?? '',
+    profileType: raw.profileType ?? '',
+  };
+}
+
+function mapProjectDto(raw: ProjectDtoApiRow): Project {
+  return {
+    projectId: raw.project_id,
+    name: raw.name,
+    profileTypeId: raw.profile_type?.profile_type_id ?? '',
+    profileType: raw.profile_type?.code ?? '',
+  };
+}
+
+function mapProjectAdminItem(raw: ProjectAdminApiRow): Project {
+  return {
+    projectId: raw.projectId,
+    name: raw.name,
+    profileTypeId: raw.profileTypeId,
+    profileType: raw.profileType,
+  };
+}
+
+function accessProjectFromId(projectId: string): Project {
+  return {
+    projectId,
+    name: `Project ${projectId.slice(0, 8)}`,
+    profileTypeId: '',
+    profileType: '',
+  };
+}
+
+function userFromSession(payload: MeResponse): UserListItem {
+  const [firstName = payload.user.username, ...rest] = payload.user.username.split(' ');
+  return {
+    userId: payload.user.userId,
+    email: '',
+    firstName,
+    lastName: rest.join(' '),
+    mobileNumber: null,
+    role: payload.user.role,
+    createdAt: '',
+  };
+}
+
 class ApiService {
   private api: AxiosInstance;
   // In-flight refresh promise. Concurrent 401s share this so only ONE POST
@@ -109,35 +202,16 @@ class ApiService {
       headers: {
         'Content-Type': 'application/json',
       },
-      // Send the HttpOnly access/refresh cookies + the csrftoken cookie on
-      // every request. Required for cookie-based auth.
-      withCredentials: true,
     });
 
-    // Request interceptor — attach X-CSRFToken on unsafe methods. The token
-    // mirrors the `csrftoken` cookie set by GET /api/csrf; Django's
-    // CsrfViewMiddleware compares the two and 403s on mismatch.
     this.api.interceptors.request.use((cfg) => {
-      const method = cfg.method?.toUpperCase();
-      if (method && UNSAFE_METHODS.has(method)) {
-        const csrf = readCookie('csrftoken');
-        if (csrf) {
-          cfg.headers['X-CSRFToken'] = csrf;
-        }
+      const token = getAccessToken();
+      if (token) {
+        cfg.headers.Authorization = `Bearer ${token}`;
       }
       return cfg;
     });
 
-    // Response interceptor — on 401 from any normal request, transparently
-    // POST /api/auth/refresh (which sets a new access_token cookie) and
-    // retry the original request.
-    // We deliberately do NOT trigger a full-page reload on 401:
-    //   1. A reload remounts SessionProvider, refires boot probes, and
-    //      (combined with the boot/login race) can lock the user out of the
-    //      login page itself.
-    //   2. The session-aware redirect lives in <ProtectedRoute>: as soon as
-    //      `useSession().user` becomes null and loading is false, it does
-    //      an in-app `<Navigate to="/login" />`. That's the right layer.
     this.api.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
@@ -171,9 +245,15 @@ class ApiService {
    * callers await the same in-flight promise; the slot clears when settled. */
   private ensureRefresh(): Promise<void> {
     if (!this.refreshPromise) {
+      const refreshToken = getRefreshToken();
+      if (!refreshToken) {
+        return Promise.reject(new Error('No refresh token available'));
+      }
       this.refreshPromise = this.api
-        .post('/api/auth/refresh')
-        .then(() => undefined)
+        .post<RefreshResponse>('/api/auth/refresh', { refreshToken })
+        .then((response) => {
+          setAuthTokens(response.data.token, response.data.refreshToken);
+        })
         .finally(() => {
           this.refreshPromise = null;
         });
@@ -181,21 +261,53 @@ class ApiService {
     return this.refreshPromise;
   }
 
-  /** Bootstrap the csrftoken cookie. Call once on app boot. Idempotent. */
+  /** Backward-compatible no-op. Java Identity uses bearer auth, not CSRF cookies. */
   async bootstrapCsrf(): Promise<void> {
-    await this.api.get('/api/csrf');
+    return undefined;
+  }
+
+  private async enrichSessionProjects(payload: MeApiResponse): Promise<MeResponse> {
+    const normalizedProjects = payload.projects.map(normalizeSessionProject);
+    const needsProjectDetails = normalizedProjects.some(
+      (project) => !project.profileType || !project.profileTypeId,
+    );
+    if (!needsProjectDetails) {
+      return { user: payload.user, projects: normalizedProjects };
+    }
+
+    try {
+      const projects = await this.getProjects();
+      if (projects.length === 0) {
+        return { user: payload.user, projects: normalizedProjects };
+      }
+      const byId = new Map(projects.map((project) => [project.projectId, project]));
+      return {
+        user: payload.user,
+        projects: normalizedProjects.map((project) => byId.get(project.projectId) ?? project),
+      };
+    } catch {
+      return { user: payload.user, projects: normalizedProjects };
+    }
+  }
+
+  private async normalizeLogin(payload: LoginApiResponse): Promise<LoginResponse> {
+    const session = await this.enrichSessionProjects(payload);
+    return {
+      token: payload.token,
+      refreshToken: payload.refreshToken,
+      user: session.user,
+      projects: session.projects,
+    };
   }
 
   // Authentication
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
-    const response = await this.api.post<LoginResponse>(
+    const response = await this.api.post<LoginApiResponse>(
       '/api/auth/login',
       credentials,
     );
-    const data = response.data;
-
-    // Tokens are set as HttpOnly cookies by the backend; the frontend never
-    // reads or stores them.
+    setAuthTokens(response.data.token, response.data.refreshToken);
+    const data = await this.normalizeLogin(response.data);
 
     // Pre-select the first project so the dashboard has something to show.
     // These are pure UI state — stay in localStorage.
@@ -208,9 +320,9 @@ class ApiService {
   }
 
   async logout(): Promise<void> {
+    const refreshToken = getRefreshToken();
     try {
-      // Refresh token rides in on the `refresh_token` cookie; no body needed.
-      await this.api.post('/api/auth/logout');
+      await this.api.post('/api/auth/logout', refreshToken ? { refreshToken } : {});
     } finally {
       clearAuth();
     }
@@ -242,7 +354,7 @@ class ApiService {
 
   // Profile types
   async getProfileTypes(): Promise<ProfileConfig[]> {
-    const response = await this.api.get<ProfileTypeApiRow[]>('/api/profile-types/');
+    const response = await this.api.get<ProfileTypeApiRow[]>('/api/profile-types');
     return response.data.map(mapProfileTypeDTO);
   }
 
@@ -435,20 +547,19 @@ class ApiService {
   // --- Session bootstrap (any authenticated user) ---
 
   async getMe(): Promise<MeResponse> {
-    const response = await this.api.get('/api/auth/me');
-    return response.data;
+    const response = await this.api.get<MeApiResponse>('/api/auth/me');
+    return this.enrichSessionProjects(response.data);
   }
 
   // --- Profile (any authenticated user) ---
 
   async getProfile(): Promise<UserListItem> {
-    const response = await this.api.get('/api/auth/profile');
-    return response.data;
+    return userFromSession(await this.getMe());
   }
 
   async updateProfile(data: ProfileUpdateRequest): Promise<UserListItem> {
-    const response = await this.api.put('/api/auth/profile', data);
-    return response.data;
+    const response = await this.api.patch<MeApiResponse>('/api/auth/me', data);
+    return userFromSession(await this.enrichSessionProjects(response.data));
   }
 
   // --- Access Definitions (admin) ---
@@ -473,46 +584,155 @@ class ApiService {
    * regular user listing), which filters to the caller's own user_projects.
    */
   async getAllProjects(): Promise<Project[]> {
-    const response = await this.api.get('/api/projects/all/');
-    return response.data;
+    const response = await this.api.get<ProjectAdminApiRow[]>('/api/projects/all');
+    return response.data.map(mapProjectAdminItem);
+  }
+
+  async getProjects(): Promise<Project[]> {
+    const response = await this.api.get<ProjectDtoApiRow[]>('/api/projects');
+    return response.data.map(mapProjectDto);
   }
 
   // --- Users (admin) ---
 
   async getUsers(): Promise<UserListItem[]> {
-    const response = await this.api.get('/api/users/');
+    const response = await this.api.get<UserListItem[]>('/api/users');
     return response.data;
   }
 
   async onboardUser(data: UserOnboardRequest): Promise<UserOnboardResponse> {
-    const response = await this.api.post('/api/users/', data);
+    const response = await this.api.post<UserOnboardResponse>('/api/users', data);
     return response.data;
   }
 
   // --- User Access (admin) ---
 
   async getUserAccess(userId: string): Promise<UserAccess> {
-    const response = await this.api.get(`/api/users/${userId}/access`);
-    return response.data;
+    const response = await this.api.get<UserAccessApiResponse>(`/api/users/${userId}/access`);
+    const raw = response.data;
+    return {
+      userId: raw.userId ?? userId,
+      email: raw.email ?? '',
+      firstName: raw.firstName ?? '',
+      lastName: raw.lastName ?? '',
+      role: raw.role,
+      featureActionAssigned: raw.featureActionAssigned ?? [],
+      projects: raw.projects ?? raw.projectIds?.map(accessProjectFromId) ?? [],
+    };
   }
 
   async updateUserAccess(userId: string, data: UpdateUserAccessRequest): Promise<UserAccess> {
-    // Backend's UpdateUserAccessSerializer.update() returns the full
-    // UserAccessReadSerializer shape, so this mirrors `getUserAccess`.
-    const response = await this.api.put(`/api/users/${userId}/access`, data);
-    return response.data;
+    const response = await this.api.put<UserAccessApiResponse>(`/api/users/${userId}/access`, data);
+    const raw = response.data;
+    return {
+      userId: raw.userId ?? userId,
+      email: raw.email ?? '',
+      firstName: raw.firstName ?? '',
+      lastName: raw.lastName ?? '',
+      role: raw.role,
+      featureActionAssigned: raw.featureActionAssigned ?? [],
+      projects: raw.projects ?? raw.projectIds?.map(accessProjectFromId) ?? [],
+    };
   }
 
   /**
-   * PUT /api/users/<id>/profile — admin edits another user's profile (Phase 4).
-   * Distinct from `updateProfile` which is the self-update on /api/auth/profile.
-   * partial=True on the BE — any subset of firstName/lastName/mobileNumber/role.
+   * PATCH /api/users/<id> — admin edits another user's profile.
+   * Distinct from `updateProfile`, which is self-update on /api/auth/me.
    */
   async updateUserProfile(
     userId: string,
     data: AdminUpdateUserProfileRequest,
   ): Promise<UserListItem> {
-    const response = await this.api.put(`/api/users/${userId}/profile`, data);
+    const response = await this.api.patch<UserListItem>(`/api/users/${userId}`, data);
+    return response.data;
+  }
+
+  // --- Project administration and settings ---
+
+  async createProject(data: {
+    name: string;
+    description?: string;
+    profileTypeId: string;
+    ownerUserId?: string;
+  }): Promise<Project> {
+    const response = await this.api.post<ProjectDtoApiRow>('/api/projects', data);
+    return mapProjectDto(response.data);
+  }
+
+  async updateProject(
+    projectId: string,
+    data: { name?: string; description?: string },
+  ): Promise<Project> {
+    const response = await this.api.patch<ProjectDtoApiRow>(`/api/projects/${projectId}`, data);
+    return mapProjectDto(response.data);
+  }
+
+  async getProjectParameterSettings(projectId: string): Promise<ProjectParameterSetting[]> {
+    const response = await this.api.get<ProjectParameterSetting[]>(
+      `/api/projects/${projectId}/parameter-settings`,
+    );
+    return response.data;
+  }
+
+  async updateProjectParameterSettings(
+    projectId: string,
+    settings: PutProjectParameterSetting[],
+  ): Promise<ProjectParameterSetting[]> {
+    const response = await this.api.put<ProjectParameterSetting[]>(
+      `/api/projects/${projectId}/parameter-settings`,
+      settings,
+    );
+    return response.data;
+  }
+
+  // --- Sensor administration ---
+
+  async getSensorTypes(): Promise<SensorType[]> {
+    const response = await this.api.get<SensorType[]>('/api/sensor-types');
+    return response.data;
+  }
+
+  async createSensorType(data: CreateSensorTypeRequest): Promise<SensorType> {
+    const response = await this.api.post<SensorType>('/api/sensor-types', data);
+    return response.data;
+  }
+
+  async getIoTDevices(): Promise<IoTDevice[]> {
+    const response = await this.api.get<IoTDevice[]>('/api/iot-devices');
+    return response.data;
+  }
+
+  async registerIoTDevice(data: RegisterIoTDeviceRequest): Promise<IoTDevice> {
+    const response = await this.api.post<IoTDevice>('/api/iot-devices', data);
+    return response.data;
+  }
+
+  async updateIoTDevice(deviceId: string, data: UpdateIoTDeviceRequest): Promise<IoTDevice> {
+    const response = await this.api.patch<IoTDevice>(`/api/iot-devices/${deviceId}`, data);
+    return response.data;
+  }
+
+  async getProjectSensors(projectId: string): Promise<ProjectSensor[]> {
+    const response = await this.api.get<ProjectSensor[]>(`/api/projects/${projectId}/sensors`);
+    return response.data;
+  }
+
+  async createProjectSensor(
+    projectId: string,
+    data: CreateProjectSensorRequest,
+  ): Promise<ProjectSensor> {
+    const response = await this.api.post<ProjectSensor>(`/api/projects/${projectId}/sensors`, data);
+    return response.data;
+  }
+
+  async updateProjectSensor(
+    projectSensorId: string,
+    data: UpdateProjectSensorRequest,
+  ): Promise<ProjectSensor> {
+    const response = await this.api.patch<ProjectSensor>(
+      `/api/project-sensors/${projectSensorId}`,
+      data,
+    );
     return response.data;
   }
 }

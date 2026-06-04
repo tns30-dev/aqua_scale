@@ -88,16 +88,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  // Boot:
-  //   1. Bootstrap the csrftoken cookie so subsequent unsafe requests can
-  //      attach the X-CSRFToken header.
-  //   2. Probe /api/auth/me — hydrate if a valid cookie session exists.
+  // Boot: probe /api/auth/me. If the access token is expired but the tab still
+  // has a refresh token, api.service refreshes and retries once.
   useEffect(() => {
-    apiService.bootstrapCsrf().catch(() => {
-      // Non-fatal: the login page still loads. Mutating requests will 403
-      // until the cookie is in place.
-    });
-
     (async () => {
       try {
         setSessionState(await apiService.getMe());

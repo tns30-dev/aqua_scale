@@ -10,9 +10,11 @@ import {
   ChevronDown,
   GitCompare,
   Zap,
+  Users,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useProfile } from "../../context/ProfileContext";
+import { useSession } from "../../context/SessionContext";
 import { ProfileDropdown } from "./ProfileDropdown";
 import { TopNavActions } from "./TopNavActions";
 
@@ -65,17 +67,25 @@ const baseNavItems: NavItem[] = [
   },
 ];
 
-// User Management nav entry intentionally removed — user management
-// lives in the Django admin panel now (/admin/). The React route is being
-// deprecated; sidebar no longer surfaces it.
+const adminNavItems: NavItem[] = [
+  {
+    id: "user-management",
+    label: "User Management",
+    icon: Users,
+    path: "/user-management/users",
+  },
+];
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { profileConfig } = useProfile();
+  const { isPlatformAdmin } = useSession();
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
 
-  const navItems = baseNavItems;
+  const navItems = isPlatformAdmin
+    ? [...baseNavItems, ...adminNavItems]
+    : baseNavItems;
 
   function toggleExpand(id: string) {
     setExpandedId((prev) => (prev === id ? null : id));
