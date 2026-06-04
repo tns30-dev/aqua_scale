@@ -24,6 +24,7 @@ jobs:
     outputs:
       java-matrix: ${{ steps.matrix.outputs.java }}
       any-java: ${{ steps.matrix.outputs.any }}
+      any-analytics: ${{ steps.filter.outputs.analytics }}
     steps:
       - uses: actions/checkout@v4
       - id: filter
@@ -40,13 +41,18 @@ jobs:
             ingestion-service: ['ingestion-service/**']
             notification-service: ['notification-service/**']
             realtime-gateway: ['realtime-gateway/**']
+            pond-service: ['pond-service/**']
+            # analytics is TS but consumes the shared-api protos — proto changes fan out
+            analytics:
+              - 'analytics-service/**'
+              - 'shared-api/src/main/proto/**'
       - id: matrix
         name: Compose changed-service matrix
         env:
           SHARED: ${{ steps.filter.outputs.shared }}
           CHANGES: ${{ toJSON(steps.filter.outputs) }}
         run: |
-          SERVICES=(identity-access-service project-service sensor-service ingestion-service notification-service realtime-gateway)
+          SERVICES=(identity-access-service project-service sensor-service ingestion-service notification-service realtime-gateway pond-service)
           SELECTED=()
           for s in "${SERVICES[@]}"; do
             flag=$(echo "$CHANGES" | jq -r --arg k "$s" '.[$k] // "false"')
@@ -91,6 +97,47 @@ jobs:
             ${{ matrix.service }}/target/surefire-reports/
             ${{ matrix.service }}/target/failsafe-reports/
           retention-days: 14
+
+  # ---------- analytics-service (TypeScript) — typecheck + vitest + container ----------
+  analytics-verify:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any-analytics == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: analytics-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: analytics-service/package-lock.json
+      - name: Install (locked)
+        run: npm ci
+      - name: Typecheck + build
+        run: npm run build
+      - name: Tests (vitest — engine oracles, auth, gRPC wiring)
+        run: npm test
+      - name: Prod dependency audit (high+)
+        run: npm audit --omit=dev --audit-level=high
+
+  analytics-container:
+    needs: [detect-changes, analytics-verify]
+    if: needs.detect-changes.outputs.any-analytics == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -f analytics-service/Dockerfile -t analytics-service:${{ github.sha }} .
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: analytics-service:${{ github.sha }}
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
 
   # ---------- security gates (repo-wide; always run — they ARE the evidence) ----------
   secret-scan:
@@ -197,7 +244,7 @@ jobs:
       # once the cloud foundation (registry + OIDC/WIF) exists.
 
   ci-summary:
-    needs: [detect-changes, java-verify, secret-scan, sast, sca-and-secrets-fs, sbom, container]
+    needs: [detect-changes, java-verify, analytics-verify, analytics-container, secret-scan, sast, sca-and-secrets-fs, sbom, container]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -209,6 +256,8 @@ jobs:
             echo "## CI evidence summary"
             echo "- changed services: $MATRIX"
             echo "- java-verify: ${{ needs.java-verify.result }}"
+            echo "- analytics-verify (vitest): ${{ needs.analytics-verify.result }}"
+            echo "- analytics container: ${{ needs.analytics-container.result }}"
             echo "- secret-scan (gitleaks): ${{ needs.secret-scan.result }}"
             echo "- sast (semgrep): ${{ needs.sast.result }}"
             echo "- sca/fs (trivy): ${{ needs.sca-and-secrets-fs.result }}"
