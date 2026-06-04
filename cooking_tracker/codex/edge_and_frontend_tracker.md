@@ -16,7 +16,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 |---|---|---|---|---|
 | Firebase Hosting | TODO | Frontend hosting not deployed. | `../main/frontend_deployment.md` | — |
 | CDN | TODO | Firebase CDN remains the selected frontend CDN; no cloud deployment yet. | `../main/cdn.md` | — |
-| GCP API edge | IN_PROGRESS | Gateway API and HTTPRoute skeleton should live under the flattened root layout for `/api/**` routes. Cloud LB is not provisioned yet. | `../../k8s/base/edge/` | 2026-06-04 |
+| GCP API edge | IN_PROGRESS | Gateway API and HTTPRoute skeleton created for `/api/**` routes. Cloud LB is not provisioned yet. | `../../k8s/base/edge/` | 2026-06-04 |
 | Cloud Armor | TODO | Policy not provisioned. Will be Terraform/GCP work after project details are available. | `../main/api_gateway.md`, `../main/network_security.md` | — |
 | WSS realtime endpoint | IN_PROGRESS | `/ws` route points to `realtime-gateway:8080`; public endpoint remains `wss://api.aquashield.example.com/ws`. | `../../k8s/base/edge/http-route.yaml`, `../main/websocket.md` | 2026-06-04 |
 
@@ -24,5 +24,5 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 
 | Date | Update |
 |---|---|
-| 2026-06-04 | Repo flattened to root layout; tracker paths updated from `aquashield/deploy/k8s` to `k8s`. |
+| 2026-06-04 | Repo flattened to root layout; edge manifest paths updated to root `k8s` and validated through the dev/staging overlays. |
 | 2026-06-04 | Added Gateway API skeleton and route table for Identity, Project, Pond, Sensor, Notification, Analytics, Audit, and Realtime Gateway. |

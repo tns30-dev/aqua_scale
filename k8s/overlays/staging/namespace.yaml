@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aquashield-staging
+  labels:
+    app.kubernetes.io/part-of: aquashield
+    app.kubernetes.io/environment: staging
+    istio-injection: enabled

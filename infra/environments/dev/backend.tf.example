@@ -1,0 +1,6 @@
+terraform {
+  backend "gcs" {
+    bucket = "REPLACE_WITH_AQUASHIELD_TERRAFORM_STATE_BUCKET"
+    prefix = "aqua-scale/dev"
+  }
+}

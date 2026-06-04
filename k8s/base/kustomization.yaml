@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - service-accounts.yaml
+  - edge/gateway.yaml
+  - edge/http-redirect.yaml
+  - edge/http-route.yaml
+  - mesh/peer-authentication.yaml
+  - mesh/default-deny-authorization-policy.yaml
+  - network/default-deny-ingress.yaml
+  - network/allow-app-internal-traffic.yaml
+  - network/allow-gclb-health-checks.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: aquashield
+    includeSelectors: true
