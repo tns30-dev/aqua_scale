@@ -121,6 +121,8 @@ services:
     environment:
       <<: *java-env
       INGESTION_GRPC_TARGET: ingestion-service:9095
+      POND_GRPC_TARGET: pond-service:9094
+      NOTIFICATION_GRPC_TARGET: notification-service:9096
     healthcheck:
       <<: *java-health
       test: ["CMD", "wget", "-qO-", "http://localhost:8082/actuator/health"]
