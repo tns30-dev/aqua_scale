@@ -125,6 +125,7 @@ export const mockOnboardResponse: UserOnboardResponse = {
   email: "new@aquaculture.com",
   firstName: "New",
   lastName: "User",
+  mobileNumber: null,
   role: "user",
   featureActionAssigned: DEFAULT_ONBOARDED_ACCESS,
   projectIds: ["proj-1"],

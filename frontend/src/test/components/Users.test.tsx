@@ -119,7 +119,9 @@ describe("Users — Access Management dialog routing", () => {
     });
 
     const buttons = screen.getAllByRole("button", { name: /access management/i });
-    await u.click(buttons[0]);
+    // Mobile and desktop layouts both exist in the test DOM. The second
+    // access button belongs to the manager row in the mobile layout.
+    await u.click(buttons[1]);
 
     // The dialog title is an <h2>; buttons share the same text so disambiguate by role.
     await waitFor(() => {

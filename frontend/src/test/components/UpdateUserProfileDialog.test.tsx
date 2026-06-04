@@ -1,7 +1,7 @@
 /**
  * Tests for UpdateUserProfileDialog — Part 3 (Phase 8).
  *
- * Phase 4 endpoint: PUT /api/users/<id>/profile (admin edits another user).
+ * Java Identity endpoint: PATCH /api/users/<id> (admin edits another user).
  * Fields: firstName, lastName, mobileNumber, role. Email + password are
  * intentionally absent. partial=True on the BE — any subset of fields valid.
  */
@@ -94,10 +94,10 @@ describe("UpdateUserProfileDialog — initial render", () => {
 });
 
 describe("UpdateUserProfileDialog — submit", () => {
-  it("submits a partial body (firstName only) to PUT /users/<id>/profile", async () => {
+  it("submits a partial body (firstName only) to PATCH /api/users/<id>", async () => {
     let observedBody: Record<string, unknown> | null = null;
     server.use(
-      http.put("*/api/users/:userId/profile", async ({ request, params }) => {
+      http.patch("*/api/users/:userId", async ({ request, params }) => {
         observedBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({
           userId: params.userId as string,

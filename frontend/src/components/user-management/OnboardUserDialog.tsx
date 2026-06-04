@@ -122,6 +122,12 @@ export function OnboardUserDialog({ projects, onSuccess }: Props) {
               />
             </div>
             <Field
+              id="mobileNumber"
+              label="Mobile number"
+              register={form.register("mobileNumber")}
+              error={form.formState.errors.mobileNumber?.message}
+            />
+            <Field
               id="role"
               label="Role"
               register={form.register("role")}

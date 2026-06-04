@@ -499,6 +499,7 @@ export interface UserOnboardRequest {
   password: string;
   firstName: string;
   lastName: string;
+  mobileNumber?: string;
   role: string;
   /** Optional in Part 3 — omit (or send []) to let the server apply the default-onboarded array. */
   featureActionAssigned?: FeatureActionAssigned;
@@ -510,6 +511,7 @@ export interface UserOnboardResponse {
   email: string;
   firstName: string;
   lastName: string;
+  mobileNumber: string | null;
   role: string;
   featureActionAssigned: FeatureActionAssigned;
   projectIds: string[];

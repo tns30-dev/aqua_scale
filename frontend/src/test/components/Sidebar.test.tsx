@@ -63,6 +63,8 @@ vi.mock("lucide-react", () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   GitCompare: (p: any) => <div data-testid="icon-pond-comparison" {...p} />,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Zap: (p: any) => <div data-testid="icon-energy" {...p} />,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Droplets: (p: any) => <div data-testid="icon-logo" {...p} />,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   X: (p: any) => <div data-testid="icon-close" {...p} />,
@@ -134,12 +136,12 @@ describe("Sidebar", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("renders the Users sub-link under User Management when admin is on a /user-management/* route (auto-expands)", () => {
+    it("keeps User Management as the active direct admin route on /user-management/*", () => {
       mockIsPlatformAdmin = true;
       mockPathname = "/user-management/users";
       render(<Sidebar />);
       expect(
-        screen.getAllByRole("button", { name: /^users$/i }).length,
+        screen.getAllByRole("button", { name: /user management/i }).length,
       ).toBeGreaterThan(0);
     });
   });
@@ -154,7 +156,7 @@ describe("Sidebar", () => {
       expect(mockNavigate).toHaveBeenCalledWith("/historical");
     });
 
-    it("clicking User Management (parent with children) navigates to the first child path", async () => {
+    it("clicking User Management navigates to the users admin route", async () => {
       mockIsPlatformAdmin = true;
       mockPathname = "/overview"; // not under /user-management → triggers nav
       render(<Sidebar />);

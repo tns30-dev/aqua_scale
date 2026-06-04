@@ -190,6 +190,22 @@ function userFromSession(payload: MeResponse): UserListItem {
   };
 }
 
+function mapUserAccessResponse(
+  userId: string,
+  raw: UserAccessApiResponse,
+  profile: UserListItem | null = null,
+): UserAccess {
+  return {
+    userId: raw.userId ?? userId,
+    email: raw.email ?? profile?.email ?? '',
+    firstName: raw.firstName ?? profile?.firstName ?? '',
+    lastName: raw.lastName ?? profile?.lastName ?? '',
+    role: raw.role ?? profile?.role ?? '',
+    featureActionAssigned: raw.featureActionAssigned ?? [],
+    projects: raw.projects ?? raw.projectIds?.map(accessProjectFromId) ?? [],
+  };
+}
+
 class ApiService {
   private api: AxiosInstance;
   // In-flight refresh promise. Concurrent 401s share this so only ONE POST
@@ -600,6 +616,15 @@ class ApiService {
     return response.data;
   }
 
+  private async findUserListItem(userId: string): Promise<UserListItem | null> {
+    try {
+      const users = await this.getUsers();
+      return users.find((user) => user.userId === userId) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   async onboardUser(data: UserOnboardRequest): Promise<UserOnboardResponse> {
     const response = await this.api.post<UserOnboardResponse>('/api/users', data);
     return response.data;
@@ -609,30 +634,14 @@ class ApiService {
 
   async getUserAccess(userId: string): Promise<UserAccess> {
     const response = await this.api.get<UserAccessApiResponse>(`/api/users/${userId}/access`);
-    const raw = response.data;
-    return {
-      userId: raw.userId ?? userId,
-      email: raw.email ?? '',
-      firstName: raw.firstName ?? '',
-      lastName: raw.lastName ?? '',
-      role: raw.role,
-      featureActionAssigned: raw.featureActionAssigned ?? [],
-      projects: raw.projects ?? raw.projectIds?.map(accessProjectFromId) ?? [],
-    };
+    const profile = await this.findUserListItem(userId);
+    return mapUserAccessResponse(userId, response.data, profile);
   }
 
   async updateUserAccess(userId: string, data: UpdateUserAccessRequest): Promise<UserAccess> {
     const response = await this.api.put<UserAccessApiResponse>(`/api/users/${userId}/access`, data);
-    const raw = response.data;
-    return {
-      userId: raw.userId ?? userId,
-      email: raw.email ?? '',
-      firstName: raw.firstName ?? '',
-      lastName: raw.lastName ?? '',
-      role: raw.role,
-      featureActionAssigned: raw.featureActionAssigned ?? [],
-      projects: raw.projects ?? raw.projectIds?.map(accessProjectFromId) ?? [],
-    };
+    const profile = await this.findUserListItem(userId);
+    return mapUserAccessResponse(userId, response.data, profile);
   }
 
   /**

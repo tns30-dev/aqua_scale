@@ -67,6 +67,10 @@ export const handlers = [
         email: (body.email as string) ?? mockOnboardResponse.email,
         firstName: (body.firstName as string) ?? mockOnboardResponse.firstName,
         lastName: (body.lastName as string) ?? mockOnboardResponse.lastName,
+        mobileNumber:
+          typeof body.mobileNumber === "string"
+            ? body.mobileNumber
+            : mockOnboardResponse.mobileNumber,
         role: (body.role as string) ?? mockOnboardResponse.role,
         featureActionAssigned,
         projectIds: Array.isArray(body.projectIds)
