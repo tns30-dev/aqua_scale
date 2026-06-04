@@ -114,7 +114,7 @@ public class ProjectController {
 
   // ---------- energy (camelCase; PARITY paths energy/dashboard + energy/settings) ----------
 
-  @GetMapping("/{projectId}/energy/dashboard")
+  @GetMapping({"/{projectId}/energy/dashboard", "/{projectId}/energy/dashboard/"})
   public Map<String, Object> energyDashboard(
       @PathVariable UUID projectId,
       @RequestParam(defaultValue = "day") String groupBy,
@@ -125,7 +125,7 @@ public class ProjectController {
     return energy.dashboard(projectId, groupBy, startDate, endDate);
   }
 
-  @GetMapping("/{projectId}/energy/settings")
+  @GetMapping({"/{projectId}/energy/settings", "/{projectId}/energy/settings/"})
   public EnergySettingsDto getEnergySettings(
       @PathVariable UUID projectId,
       @RequestParam(defaultValue = "electricity") String type,
@@ -134,7 +134,7 @@ public class ProjectController {
     return energy.getSettings(projectId, type);
   }
 
-  @PutMapping("/{projectId}/energy/settings")
+  @PutMapping({"/{projectId}/energy/settings", "/{projectId}/energy/settings/"})
   public EnergySettingsDto putEnergySettings(
       @PathVariable UUID projectId,
       @RequestParam(defaultValue = "electricity") String type,
