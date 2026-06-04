@@ -7,7 +7,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary for Claude
 
 - Current focus: Root `k8s/` platform skeleton and Terraform GCP foundation scaffold are restored/validated.
-- Last completed: Notification Service K8s workload manifests added and dev/staging overlays render successfully.
+- Last completed: Realtime Gateway K8s workload manifests added and dev/staging overlays render successfully.
 - Blockers / questions: Real cloud provisioning still needs GCP project ID, region, domain/certificate decision, and repo URL for Argo CD.
 
 ## Items
@@ -30,6 +30,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Sensor Service workload manifests | IN_PROGRESS | Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, AuthorizationPolicy, REST routes, and gRPC port created; cloud apply not started. | `../../k8s/base/services/sensor-service/`, `../../docs/evidence/k8s-sensor-service/2026-06-04-sensor-kustomize-validation.md` | 2026-06-04 |
 | Ingestion Service workload manifests | IN_PROGRESS | Internal Pub/Sub worker Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, and actuator-only AuthorizationPolicy created; no public HTTPRoute by design; cloud apply not started. | `../../k8s/base/services/ingestion-service/`, `../../docs/evidence/k8s-ingestion-service/2026-06-04-ingestion-kustomize-validation.md` | 2026-06-04 |
 | Notification Service workload manifests | IN_PROGRESS | Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, AuthorizationPolicy, alert REST route, Redis/project gRPC config, and Pub/Sub subscription config created; cloud apply not started. | `../../k8s/base/services/notification-service/`, `../../docs/evidence/k8s-notification-service/2026-06-04-notification-kustomize-validation.md` | 2026-06-04 |
+| Realtime Gateway workload manifests | IN_PROGRESS | Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, AuthorizationPolicy, WSS edge route, Redis fanout config, and Pub/Sub subscription config created; cloud apply not started. | `../../k8s/base/services/realtime-gateway/`, `../../docs/evidence/k8s-realtime-gateway/2026-06-04-realtime-gateway-kustomize-validation.md` | 2026-06-04 |
 | Artifact Registry | IN_PROGRESS | Terraform module scaffold creates service image repositories; cloud apply not started. | `../../infra/modules/artifact-registry/`, `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
 | Terraform remote state | IN_PROGRESS | Bootstrap config and dev `gcs` backend example created; state bucket not applied yet. | `../../infra/bootstrap-state/`, `../../infra/environments/dev/backend.tf.example` | 2026-06-04 |
 
@@ -49,6 +50,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | `kubectl kustomize k8s/overlays/staging` after Ingestion workload | PASS; evidence in `../../docs/evidence/k8s-ingestion-service/2026-06-04-ingestion-kustomize-validation.md` | 2026-06-04 |
 | `kubectl kustomize k8s/overlays/dev` after Notification workload | PASS; evidence in `../../docs/evidence/k8s-notification-service/2026-06-04-notification-kustomize-validation.md` | 2026-06-04 |
 | `kubectl kustomize k8s/overlays/staging` after Notification workload | PASS; evidence in `../../docs/evidence/k8s-notification-service/2026-06-04-notification-kustomize-validation.md` | 2026-06-04 |
+| `kubectl kustomize k8s/overlays/dev` after Realtime Gateway workload | PASS; evidence in `../../docs/evidence/k8s-realtime-gateway/2026-06-04-realtime-gateway-kustomize-validation.md` | 2026-06-04 |
+| `kubectl kustomize k8s/overlays/staging` after Realtime Gateway workload | PASS; evidence in `../../docs/evidence/k8s-realtime-gateway/2026-06-04-realtime-gateway-kustomize-validation.md` | 2026-06-04 |
 | `terraform fmt -check -recursive infra` | PASS; evidence in `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
 | `terraform -chdir=infra/bootstrap-state validate` | PASS; evidence in `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
 | `terraform -chdir=infra/environments/dev validate` | PASS; evidence in `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
@@ -57,6 +60,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 
 | Date | Update |
 |---|---|
+| 2026-06-04 | Added Realtime Gateway K8s workload manifests on port `8088`, with WSS route `/ws`, token mint route `/ws/token`, Redis fanout config, Pub/Sub subscription config, HPA/PDB, NetworkPolicy, and Istio AuthorizationPolicy; dev/staging overlays validated. |
 | 2026-06-04 | Added Notification Service K8s workload manifests on port `8087`, with alert REST route `/api/alerts`, Redis/project gRPC config, Pub/Sub subscription config, HPA/PDB, NetworkPolicy, and Istio AuthorizationPolicy; dev/staging overlays validated. |
 | 2026-06-04 | Added Ingestion Service K8s workload manifests as an internal Pub/Sub worker on port `8084`, with Sensor/Project gRPC targets, HPA/PDB, NetworkPolicy, and actuator-only Istio AuthorizationPolicy; dev/staging overlays validated. |
 | 2026-06-04 | Added Sensor Service K8s workload manifests, REST/gRPC ports, NetworkPolicy, Istio AuthorizationPolicy, and updated HTTPRoute to service port `8083`; dev/staging overlays validated. |

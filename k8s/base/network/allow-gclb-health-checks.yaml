@@ -23,3 +23,7 @@ spec:
           port: 8082
         - protocol: TCP
           port: 8083
+        - protocol: TCP
+          port: 8087
+        - protocol: TCP
+          port: 8088

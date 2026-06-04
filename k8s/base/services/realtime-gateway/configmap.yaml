@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: realtime-gateway-config
+data:
+  SERVER_PORT: "8088"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  PUBSUB_PROJECT_ID: "aquashield-dev"
+  PUBSUB_EMULATOR_HOST: ""
+  JWT_ISSUER: "aquashield"
+  JWT_AUDIENCE: "aquashield-api"
+  WS_TOKEN_TTL: "PT60S"
+  WS_AUTH_TIMEOUT: "PT10S"
+  WS_SUBSCRIPTION_TTL: "PT5M"
+  WS_ALLOWED_ORIGINS: "https://aquashield.web.app,https://aquashield.firebaseapp.com"
+  READINGS_SUBSCRIPTION: "realtime.reading.ingested.sub"
+  ALERT_CREATED_SUBSCRIPTION: "realtime.alert.created.sub"
+  ALERT_RESOLVED_SUBSCRIPTION: "realtime.alert.resolved.sub"

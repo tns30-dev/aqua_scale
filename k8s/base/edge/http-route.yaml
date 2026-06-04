@@ -94,4 +94,4 @@ spec:
             value: /ws
       backendRefs:
         - name: realtime-gateway
-          port: 8080
+          port: 8088
