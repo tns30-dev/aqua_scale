@@ -1,9 +1,29 @@
-# AquaShield local development foundation
-# Mirrors the cloud targets: Cloud SQL -> postgres, Memorystore -> redis,
+# AquaShield local development stack.
+# Infra mirrors the cloud targets: Cloud SQL -> postgres, Memorystore -> redis,
 # Google Pub/Sub -> emulator, Cloud Bigtable -> emulator.
-# Usage: docker compose up -d && ./scripts/pubsub-bootstrap.sh
+#
+# TWO MODES:
+#   infra only (for mvn/vitest dev):  docker compose up -d && ./scripts/pubsub-bootstrap.sh
+#   FULL PLATFORM (all 9 services):   ./scripts/up.sh        <- start here
+#
+# The 9 service containers live under the `app` profile so plain `up` stays infra-only.
 
 name: aquashield-local
+
+x-java-service: &java-service
+  profiles: [app]
+  environment: &java-env
+    DB_HOST: postgres
+    DB_PORT: 5432
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+    PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
+    JWT_PUBLIC_KEY_PEM: ${JWT_PUBLIC_KEY_PEM:-}
+  depends_on: &java-deps
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+    pubsub-init: { condition: service_completed_successfully }
+  restart: unless-stopped
 
 services:
   postgres:
@@ -59,6 +79,159 @@ services:
       --host-port=0.0.0.0:8086
     ports:
       - "8086:8086"
+
+  # one-shot: creates the Pub/Sub topic/subscription/DLQ catalogue on the emulator
+  pubsub-init:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    container_name: aq-pubsub-init
+    profiles: [app]
+    depends_on:
+      pubsub-emulator: { condition: service_healthy }
+    volumes:
+      - ./scripts/pubsub-bootstrap.sh:/bootstrap.sh:ro
+    environment:
+      PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
+    entrypoint: ["bash", "/bootstrap.sh"]
+    restart: "no"
+
+  # ---------------- the 9 services (profile: app — start via scripts/up.sh) ----------------
+
+  identity-access-service:
+    <<: *java-service
+    build: { context: ., dockerfile: identity-access-service/Dockerfile }
+    container_name: aq-identity
+    ports: ["8081:8081"]
+    environment:
+      <<: *java-env
+      JWT_PRIVATE_KEY_PEM: ${JWT_PRIVATE_KEY_PEM:-}
+      BOOTSTRAP_ADMIN_EMAIL: admin@aquashield.local
+      BOOTSTRAP_ADMIN_PASSWORD: AdminBoot123!
+    healthcheck: &java-health
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  project-service:
+    <<: *java-service
+    build: { context: ., dockerfile: project-service/Dockerfile }
+    container_name: aq-project
+    ports: ["8082:8082"]
+    environment:
+      <<: *java-env
+      INGESTION_GRPC_TARGET: ingestion-service:9095
+    healthcheck:
+      <<: *java-health
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/actuator/health"]
+
+  sensor-service:
+    <<: *java-service
+    build: { context: ., dockerfile: sensor-service/Dockerfile }
+    container_name: aq-sensor
+    ports: ["8083:8083"]
+    healthcheck:
+      <<: *java-health
+      test: ["CMD", "wget", "-qO-", "http://localhost:8083/actuator/health"]
+
+  ingestion-service:
+    <<: *java-service
+    build: { context: ., dockerfile: ingestion-service/Dockerfile }
+    container_name: aq-ingestion
+    ports: ["8084:8084"]
+    environment:
+      <<: *java-env
+      SENSOR_GRPC_TARGET: sensor-service:9093
+      PROJECT_GRPC_TARGET: project-service:9092
+      HMAC_MAX_SKEW: PT240H   # local only: lets seed-demo.sh backfill history (cloud: PT5M)
+    healthcheck:
+      <<: *java-health
+      test: ["CMD", "wget", "-qO-", "http://localhost:8084/actuator/health"]
+
+  notification-service:
+    <<: *java-service
+    build: { context: ., dockerfile: notification-service/Dockerfile }
+    container_name: aq-notification
+    ports: ["8087:8087"]
+    environment:
+      <<: *java-env
+      PROJECT_GRPC_TARGET: project-service:9092
+    healthcheck:
+      <<: *java-health
+      test: ["CMD", "wget", "-qO-", "http://localhost:8087/actuator/health"]
+
+  realtime-gateway:
+    <<: *java-service
+    build: { context: ., dockerfile: realtime-gateway/Dockerfile }
+    container_name: aq-realtime
+    ports: ["8088:8088"]
+    healthcheck:
+      <<: *java-health
+      test: ["CMD", "wget", "-qO-", "http://localhost:8088/actuator/health"]
+
+  pond-service:
+    <<: *java-service
+    build: { context: ., dockerfile: pond-service/Dockerfile }
+    container_name: aq-pond
+    ports: ["8089:8089"]
+    environment:
+      <<: *java-env
+      PROJECT_GRPC_TARGET: project-service:9092
+      INGESTION_GRPC_TARGET: ingestion-service:9095
+    healthcheck:
+      <<: *java-health
+      test: ["CMD", "wget", "-qO-", "http://localhost:8089/actuator/health"]
+
+  audit-service:
+    <<: *java-service
+    build: { context: ., dockerfile: audit-service/Dockerfile }
+    container_name: aq-audit
+    ports: ["8092:8092"]
+    healthcheck:
+      <<: *java-health
+      test: ["CMD", "wget", "-qO-", "http://localhost:8092/actuator/health"]
+
+  analytics-service:
+    profiles: [app]
+    build: { context: ., dockerfile: analytics-service/Dockerfile }
+    container_name: aq-analytics
+    ports: ["8090:8090"]
+    environment:
+      JWT_PUBLIC_KEY_PEM: ${JWT_PUBLIC_KEY_PEM:-}
+      REDIS_URL: redis://redis:6379
+      PROJECT_GRPC_TARGET: project-service:9092
+      POND_GRPC_TARGET: pond-service:9094
+      INGESTION_GRPC_TARGET: ingestion-service:9095
+    depends_on:
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8090/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+  # LOCAL API edge — path-aware route table (rehearses the cloud gateway, incl. the
+  # charts->analytics and pond-comparison->pond regex exceptions).
+  gateway:
+    image: nginx:1.27-alpine
+    container_name: aq-gateway
+    profiles: [app]
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./local/gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - identity-access-service
+      - project-service
+      - sensor-service
+      - ingestion-service
+      - notification-service
+      - realtime-gateway
+      - pond-service
+      - analytics-service
+      - audit-service
 
 volumes:
   pgdata:

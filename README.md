@@ -36,22 +36,48 @@ core on Pub/Sub, GitOps delivery (Kustomize + Argo CD), and DevSecOps throughout
 Root `pom.xml` = Maven multi-module parent for the Java services; modules are enabled as
 each service is implemented.
 
-## Local development (start here)
+## Quickstart — run the WHOLE platform locally (start here)
 
-Prereqs: Docker Desktop, JDK 21, Node 20, Maven.
+Prereqs: Docker Desktop (give it ~6 GB), Node 20+. (JDK 21 + Maven only needed for
+development — the platform itself builds inside Docker.)
 
 ```bash
-docker compose up -d              # postgres + redis + pubsub & bigtable emulators
-./scripts/pubsub-bootstrap.sh     # create decided topics/subscriptions/DLQs
-cp .env.example .env              # local config
+./scripts/up.sh                   # builds + starts ALL 9 services + infra + gateway
+./scripts/seed-demo.sh            # demo project, ponds, device, 72h telemetry, 1 alert
+cd frontend && npm install && npm run dev
+```
+
+Open **http://localhost:5173** — login `admin@aquashield.local` / `AdminBoot123!`.
+You'll see every container in Docker Desktop (`aq-identity`, `aq-pond`, `aq-gateway`, …).
+
+```bash
+./scripts/down.sh                 # stop everything        (-v wipes the database too)
+./scripts/up.sh --no-build        # restart with existing images
+```
+
+How it fits together locally:
+
+```
+browser :5173 → Vite proxy → nginx gateway :8080 (path-aware routing) → 9 service containers
+                                                  ↕ postgres / redis / pub-sub emulator
+```
+
+Full runbook + route table: [`docs/LOCAL_E2E.md`](docs/LOCAL_E2E.md).
+
+### Infra-only mode (for running tests / a single service from the IDE)
+
+```bash
+docker compose up -d              # JUST postgres + redis + emulators (no services)
+./scripts/pubsub-bootstrap.sh     # topics/subscriptions/DLQs
 ```
 
 | Component | Local | Cloud target |
 |---|---|---|
-| PostgreSQL 16 (schema-per-service) | `localhost:5432` | Cloud SQL + read replica |
-| Redis 7 | `localhost:6379` | Memorystore |
+| PostgreSQL 16 (schema-per-service) | `localhost:5433` | Cloud SQL + read replica |
+| Redis 7 | `localhost:6380` | Memorystore |
 | Pub/Sub emulator | `localhost:8085` | Google Pub/Sub |
 | Bigtable emulator | `localhost:8086` | Cloud Bigtable |
+| API gateway (app profile) | `localhost:8080` | External HTTPS LB + GKE Gateway |
 
 ## Delivery
 
