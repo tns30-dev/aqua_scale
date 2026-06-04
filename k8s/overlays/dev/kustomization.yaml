@@ -14,4 +14,10 @@ labels:
 images:
 - name: identity-access-service
   newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/identity-access-service/identity-access-service
-  newTag: 88db1611e9a4
+  newTag: 49d6ad1de46b
+- name: pond-service
+  newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/pond-service/pond-service
+  newTag: 49d6ad1de46b
+- name: project-service
+  newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/project-service/project-service
+  newTag: 49d6ad1de46b
