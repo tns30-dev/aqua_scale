@@ -1,0 +1,13 @@
+# Nested repos with their own remotes — NEVER tracked by this planning repo.
+# AquaMonitoringv2 + AquaMonitoring-Pi push to AquaShield-Solutions (inherited upstream);
+# aquashield/ is the implementation monorepo (gets its own GitHub repo).
+AquaMonitoringv2/
+AquaMonitoring-Pi/
+aquashield/
+
+# OS / editor junk
+.DS_Store
+**/.DS_Store
+
+# scratch
+temp.txt

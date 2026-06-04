@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Architecture Diagram — Refinement</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css" />
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Architecture Diagram — Refinement</h1>
+</header>
+<h1 id="architecture-diagram-refinement">Architecture Diagram —
+Refinement</h1>
+<hr />
+<h2 id="current-backend-module-state-before">Current Backend Module
+State (Before)</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Module</th>
+<th>Models</th>
+<th>Problem</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>module_project</code></td>
+<td>ProfileType, Project, Pond, Cycle, CycleDailyHealth,
+CycleStageMetric</td>
+<td><strong>Too big</strong> — 6 models, mixing project config with pond
+data and growth cycles</td>
+</tr>
+<tr>
+<td><code>module_sensor</code></td>
+<td>ParameterType, SensorType, IoTDevice, Sensor (legacy),
+ProjectSensor, ProjectParameterSetting, SensorMessage,
+SensorReading</td>
+<td>8 models — mixing config with data</td>
+</tr>
+<tr>
+<td><code>module_data_ingestion</code></td>
+<td>PondReadingDataTable + IngestionService, BroadcastService,
+ThresholdService</td>
+<td>Partition tables are legacy, but services are actively used by MQTT
+pipeline</td>
+</tr>
+<tr>
+<td><code>module_notification</code></td>
+<td>Alert (legacy), AlertLog</td>
+<td>Fine — 1 active model</td>
+</tr>
+<tr>
+<td><code>module_user</code></td>
+<td>User, Role (old)</td>
+<td>Needs RBAC additions</td>
+</tr>
+<tr>
+<td><code>module_chart</code></td>
+<td>Services only (no models)</td>
+<td>Missing entity ownership</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="consultant-feedback">Consultant Feedback</h2>
+<ul>
+<li>Project module is too big. Not modularized.</li>
+<li>She does not like everything inside the project module, even in this
+stage.</li>
+<li>Need to revise module identification/boundaries.</li>
+</ul>
+<hr />
+<h2 id="proposed-module-breakdown-after">Proposed Module Breakdown
+(After)</h2>
+<h3 id="module_user-authentication-access-control">1. module_user —
+Authentication &amp; Access Control</h3>
+<table>
+<thead>
+<tr>
+<th>Models</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>User</td>
+<td>User profile and credentials</td>
+</tr>
+<tr>
+<td>Role</td>
+<td>Role definitions with module/feature permissions (JSONB)</td>
+</tr>
+<tr>
+<td>UserRole</td>
+<td>Junction: which roles a user has</td>
+</tr>
+<tr>
+<td>UserRoleProject</td>
+<td>Junction: which projects a user-role can access</td>
+</tr>
+<tr>
+<td>ModuleAccess</td>
+<td>Reference: valid module codes in the system</td>
+</tr>
+<tr>
+<td>FeatureAccess</td>
+<td>Reference: valid feature codes in the system</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Justification:</strong> All authentication, authorization,
+and RBAC logic belongs here. This module handles: login flow, role
+selection, permission checking, and user profile management. It’s the
+gatekeeper — every API request passes through this module’s permission
+layer before reaching other modules. Keeping access control isolated
+makes it easier to audit, test, and evolve the permission model
+independently.</p>
+<hr />
+<h3 id="module_project-project-setup-configuration">2. module_project —
+Project Setup &amp; Configuration</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Models</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ProfileType</td>
+<td>Template definitions for aquaculture types (shrimp, fish, crab,
+treatment) — stage config, key indicators</td>
+</tr>
+<tr>
+<td>Project</td>
+<td>Project/farm entity — links owner, profile type, and serves as the
+top-level grouping</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Justification:</strong> This module is about <strong>setup
+and configuration</strong>, not operational data. A project is created
+once, configured with a profile type, and rarely changes after that. By
+keeping only Project and ProfileType here, the module stays focused on
+“what is this farm and how is it configured?” — not “what’s happening in
+the ponds right now.” This is the admin/setup layer.</p>
+<hr />
+<h3 id="module_pond-pond-growth-cycle-management">3. module_pond — Pond
+&amp; Growth Cycle Management</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Models</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pond</td>
+<td>Physical pond/tank entity with metadata, status, location</td>
+</tr>
+<tr>
+<td>Cycle</td>
+<td>Production cycle for a pond (start date, end date, status)</td>
+</tr>
+<tr>
+<td>CycleDailyHealth</td>
+<td>Daily health status record per day in a cycle (colored circles on
+timeline)</td>
+</tr>
+<tr>
+<td>CycleStageMetric</td>
+<td>Aggregated growth metrics per stage (JSONB with avg/min/max per
+indicator)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Justification:</strong> Pond is the <strong>central
+operational entity</strong> in the system. Sensors are installed in
+ponds. Readings come from ponds. Alerts are generated for ponds. Cycles
+run in ponds. Separating Pond from Project reflects the reality that
+most of the app’s features are pond-centric, not project-centric.</p>
+<p>Cycles are included here because they are <strong>tightly coupled to
+ponds</strong> — every cycle belongs to a pond
+(<code>cycle.pond_id</code>), no cycle exists without a pond, and the
+Historical Data page queries pond + cycles together. Having a separate
+<code>module_cycle</code> with 3 models while <code>module_pond</code>
+only had 1 model would be over-modularized. Combining them into one
+module keeps the boundary clean: <strong>module_project = farm
+setup/config</strong>, <strong>module_pond = operational data</strong>
+(ponds, cycles, health, metrics).</p>
+<hr />
+<h3 id="module_sensor-sensor-configuration-hardware-management">4.
+module_sensor — Sensor Configuration &amp; Hardware Management</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Models</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ParameterType</td>
+<td>Reference: water quality parameters (temperature, pH, etc.) with
+code, name, unit</td>
+</tr>
+<tr>
+<td>GrowthIndicator</td>
+<td>Reference: growth performance metrics (body_weight, FCR, etc.) with
+code, name, unit</td>
+</tr>
+<tr>
+<td>SensorType</td>
+<td>Sensor hardware catalog (model, manufacturer, which parameters it
+measures)</td>
+</tr>
+<tr>
+<td>IoTDevice</td>
+<td>IoT gateway device (Raspberry Pi) — device code, status, auth
+key</td>
+</tr>
+<tr>
+<td>ProjectSensor</td>
+<td>Sensor assignment: links a sensor type + IoT device to a project +
+pond</td>
+</tr>
+<tr>
+<td>ProjectParameterSetting</td>
+<td>Per-project parameter thresholds (min/max) and key parameter
+flag</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Justification:</strong> This is the <strong>sensor
+configuration module</strong> — it defines what sensors exist, what they
+can measure, which device they’re connected to, and where they’re
+installed. It’s the admin/setup side of the sensor domain. These
+entities are configured once and rarely change during operation.
+Separating configuration from data ingestion keeps this module focused
+on “what is set up” vs “what data is flowing.”</p>
+<hr />
+<h3 id="module_data_ingestion-data-pipeline-real-time-processing">5.
+module_data_ingestion — Data Pipeline &amp; Real-time Processing</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Models</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SensorMessage</td>
+<td>Raw MQTT message from IoT device (payload, sequence number,
+timestamps)</td>
+</tr>
+<tr>
+<td>SensorReading</td>
+<td>Parsed sensor reading with 22 parameter columns (the clean,
+queryable data)</td>
+</tr>
+</tbody>
+</table>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Services</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IngestionService</td>
+<td>Validates MQTT payload, dedup check, inserts SensorMessage +
+SensorReading</td>
+</tr>
+<tr>
+<td>BroadcastService</td>
+<td>Pushes readings + alerts to WebSocket channels (Django
+Channels)</td>
+</tr>
+<tr>
+<td>ThresholdService</td>
+<td>Compares readings against thresholds, creates/resolves AlertLog
+entries</td>
+</tr>
+<tr>
+<td>mqtt_adapter</td>
+<td>Management command — MQTT subscriber, validates signatures, calls
+IngestionService</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Justification:</strong> Data ingestion is a <strong>runtime
+process</strong> — it’s always running, processing incoming MQTT
+messages in real-time. This is fundamentally different from sensor
+configuration (which is admin/setup). The ingestion pipeline handles:
+receive → validate → dedup → store → check thresholds → broadcast. It’s
+write-heavy and latency-sensitive. Keeping it separate means: -
+Ingestion logic can evolve independently (e.g., batch processing, data
+transformation rules, validation pipelines) - Configuration changes
+(module_sensor) don’t risk breaking the data pipeline - Clear separation
+of concerns: module_sensor = “what is set up”, module_data_ingestion =
+“what data is flowing” - The services (IngestionService,
+BroadcastService, ThresholdService) are already here and actively used
+by the MQTT pipeline</p>
+<p><strong>Cleanup needed:</strong> Remove legacy partition code
+(PondReadingDataTable model, partition_manager.py, old IngestConsumer).
+Keep only the active MQTT pipeline services.</p>
+<hr />
+<h3 id="module_chart-visualization-chart-configuration">6. module_chart
+— Visualization &amp; Chart Configuration</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Models</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>VisualisationType</td>
+<td>Chart type catalog (line, bar, heatmap, etc.) with required
+parameters</td>
+</tr>
+<tr>
+<td>ProjectVisualisation</td>
+<td>Per-project chart configuration (which charts enabled, x/y
+parameters, title)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Justification:</strong> This module owns <strong>what charts
+exist and how they’re configured per project</strong>. The chart
+rendering services already live here. Adding the entity models
+(VisualisationType, ProjectVisualisation) gives this module full
+ownership of the visualization domain — from chart definition to chart
+rendering. Without these entities, the module was just a service layer
+with no data ownership, which is an architectural smell.</p>
+<hr />
+<h3 id="module_notification-alerts-notifications">7. module_notification
+— Alerts &amp; Notifications</h3>
+<table>
+<thead>
+<tr>
+<th>Models</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AlertLog</td>
+<td>Alert records with acknowledge/resolve lifecycle</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Justification:</strong> Alert management is a cross-cutting
+concern — alerts are triggered by sensor readings
+(module_data_ingestion), displayed on multiple pages (Overview,
+Real-time), and acknowledged/resolved by users (module_user). Having its
+own module keeps the alert lifecycle (create → acknowledge → resolve)
+cleanly separated. As notifications evolve (email alerts, SMS, push
+notifications, escalation rules), this module can grow independently
+without affecting sensor or ingestion logic.</p>
+<hr />
+<h2 id="summary">Summary</h2>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Module</th>
+<th>Models</th>
+<th>Services</th>
+<th>Focus</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>module_user</code></td>
+<td>6</td>
+<td>Auth, permissions</td>
+<td>Auth, RBAC, permissions</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>module_project</code></td>
+<td>2</td>
+<td>—</td>
+<td>Project setup &amp; profile config</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>module_pond</code></td>
+<td>4</td>
+<td>—</td>
+<td>Pond + growth cycle management</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>module_sensor</code></td>
+<td>6</td>
+<td>Config services</td>
+<td>Sensor config, hardware, parameters</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>module_data_ingestion</code></td>
+<td>2</td>
+<td>IngestionService, BroadcastService, ThresholdService,
+mqtt_adapter</td>
+<td>Data pipeline &amp; real-time processing</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>module_chart</code></td>
+<td>2</td>
+<td>Chart rendering</td>
+<td>Chart config &amp; rendering</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>module_notification</code></td>
+<td>1</td>
+<td>—</td>
+<td>Alerts &amp; notifications</td>
+</tr>
+<tr>
+<td></td>
+<td><strong>Total</strong></td>
+<td><strong>23</strong></td>
+<td></td>
+<td><strong>7 modules</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="before-vs-after">Before vs After</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Before</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>module_project</code> had 6 models</td>
+<td>Split into <code>module_project</code> (2) +
+<code>module_pond</code> (4 — Pond + Cycle + DailyHealth +
+StageMetric)</td>
+</tr>
+<tr>
+<td><code>module_sensor</code> had 8 models (config + data mixed)</td>
+<td>Split into <code>module_sensor</code> (6 config) +
+<code>module_data_ingestion</code> (2 data)</td>
+</tr>
+<tr>
+<td><code>module_chart</code> had no entities</td>
+<td>Now owns VisualisationType + ProjectVisualisation</td>
+</tr>
+<tr>
+<td><code>module_data_ingestion</code> was legacy partitions only</td>
+<td>Repurposed — now owns data pipeline (SensorMessage, SensorReading,
+ingestion services)</td>
+</tr>
+<tr>
+<td><code>module_user</code> had 2 models (old RBAC)</td>
+<td>Now has 6 models (full RBAC)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="module-dependencies">Module Dependencies</h2>
+<pre><code>module_user ← (all modules check permissions)
+
+module_project → module_user (project_owner_id)
+module_pond → module_project (pond.project_id, cycle→pond→project)
+module_sensor → module_project, module_pond (project_sensor links both)
+module_data_ingestion → module_sensor (reads config), module_pond (pond_id), module_notification (creates alerts)
+module_chart → module_project (project_visualisations), module_sensor (parameter references)
+module_notification → module_pond, module_project (alert_log references both)</code></pre>
+<hr />
+<p><em>Last updated: April 26, 2026</em></p>
+</body>
+</html>
