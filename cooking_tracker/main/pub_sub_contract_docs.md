@@ -31,23 +31,25 @@
 | Status | Topic | Publisher | Subscriber | DLQ |
 |---|---|---|---|---|
 | [ ] | `iot.telemetry.received` | AWS Lambda bridge | Ingestion | `iot.telemetry.received.dlq` |
-| [ ] | `sensor.message.validated` | Ingestion | Audit | `sensor.message.validated.dlq` |
-| [ ] | `sensor.message.rejected` | Ingestion | Audit | `sensor.message.rejected.dlq` |
-| [ ] | `reading.ingested` | Ingestion | Notification, Realtime, Audit | `reading.ingested.dlq` |
-| [ ] | `reading.quarantined` | Ingestion | Audit | `reading.quarantined.dlq` |
-| [ ] | `threshold.violated` | Notification | Realtime, Audit | `threshold.violated.dlq` |
-| [ ] | `alert.created` | Notification | Realtime, Audit | `alert.created.dlq` |
-| [ ] | `alert.resolved` | Notification | Realtime, Audit | `alert.resolved.dlq` |
+| [ ] | `sensor.message.validated` | Ingestion | Audit (consumer implemented) | `sensor.message.validated.dlq` |
+| [ ] | `sensor.message.rejected` | Ingestion | Audit (consumer implemented) | `sensor.message.rejected.dlq` |
+| [ ] | `reading.ingested` | Ingestion | Notification, Realtime, Audit (consumer implemented) | `reading.ingested.dlq` |
+| [ ] | `reading.quarantined` | Ingestion | Audit (consumer implemented) | `reading.quarantined.dlq` |
+| [ ] | `threshold.violated` | Notification | Realtime, Audit (consumer implemented) | `threshold.violated.dlq` |
+| [ ] | `alert.created` | Notification | Realtime, Audit (consumer implemented) | `alert.created.dlq` |
+| [ ] | `alert.resolved` | Notification | Realtime, Audit (consumer implemented) | `alert.resolved.dlq` |
 | [ ] | `notification.requested` | Notification | Dispatcher | `notification.requested.dlq` |
-| [ ] | `notification.sent` | Dispatcher | Audit | `notification.sent.dlq` |
-| [ ] | `audit.event.recorded` | All services | Audit | `audit.event.recorded.dlq` |
-| [ ] | `project.created` | Project | Audit | `project.created.dlq` |
-| [ ] | `project.updated` | Project | Audit | `project.updated.dlq` |
-| [ ] | `project.settings.updated` | Project | Notification, Audit | `project.settings.updated.dlq` |
-| [ ] | `device.registered` | Sensor | Audit | `device.registered.dlq` |
-| [ ] | `device.status.changed` | Sensor | Realtime, Audit | `device.status.changed.dlq` |
-| [ ] | `project.sensor.assigned` | Sensor | Ingestion, Audit | `project.sensor.assigned.dlq` |
-| [ ] | `project.sensor.updated` | Sensor | Ingestion, Audit | `project.sensor.updated.dlq` |
+| [ ] | `notification.sent` | Dispatcher | Audit (consumer implemented) | `notification.sent.dlq` |
+| [ ] | `audit.event.recorded` | All services | Audit (consumer implemented) | `audit.event.recorded.dlq` |
+| [ ] | `project.created` | Project | Audit (consumer implemented) | `project.created.dlq` |
+| [ ] | `project.updated` | Project | Audit (consumer implemented) | `project.updated.dlq` |
+| [ ] | `project.settings.updated` | Project | Notification, Audit (consumer implemented) | `project.settings.updated.dlq` |
+| [ ] | `device.registered` | Sensor | Audit (consumer implemented) | `device.registered.dlq` |
+| [ ] | `device.status.changed` | Sensor | Realtime, Audit (consumer implemented) | `device.status.changed.dlq` |
+| [ ] | `project.sensor.assigned` | Sensor | Ingestion, Audit (consumer implemented) | `project.sensor.assigned.dlq` |
+| [ ] | `project.sensor.updated` | Sensor | Ingestion, Audit (consumer implemented) | `project.sensor.updated.dlq` |
+
+The `Audit (consumer implemented)` marker means the Audit Service is subscribed to the corresponding `audit.<topic>.sub` subscription and can derive append-only audit records from that stream. It does not mean every publisher or every non-audit subscriber for that topic is fully implemented.
 
 ## Future Optional Topic Contract
 

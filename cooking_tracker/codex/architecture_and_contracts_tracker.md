@@ -7,7 +7,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary for Claude
 
 - Current focus: Shared API contract foundation is available under `shared-api/`.
-- Last completed: Contract docs updated with Analytics route exception plus `GetChartConfig` and `GetReadings` gRPC seams.
+- Last completed: Pub/Sub contract docs now mark the Audit Service subscriber implementation for the dedicated audit topic and business event audit stream.
 - Blockers / questions: None for documentation. Future updates depend on implementation discoveries.
 
 ## Items
@@ -21,13 +21,14 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Event-driven architecture | DONE | Current event scope corrected; Analytics event consumers are future-only; Project and Sensor Service domain events are included. | `../main/eda.md`, `../main/eda_docs.md` | 2026-06-04 |
 | API contract documentation | DONE | API contract doc prepared with monolith parity consideration; Project Service OpenAPI parity contract extracted from Django/frontend. | `../main/api_contract_docs.md`, `../../shared-api/openapi/project-service.v1.yaml`, `../../docs/evidence/contracts/2026-06-04-project-openapi-extraction.md` | 2026-06-04 |
 | gRPC contract documentation | DONE | Service discovery documented and initial proto contracts created for Identity, Project, Pond, and Sensor service lookup/support calls. | `../main/api_contract_docs.md`, `../main/service_discovery.md`, `../../shared-api/proto/`, `../../docs/evidence/contracts/2026-06-04-shared-contract-validation.md` | 2026-06-04 |
-| Pub/Sub contract documentation | DONE | Topic/subscription/DLQ contracts documented and current event schema files created for the Pub/Sub catalogue, including Project and Sensor Service domain events. | `../main/pub_sub_contract_docs.md`, `../../shared-api/events/`, `../../docs/evidence/k8s-sensor-service/2026-06-04-sensor-kustomize-validation.md` | 2026-06-04 |
+| Pub/Sub contract documentation | DONE | Topic/subscription/DLQ contracts documented and current event schema files created for the Pub/Sub catalogue, including Project/Sensor domain events and implemented Audit Service subscribers. | `../main/pub_sub_contract_docs.md`, `../../shared-api/events/`, `../../docs/evidence/audit-service/SHIP.md`, `../../docs/evidence/k8s-audit-service/2026-06-04-audit-kustomize-validation.md` | 2026-06-04 |
 | ERD documentation | DONE | ERD documentation placeholder/checklist prepared. | `../main/erd_docs.md` | 2026-06-04 |
 
 ## Log
 
 | Date | Update |
 |---|---|
+| 2026-06-04 | Marked Audit Service subscriber implementation in the Pub/Sub contract docs for `audit.event.recorded` and the 15 business-event audit subscriptions. |
 | 2026-06-04 | Updated API contract and service discovery docs with the Analytics chart route exception and the new `ProjectService.GetChartConfig` / `IngestionReadService.GetReadings` gRPC contract entries. |
 | 2026-06-04 | Updated Redis/Memorystore docs with Analytics Service ownership of `analytics:chart-config:{projectId}` and the guardrail that raw telemetry/readings must not be cached in Redis. |
 | 2026-06-04 | Added Sensor Service Pub/Sub schema files, bootstrap topics, and main/shared event catalogues to match implemented sensor event publishing. |

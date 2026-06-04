@@ -113,7 +113,7 @@ spec:
             value: /api/audit
       backendRefs:
         - name: audit-service
-          port: 8080
+          port: 8092
     - matches:
         - path:
             type: PathPrefix

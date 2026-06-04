@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: audit-service-config
+data:
+  SERVER_PORT: "8092"
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_NAME: "aquashield"
+  DB_USER: "audit_svc"
+  DB_POOL_SIZE: "10"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  PUBSUB_PROJECT_ID: "aquashield-dev"
+  PUBSUB_EMULATOR_HOST: ""
+  JWT_ISSUER: "aquashield"
+  JWT_AUDIENCE: "aquashield-api"
+  AUDIT_SUBSCRIPTION: "audit.audit.event.recorded.sub"
+  BUSINESS_SUBSCRIPTIONS: "audit.sensor.message.validated.sub,audit.sensor.message.rejected.sub,audit.reading.ingested.sub,audit.reading.quarantined.sub,audit.threshold.violated.sub,audit.alert.created.sub,audit.alert.resolved.sub,audit.notification.sent.sub,audit.project.created.sub,audit.project.updated.sub,audit.project.settings.updated.sub,audit.device.registered.sub,audit.device.status.changed.sub,audit.project.sensor.assigned.sub,audit.project.sensor.updated.sub"
