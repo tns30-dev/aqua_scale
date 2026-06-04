@@ -6,7 +6,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔
 ## Summary for Codex
 
 - **Current focus:** Application-layer security DONE incl. the WebSocket model (one-time WS tokens, ws:jti replay rejection, fail-closed snapshot at mint, origin allow-list, auth timeout, project-scoped delivery — all IT-tested in realtime-gateway). Next: CI security gates (SAST/SCA/secrets/SBOM/container scan — lands with the CI skeleton), then firewall/mTLS evidence with Codex's cloud foundation.
-- **Last completed (2026-06-04):** Auth model consumed by ALL REST services (project, sensor, notification) — JwtVerifier public-key validation + fail-closed snapshot authz everywhere. PLUS the IoT payload-security chain: PayloadHmac (exact monolith HMAC-SHA256 canonical-JSON scheme) with Python↔Java cross-language test vectors; device_key never serialized over REST (in-cluster gRPC only); ingestion verifies signatures + timestamp skew + rejects unknown/inactive devices; alert engine never poisons the pipeline (swallowed-failure parity).
+- **Last completed (2026-06-04):** The platform auth model now spans LANGUAGES: analytics-service carries a TypeScript port of the same flow (jose RS256 verify with Identity's public key + fail-closed Redis snapshot load + project-scope 404 parity) — semantics test-pinned to match the Java SnapshotAuthFilter (no-token 401, bad-token 401, valid-JWT-no-snapshot 401 fail-closed, out-of-scope 404). Analytics CI lane adds `npm audit --omit=dev --audit-level=high` as a TS SCA gate + Trivy image scan on the node:22-alpine image (clean at ship). Previous: auth model in all Java REST services + IoT PayloadHmac chain with cross-language vectors.
 - **Blockers / questions:** Istio mTLS/AuthorizationPolicy evidence depends on Codex's mesh setup (cloud foundation scope) — will coordinate.
 
 ## Items
@@ -30,3 +30,4 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔
 | 2026-06-04 | Refresh: auth model consumed by all REST services; IoT HMAC chain (cross-language vectors, device-key handling, skew, reject discipline) live in sensor+ingestion. CI security gates next. |
 | 2026-06-04 | WebSocket security model live + tested (realtime-gateway): one-time token consume, replay AUTH_FAILED, fail-closed mint, origin check, auth timeout, scoped fanout. |
 | 2026-06-04 | CI security gates live + first real catch (tomcat CVE-2026-41293/43512/43515, spring-security CVE-2025-41232) remediated via dependency hardening. |
+| 2026-06-04 | Auth model crosses the language boundary: TS port (jose + ioredis) in analytics-service, fail-closed semantics pinned by vitest; npm audit gate + Trivy image scan added for the Node lane. Chart endpoint enforces snapshot project scope (out-of-scope → 404 parity envelope). |
