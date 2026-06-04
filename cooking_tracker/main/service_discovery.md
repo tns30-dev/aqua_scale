@@ -52,6 +52,21 @@
 | [ ] | Audit Service | API edge for queries, all services for audit events |
 | [ ] | Realtime Gateway | API edge and selected internal push callers |
 
+## Internal gRPC Endpoint Map
+
+| Callee | Kubernetes DNS Target | Port | RPCs | Consumers |
+|---|---|---:|---|---|
+| Project Service | `project-service.<namespace>.svc.cluster.local` | `9092` | `GetProject`, `GetProfileType`, `GetParameterSettings`, `GetParameterCatalogue`, `ValidateProjectAccess`, `GetChartConfig` | Pond, Notification, Analytics, selected internal helpers |
+| Pond Service | `pond-service.<namespace>.svc.cluster.local` | `9094` | `GetPond`, `GetPondsByProject`, `GetCurrentCycle`, `ValidatePondInProject`, `GetPondSummary` | Analytics, Notification, Realtime, selected internal helpers |
+| Ingestion Service | `ingestion-service.<namespace>.svc.cluster.local` | `9095` | `GetReadings` | Analytics now; Pond comparison and Project energy dashboard if assigned later |
+
+## New Analytics gRPC Seams
+
+| Seam | Owner | Consumer | Notes |
+|---|---|---|---|
+| `ProjectService.GetChartConfig` | Project Service | Analytics Service | Project owns chart metadata tables and resolves visualisation `y_parameters` to parameter codes. |
+| `IngestionReadService.GetReadings` | Ingestion Service | Analytics Service | Ingestion owns telemetry read access; callers receive time-range rows ordered by `measured_at ASC` with a bounded limit and `truncated` flag. |
+
 ## Evidence Checklist
 
 | Status | Evidence | Expected Result |
@@ -61,4 +76,3 @@
 | [ ] | Disallowed caller | Call denied by policy |
 | [ ] | mTLS status | Mesh reports encrypted service traffic |
 | [ ] | Service graph | Calls visible in telemetry |
-

@@ -37,6 +37,7 @@
 | `/api/auth/**` | Identity and Access Service |
 | `/api/users/**` | Identity and Access Service |
 | `/api/roles/**` | Identity and Access Service |
+| `/api/projects/{projectId}/charts/` | Analytics Service |
 | `/api/projects/**` | Project Service |
 | `/api/profile-types/**` | Project Service |
 | `/api/parameters/**` | Project Service |
@@ -49,6 +50,26 @@
 | `/api/notifications/**` | Notification Service |
 | `/api/analytics/**` | Analytics Service |
 | `/api/audit/**` | Audit Service |
+
+## Public Route Exceptions
+
+| Route | Owner Service | Reason |
+|---|---|---|
+| `GET /api/projects/{projectId}/charts/` | Analytics Service | External path stays monolith/frontend-compatible under `/api/projects`, but implementation belongs to Analytics because it composes chart configuration, pond validation, and telemetry readings. Gateway route must be evaluated before the general `/api/projects/**` Project Service route. |
+
+## Internal gRPC Contract Catalogue
+
+| Callee | Address | RPC | Primary Consumer | Purpose |
+|---|---|---|---|---|
+| Project Service | `project-service:9092` | `ProjectService.GetChartConfig(GetChartConfigRequest) returns (GetChartConfigResponse)` | Analytics Service | Reads enabled project chart configuration from Project-owned `visualisation_types` and `project_visualisations`; resolves `y_parameters` UUIDs to `parameter_code` values for chart engine input. |
+| Ingestion Service | `ingestion-service:9095` | `IngestionReadService.GetReadings(GetReadingsRequest) returns (GetReadingsResponse)` | Analytics Service | Reads telemetry rows for one pond and time range, ordered by `measured_at ASC`, with optional parameter filter, server-side max clamp, and `truncated` flag. Bigtable can replace the backing store behind this seam later. |
+
+## Internal gRPC Message Notes
+
+| RPC | Request Notes | Response Notes |
+|---|---|---|
+| `ProjectService.GetChartConfig` | `project_id` only. Authorization is still enforced by the caller through JWT plus Redis authz snapshot; this RPC resolves project-owned chart metadata. | Returns enabled chart rows only. `visualisation_name` is the exact dispatch name; `y_parameter_codes` may be empty and must not trigger default fallback behavior. |
+| `IngestionReadService.GetReadings` | `pond_id`, inclusive ISO-8601 `start` and `end`, optional `parameters`, optional `limit`. Service clamps to its maximum, currently documented as 50k. | Returns `ReadingRow` entries ordered ascending by `measured_at`; `values` maps `parameter_code` to numeric readings; `truncated=true` means the limit clipped the range. |
 
 ## Endpoint Template
 
@@ -84,5 +105,7 @@
 | API extraction | Treat the monolith APIs and frontend call sites as the source for required request/response behavior. |
 | Contract changes | Do not invent new endpoint shapes when an existing frontend/monolith contract already works. |
 | Ownership changes | If an API moves to a new microservice, keep the external behavior stable and only change the internal owner. |
+| Nested route exceptions | Some externally stable routes under `/api/projects/**` are not owned by Project Service. Document and route those exceptions before the general project prefix. |
+| gRPC read seams | Cross-service reads must go through owner-defined gRPC contracts such as `GetChartConfig` and `GetReadings`; services must not bypass ownership by reading another service database table directly. |
 | Validation rules | Copy existing validation, permission checks, filters, and error cases from the monolith before improving them. |
 | Frontend compatibility | Existing frontend pages should continue working against the new contract unless the page is intentionally refactored. |
