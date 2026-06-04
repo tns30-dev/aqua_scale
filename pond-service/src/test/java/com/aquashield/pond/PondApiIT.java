@@ -1,5 +1,12 @@
 package com.aquashield.pond;
 
+import com.aquashield.api.ingestion.v1.GetReadingWindowsRequest;
+import com.aquashield.api.ingestion.v1.GetReadingWindowsResponse;
+import com.aquashield.api.ingestion.v1.GetReadingsRequest;
+import com.aquashield.api.ingestion.v1.GetReadingsResponse;
+import com.aquashield.api.ingestion.v1.IngestionReadServiceGrpc;
+import com.aquashield.api.ingestion.v1.ReadingRow;
+import com.aquashield.api.ingestion.v1.ReadingWindow;
 import com.aquashield.api.pond.v1.GetCurrentCycleRequest;
 import com.aquashield.api.pond.v1.GetPondRequest;
 import com.aquashield.api.pond.v1.GetPondSummaryRequest;
@@ -109,9 +116,42 @@ class PondApiIT {
     }
   }
 
+  /** fake Ingestion read seam: rows registered per pond by the comparison oracle test. */
+  static final Map<String, List<ReadingRow>> READINGS = new java.util.concurrent.ConcurrentHashMap<>();
+
+  static class FakeIngestion extends IngestionReadServiceGrpc.IngestionReadServiceImplBase {
+    @Override
+    public void getReadings(GetReadingsRequest req, StreamObserver<GetReadingsResponse> obs) {
+      obs.onNext(GetReadingsResponse.newBuilder()
+          .setPondId(req.getPondId())
+          .addAllRows(READINGS.getOrDefault(req.getPondId(), List.of()))
+          .build());
+      obs.onCompleted();
+    }
+
+    @Override
+    public void getReadingWindows(GetReadingWindowsRequest req,
+                                  StreamObserver<GetReadingWindowsResponse> obs) {
+      GetReadingWindowsResponse.Builder resp = GetReadingWindowsResponse.newBuilder();
+      for (String id : req.getPondIdsList()) {
+        List<ReadingRow> rows = READINGS.get(id);
+        if (rows != null && !rows.isEmpty()) {
+          resp.addWindows(ReadingWindow.newBuilder().setPondId(id)
+              .setFirstAt(rows.get(0).getMeasuredAt())
+              .setLastAt(rows.get(rows.size() - 1).getMeasuredAt()));
+        }
+      }
+      obs.onNext(resp.build());
+      obs.onCompleted();
+    }
+  }
+
   @DynamicPropertySource
   static void props(DynamicPropertyRegistry registry) throws Exception {
-    fakeDeps = InProcessServerBuilder.forName(DEPS).addService(new FakeProject()).build().start();
+    fakeDeps = InProcessServerBuilder.forName(DEPS)
+        .addService(new FakeProject())
+        .addService(new FakeIngestion())
+        .build().start();
     registry.add("spring.datasource.url", postgres::getJdbcUrl);
     registry.add("spring.datasource.username", postgres::getUsername);
     registry.add("spring.datasource.password", postgres::getPassword);
@@ -119,6 +159,7 @@ class PondApiIT {
     registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
     registry.add("aquashield.jwt.public-key-pem", PondApiIT::publicPem);
     registry.add("aquashield.grpc.project.in-process-name", () -> DEPS);
+    registry.add("aquashield.grpc.ingestion.in-process-name", () -> DEPS);
     registry.add("aquashield.events.enabled", () -> false);
     registry.add("spring.cloud.gcp.pubsub.emulator-host", () -> "localhost:1"); // unused
     registry.add("grpc.server.port", () -> -1);
@@ -317,6 +358,82 @@ class PondApiIT {
     assertThat(b.at("/charts/0/data")).hasSize(5); // Jun 1..5 daily buckets all present
     assertThat(b.at("/charts/0/data/0/seriesA").asDouble()).isZero();
     assertThat(b.at("/pondA/name").asText()).isEqualTo("Pond Alpha");
+  }
+
+  @Test
+  void t05b_comparison_realReadings_oracle() {
+    String member = mint(MEMBER, "user", 1);
+    String admin = mint(ADMIN, "platform_admin", 1);
+    String base = "/api/projects/" + PROJECT + "/pond-comparison";
+    JsonNode pondC = call("/api/projects/" + PROJECT + "/ponds", HttpMethod.POST,
+        Map.of("name", "Pond Gamma"), admin);
+    String pondCId = pondC.at("/body/pond_id").asText();
+
+    // Worked oracle (CPython-verified): UTC instants -> Asia/Singapore local 14:00/14:30.
+    // turbidity is ABSENT (null) from pondId's second reading.
+    READINGS.put(pondId, List.of(
+        ReadingRow.newBuilder().setMeasuredAt("2026-06-03T06:00:00Z").setPondId(pondId)
+            .putValues("ammonium", 0.10).putValues("dissolved_oxygen", 5.0)
+            .putValues("turbidity", 12.0).putValues("electricity", 1.5).build(),
+        ReadingRow.newBuilder().setMeasuredAt("2026-06-03T06:30:00Z").setPondId(pondId)
+            .putValues("ammonium", 0.20).putValues("dissolved_oxygen", 6.0)
+            .putValues("electricity", 2.5).build()));
+    READINGS.put(pondCId, List.of(
+        ReadingRow.newBuilder().setMeasuredAt("2026-06-03T06:00:00Z").setPondId(pondCId)
+            .putValues("ammonium", 0.40).putValues("dissolved_oxygen", 4.0)
+            .putValues("turbidity", 10.0).putValues("electricity", 3.0).build()));
+    try {
+      JsonNode cmp = call(base + "?pondAId=" + pondId + "&pondBId=" + pondCId
+          + "&startDate=2026-06-03&endDate=2026-06-03", HttpMethod.GET, null, member);
+      assertThat(cmp.get("status").asInt()).isEqualTo(200);
+      JsonNode b = cmp.get("body");
+      assertThat(b.at("/dateRange/grouping").asText()).isEqualTo("hourly"); // span 1
+
+      // metrics — card averages over the whole range (CPython-checked values)
+      JsonNode ammonium = b.at("/metrics/0");
+      assertThat(ammonium.get("pondAValue").asDouble()).isEqualTo(0.15);
+      assertThat(ammonium.get("pondBValue").asDouble()).isEqualTo(0.4);
+      assertThat(ammonium.get("difference").asDouble()).isEqualTo(-0.25);
+      assertThat(ammonium.get("percentDifference").asLong()).isEqualTo(-62);
+      JsonNode dox = b.at("/metrics/1");
+      assertThat(dox.get("pondAValue").asDouble()).isEqualTo(5.5);
+      assertThat(dox.get("percentDifference").asLong()).isEqualTo(38); // 37.5 -> even
+      JsonNode turbidity = b.at("/metrics/2");
+      assertThat(turbidity.get("pondAValue").asDouble()).isEqualTo(12.0); // null dropped
+      assertThat(turbidity.get("percentDifference").asLong()).isEqualTo(20);
+      JsonNode electricity = b.at("/metrics/3");
+      assertThat(electricity.get("pondAValue").asDouble()).isEqualTo(2.0);
+      assertThat(electricity.get("percentDifference").asLong()).isEqualTo(-33);
+
+      // hourly grid: 24 buckets; readings land in the LOCAL 14:00 bucket (06:00Z+08)
+      JsonNode data = b.at("/charts/0/data");
+      assertThat(data).hasSize(24);
+      assertThat(data.get(14).get("label").asText()).isEqualTo("Jun 03 14:00");
+      assertThat(data.get(14).get("seriesA").asDouble()).isEqualTo(0.15);
+      assertThat(data.get(14).get("seriesB").asDouble()).isEqualTo(0.4);
+      assertThat(data.get(13).get("seriesA").asDouble()).isZero(); // empty bucket zero-fill
+
+      // options: reading windows now real (localized isoformat, +08:00 offset)
+      JsonNode options = call(base + "/ponds", HttpMethod.GET, null, member);
+      JsonNode alpha = findPond(options.at("/body/ponds"), "Pond Alpha");
+      assertThat(alpha.get("hasSensorData").asBoolean()).isTrue();
+      assertThat(alpha.get("firstReadingAt").asText()).isEqualTo("2026-06-03T14:00:00+08:00");
+      assertThat(alpha.get("lastReadingAt").asText()).isEqualTo("2026-06-03T14:30:00+08:00");
+      JsonNode beta = findPond(options.at("/body/ponds"), "Pond Beta");
+      assertThat(beta.get("hasSensorData").asBoolean()).isFalse();
+      assertThat(beta.get("firstReadingAt").isNull()).isTrue();
+    } finally {
+      READINGS.clear();
+    }
+  }
+
+  private static JsonNode findPond(JsonNode ponds, String name) {
+    for (JsonNode pond : ponds) {
+      if (pond.get("name").asText().equals(name)) {
+        return pond;
+      }
+    }
+    throw new AssertionError("pond not found: " + name);
   }
 
   @Test

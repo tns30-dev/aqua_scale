@@ -36,16 +36,27 @@ class ComparisonMathTest {
   // Oracle #14 partial — bucket grid: every bucket present, label formats, anchors
   @Test
   void bucketGrid() {
-    assertThat(ComparisonService.bucketLabels(D, D, "hourly"))
+    assertThat(List.copyOf(ComparisonService.bucketGrid(D, D, "hourly").values()))
         .hasSize(24).startsWith("Jun 01 00:00").endsWith("Jun 01 23:00");
-    assertThat(ComparisonService.bucketLabels(D, D.plusDays(2), "daily"))
+    // PARITY FIX vs the stub era: multi-day hourly enumerates EVERY hour of the span
+    // (monolith cursor runs to end_date 23:59:59.999999)
+    assertThat(ComparisonService.bucketGrid(D, D.plusDays(1), "hourly")).hasSize(48);
+    assertThat(List.copyOf(ComparisonService.bucketGrid(D, D.plusDays(2), "daily").values()))
         .containsExactly("Jun 01", "Jun 02", "Jun 03");
     // weekly anchored Monday: Jun 1 2026 IS a Monday
-    assertThat(ComparisonService.bucketLabels(D.plusDays(2), D.plusDays(15), "weekly"))
+    assertThat(List.copyOf(
+        ComparisonService.bucketGrid(D.plusDays(2), D.plusDays(15), "weekly").values()))
         .containsExactly("Jun 01", "Jun 08", "Jun 15");
-    assertThat(ComparisonService.bucketLabels(LocalDate.of(2026, 5, 20),
-        LocalDate.of(2026, 7, 2), "monthly"))
+    assertThat(List.copyOf(ComparisonService.bucketGrid(LocalDate.of(2026, 5, 20),
+        LocalDate.of(2026, 7, 2), "monthly").values()))
         .containsExactly("May 2026", "Jun 2026", "Jul 2026");
+  }
+
+  // CPython round parity now backs the math helpers
+  @Test
+  void bankersRounding() {
+    assertThat(ComparisonService.pctDiff(5.5, 4.0)).isEqualTo(38);   // 37.5 -> even
+    assertThat(ComparisonService.safeAvg(List.of(0.10, 0.20))).isEqualTo(0.15);
   }
 
   // frozen parameter contract

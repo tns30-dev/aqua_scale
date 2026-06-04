@@ -59,6 +59,11 @@ aquashield:
     project:
       target: ${PROJECT_GRPC_TARGET:localhost:9092}
       in-process-name: ${PROJECT_GRPC_INPROCESS:}
+    ingestion:
+      target: ${INGESTION_GRPC_TARGET:localhost:9095}
+      in-process-name: ${INGESTION_GRPC_INPROCESS:}
+  # monolith TIME_ZONE (config/settings/base.py) — all bucketing/labeling is local time
+  timezone: ${AQUASHIELD_TIMEZONE:Asia/Singapore}
   events:
     enabled: ${EVENTS_ENABLED:true}
     source: pond-service
