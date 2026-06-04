@@ -33,3 +33,18 @@ Local Semgrep dry-run (p/java + p/security-audit) on all service sources: exit 0
 Deferred (tracked): deploy-handoff.yml (Artifact Registry push + Kustomize bump — needs
 cloud foundation + OIDC/WIF), action SHA-pinning before cloud go-live, JMeter plans,
 HIGH-severity gate ratchet, branch protection (user/GitHub-plan dependent).
+
+=== FIRST GITHUB RUNS (2026-06-04) — path-awareness proven both ways ===
+
+Run 1 (commit 526c67c, touched root pom + all trackers):
+  detect-changes -> ALL 6 services selected (shared fan-out rule)
+  java-verify matrix: identity/project/sensor/realtime green ON RUNNERS (Testcontainers
+  Postgres+Redis+PubSub emulators work in Actions); gitleaks/semgrep/sbom green.
+  trivy jobs failed on a bad action ref (0.28.0 tag does not exist) -> fixed to v0.36.0.
+
+Run 2 (commit c63a2e9, touched ONLY .github/workflows/):
+  conclusion: SUCCESS
+  detect-changes -> ZERO services selected -> java-verify: skipped, container: skipped
+  secret-scan/sast/sca-and-secrets-fs/sbom: success
+  ===> the spec's path-aware evidence requirement, demonstrated in both directions:
+       shared change = full fan-out; non-service change = no service builds.

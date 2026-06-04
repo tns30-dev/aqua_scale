@@ -13,7 +13,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔
 
 | Item | Status | Progress notes | Evidence | Updated |
 |---|---|---|---|---|
-| Path-aware CI workflows (changed-service matrix) | 🟨 | ci.yml live: detect-changes → changed-service Maven verify matrix (Testcontainers) → Gitleaks/Semgrep/Trivy/CycloneDX gates → container build+scan matrix → summary. Shared modules fan out to all services. First runs pending verification on GitHub. perf.yml JMeter lane wired (plans pending). PENDING: deploy-handoff (registry+OIDC), SHA-pinning, HIGH ratchet | `.github/workflows/` + `docs/evidence/ci/` | 2026-06-04 |
+| Path-aware CI workflows (changed-service matrix) | ✅ | PROVEN ON GITHUB both directions: root-pom commit → all 6 services fanned out (Testcontainers ITs green on runners); workflow-only commit → zero services selected (java-verify/container skipped), all security gates green, run SUCCESS. perf.yml JMeter lane wired (plans pending). PENDING items split: deploy-handoff (needs registry+OIDC), SHA-pinning, HIGH ratchet | `docs/evidence/ci/2026-06-04-ci-skeleton-and-dependency-hardening.txt` + Actions runs | 2026-06-04 |
 | Artifact Registry push (versioned, Git-SHA tagged) | ⬜ | — | — | — |
 | GitOps manifest update (Kustomize image tag) | ⬜ | — | — | — |
 | Argo CD rollout (sync + health evidence) | ⬜ | — | — | — |
@@ -29,3 +29,4 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔
 | 2026-06-04 | Tracker initialized. Specs read (`ci.md`, `cd.md`). |
 | 2026-06-04 | Refresh: 5 services + 79 reactor tests; per-service Dockerfiles ready; repo decided — CI skeleton unblocked. Demo-evidence item → 🟨 (6 evidence folders). |
 | 2026-06-04 | CI skeleton shipped: path-aware ci.yml (matrix verify + 4 security gates + container scan + SBOM) + perf.yml JMeter lane + .gitleaks.toml. Local dry-runs: Trivy found REAL tomcat/spring-security CRITICALs → fixed via Boot 3.5.14 + tomcat 10.1.55 dependencyManagement pin → 0 CRITICALs, Semgrep clean, 84 tests green. |
+| 2026-06-04 | First GitHub runs: run2 SUCCESS with path-awareness proven both ways (fan-out + skip). Trivy action ref fixed (v0.36.0). Path-aware CI item → ✅. |

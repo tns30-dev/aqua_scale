@@ -48,7 +48,7 @@ Source checklist: [main/checklist.md](../main/checklist.md)
 
 | Status | Item | Output | Reference Doc |
 |---|---|---|---|
-| [ ] | Path-aware CI workflows | Build/test/scan only affected services | [ci.md](../main/ci.md) |
+| [x] | Path-aware CI workflows | Build/test/scan only affected services | [ci.md](../main/ci.md) |
 | [ ] | Artifact Registry push | Versioned image pushed by CI | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
 | [ ] | GitOps manifest update | Kustomize image tag updated after successful CI | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
 | [ ] | Argo CD rollout | Argo CD sync and health evidence | [cd.md](../main/cd.md) |

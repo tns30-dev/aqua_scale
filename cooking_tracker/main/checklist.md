@@ -89,7 +89,7 @@
 
 | Status | Owner | Item | Output | Reference Doc |
 |---|---|---|---|---|
-| [ ] | Claude | Path-aware CI workflows | Build/test/scan only affected services | `ci.md` |
+| [x] | Claude | Path-aware CI workflows | Build/test/scan only affected services | `ci.md` |
 | [ ] | Claude | Artifact Registry push | Versioned image pushed by CI | `ci.md`, `cd.md` |
 | [ ] | Claude | GitOps manifest update | Kustomize image tag updated after successful CI | `ci.md`, `cd.md` |
 | [ ] | Claude | Argo CD rollout | Argo CD sync and health evidence | `cd.md` |
