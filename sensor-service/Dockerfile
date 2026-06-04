@@ -1,13 +1,8 @@
 # Build from REPO ROOT: docker build -f sensor-service/Dockerfile .
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
-COPY pom.xml ./
-COPY common/pom.xml common/
-COPY shared-api/pom.xml shared-api/
-COPY sensor-service/pom.xml sensor-service/
-COPY common/src common/src
-COPY shared-api/src shared-api/src
-COPY sensor-service/src sensor-service/src
+# copy the full reactor (root pom declares every module); .dockerignore trims junk
+COPY . .
 RUN mvn -q -pl sensor-service -am package -DskipTests
 
 FROM eclipse-temurin:21-jre-alpine

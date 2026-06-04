@@ -1,0 +1,18 @@
+# Keep image build contexts small + reproducible (shared by all service Dockerfiles;
+# context is always the repo root so the full Maven reactor is available).
+.git
+.github
+**/target/
+**/node_modules/
+frontend/
+frontend copy/
+AquaMonitoringv2/
+AquaMonitoring-Pi/
+cooking_tracker/
+docs/
+jmeter/
+k8s/
+infra/
+local/dev-keys/
+*.log
+.DS_Store

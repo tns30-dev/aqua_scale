@@ -1,13 +1,8 @@
 # Build from REPO ROOT: docker build -f ingestion-service/Dockerfile .
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
-COPY pom.xml ./
-COPY common/pom.xml common/
-COPY shared-api/pom.xml shared-api/
-COPY ingestion-service/pom.xml ingestion-service/
-COPY common/src common/src
-COPY shared-api/src shared-api/src
-COPY ingestion-service/src ingestion-service/src
+# copy the full reactor (root pom declares every module); .dockerignore trims junk
+COPY . .
 RUN mvn -q -pl ingestion-service -am package -DskipTests
 
 FROM eclipse-temurin:21-jre-alpine
