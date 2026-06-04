@@ -1,38 +1,42 @@
 # Architecture And Contracts Tracker - Codex
 
-Last updated: 2026-06-04
+Last updated: 2026-06-05
 
 Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 
-## Summary for Claude
+## Summary
 
-- Current focus: Shared API contract foundation is available under `shared-api/`.
-- Last completed: Pub/Sub contract docs now mark the Audit Service subscriber implementation for the dedicated audit topic and business event audit stream.
-- Blockers / questions: None for documentation. Future updates depend on implementation discoveries.
+- Ownership: Codex owns architecture, contracts, diagrams, and cross-service integration documentation.
+- Current state: The main architecture and contract docs are already consolidated. Shared API artifacts exist under `shared-api/`.
+- Current test: Validate docs against implemented service contracts, generated proto files, JSON event schemas, and Kustomize/Gateway routing.
+- Next test: Re-check all architecture docs after cloud provisioning so diagrams and evidence match real GCP/AWS resources.
 
 ## Items
 
 | Item | Status | Progress notes | Evidence | Updated |
 |---|---|---|---|---|
-| Target bounded contexts | DONE | Main logical architecture docs prepared. | `../main/logical_arch_docs.md` | 2026-06-04 |
-| Logical microservices architecture | DONE | Logical microservices diagram documented. | `../main/logical_arch_docs.md` | 2026-06-04 |
-| Physical cloud architecture | DONE | Physical cloud diagram updated with VPC/firewall/data tiers. | `../main/physical_arch_docs.md` | 2026-06-04 |
+| Target bounded contexts | DONE | Main logical architecture docs define ownership and domain boundaries. | `../main/logical_arch_docs.md` | 2026-06-04 |
+| Logical microservices architecture | DONE | Logical service diagram documented. | `../main/logical_arch_docs.md` | 2026-06-04 |
+| Physical cloud architecture | DONE | Physical cloud diagram covers VPC, firewall, data tiers, GitOps, and AWS IoT boundary. | `../main/physical_arch_docs.md` | 2026-06-04 |
 | Deployment architecture | DONE | Detailed and presentation deployment diagrams documented. | `../main/deployment_docs.md` | 2026-06-04 |
-| Event-driven architecture | DONE | Current event scope corrected; Analytics event consumers are future-only; Project and Sensor Service domain events are included. | `../main/eda.md`, `../main/eda_docs.md` | 2026-06-04 |
-| API contract documentation | DONE | API contract doc prepared with monolith parity consideration; Project Service OpenAPI parity contract extracted from Django/frontend. | `../main/api_contract_docs.md`, `../../shared-api/openapi/project-service.v1.yaml`, `../../docs/evidence/contracts/2026-06-04-project-openapi-extraction.md` | 2026-06-04 |
-| gRPC contract documentation | DONE | Service discovery documented and initial proto contracts created for Identity, Project, Pond, and Sensor service lookup/support calls. | `../main/api_contract_docs.md`, `../main/service_discovery.md`, `../../shared-api/proto/`, `../../docs/evidence/contracts/2026-06-04-shared-contract-validation.md` | 2026-06-04 |
-| Pub/Sub contract documentation | DONE | Topic/subscription/DLQ contracts documented and current event schema files created for the Pub/Sub catalogue, including Project/Sensor domain events and implemented Audit Service subscribers. | `../main/pub_sub_contract_docs.md`, `../../shared-api/events/`, `../../docs/evidence/audit-service/SHIP.md`, `../../docs/evidence/k8s-audit-service/2026-06-04-audit-kustomize-validation.md` | 2026-06-04 |
-| ERD documentation | DONE | ERD documentation placeholder/checklist prepared. | `../main/erd_docs.md` | 2026-06-04 |
+| Event-driven architecture | DONE | Event scope corrected; implemented Project/Sensor/Audit events are represented, Analytics event consumers are future-only. | `../main/eda.md`, `../main/eda_docs.md` | 2026-06-04 |
+| API contract documentation | DONE | REST catalogue prepared with monolith parity consideration; Project Service OpenAPI parity contract extracted. | `../main/api_contract_docs.md`, `../../shared-api/openapi/project-service.v1.yaml`, `../../docs/evidence/contracts/2026-06-04-project-openapi-extraction.md` | 2026-06-04 |
+| gRPC contract documentation | DONE | Service discovery docs and initial proto contracts exist for service lookup/support calls. | `../main/api_contract_docs.md`, `../main/service_discovery.md`, `../../shared-api/proto/`, `../../docs/evidence/contracts/2026-06-04-shared-contract-validation.md` | 2026-06-04 |
+| Pub/Sub contract documentation | DONE | Topic/subscription/DLQ contracts documented and schema files created for current event catalogue. | `../main/pub_sub_contract_docs.md`, `../../shared-api/events/`, `../../docs/evidence/audit-service/SHIP.md` | 2026-06-04 |
+| ERD documentation | DONE | Service-owned ERD documentation placeholder/checklist prepared. | `../main/erd_docs.md` | 2026-06-04 |
+
+## Validation
+
+| Check | Result | Updated |
+|---|---|---|
+| Shared contract validation | PASS; `protoc` and `jq` validation evidence exists. | 2026-06-04 |
+| Tracker ownership rewrite | PASS; tracker no longer depends on Claude handoff language. | 2026-06-05 |
 
 ## Log
 
 | Date | Update |
 |---|---|
-| 2026-06-04 | Marked Audit Service subscriber implementation in the Pub/Sub contract docs for `audit.event.recorded` and the 15 business-event audit subscriptions. |
-| 2026-06-04 | Updated API contract and service discovery docs with the Analytics chart route exception and the new `ProjectService.GetChartConfig` / `IngestionReadService.GetReadings` gRPC contract entries. |
-| 2026-06-04 | Updated Redis/Memorystore docs with Analytics Service ownership of `analytics:chart-config:{projectId}` and the guardrail that raw telemetry/readings must not be cached in Redis. |
-| 2026-06-04 | Added Sensor Service Pub/Sub schema files, bootstrap topics, and main/shared event catalogues to match implemented sensor event publishing. |
-| 2026-06-04 | Added Project Service Pub/Sub schema files and updated main/shared event catalogues to match implemented project event publishing. |
-| 2026-06-04 | Extracted Project Service public REST OpenAPI contract from `module_project` and frontend call sites; validated YAML parse. |
 | 2026-06-04 | Added shared gRPC proto contracts and Pub/Sub JSON schemas under `shared-api/`; validated with `protoc` and `jq`. |
-| 2026-06-04 | Tracker initialized from Codex checklist. Architecture and contract docs are ready for implementation reference. |
+| 2026-06-04 | Extracted Project Service public REST OpenAPI contract from `module_project` and frontend call sites; validated YAML parse. |
+| 2026-06-04 | Updated Redis, API, service discovery, and Pub/Sub docs as implementation discoveries landed. |
+| 2026-06-05 | Rephrased tracker for Codex-only non-service ownership. |

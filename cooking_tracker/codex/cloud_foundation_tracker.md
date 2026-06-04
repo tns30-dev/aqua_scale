@@ -1,14 +1,16 @@
 # Cloud Foundation Tracker - Codex
 
-Last updated: 2026-06-04
+Last updated: 2026-06-05
 
 Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 
-## Summary for Claude
+## Summary
 
-- Current focus: Root `k8s/` platform skeleton and Terraform GCP foundation scaffold are restored/validated.
-- Last completed: Audit Service K8s workload manifests added, `/api/audit` routed to port `8092`, and dev/staging overlays render successfully.
-- Blockers / questions: Real cloud provisioning still needs GCP project ID, region, domain/certificate decision, and repo URL for Argo CD.
+- Ownership: Codex owns GCP foundation, GKE, service mesh, Kubernetes manifests, Artifact Registry, and Terraform remote state.
+- Current state: Terraform and Kustomize scaffolds are validated locally. No real GCP resources have been applied yet.
+- Current test: `terraform fmt/validate` and `kubectl kustomize` for dev/staging overlays.
+- Next test: Run a cost-reviewed Terraform plan against the user's GCP project, then apply the remote-state bucket and dev foundation in controlled steps.
+- Inputs ready from user: GCP account exists. Still need exact project ID, preferred region/zone, billing/cost constraints, domain/certificate choice, and GitHub repo URL for Argo CD.
 
 ## Items
 
@@ -16,71 +18,35 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 |---|---|---|---|---|
 | Custom VPC | IN_PROGRESS | Terraform module scaffold created and validated; cloud apply not started. | `../../infra/modules/network/`, `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
 | GKE subnet | IN_PROGRESS | Terraform module scaffold created and validated; cloud apply not started. | `../../infra/modules/network/`, `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
-| Pod secondary range | IN_PROGRESS | Terraform module scaffold created and validated; cloud apply not started. | `../../infra/modules/network/`, `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
-| Service secondary range | IN_PROGRESS | Terraform module scaffold created and validated; cloud apply not started. | `../../infra/modules/network/`, `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
-| Private nodes | IN_PROGRESS | Terraform GKE scaffold enables private nodes; cloud apply not started. | `../../infra/modules/gke/`, `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
-| Cloud NAT | IN_PROGRESS | Terraform network scaffold includes Cloud NAT; cloud apply not started. | `../../infra/modules/network/`, `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
-| Private Google Access / PSC | IN_PROGRESS | Terraform network scaffold enables Private Google Access; PSC/private service access to be extended with data modules. | `../../infra/modules/network/`, `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
-| VPC firewall rules | IN_PROGRESS | Terraform network scaffold includes GCLB health-check and internal allow rules; tighter app/data rules pending service/data modules. | `../../infra/modules/network/`, `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
-| Kubernetes NetworkPolicy | IN_PROGRESS | Base default-deny ingress, app-internal allow, and GCLB health-check allow policies created; service-specific allow policies pending service deployments. | `../../k8s/base/network/` | 2026-06-04 |
-| Istio service mesh | IN_PROGRESS | Namespace mesh labels, strict mTLS, and namespace default-deny AuthorizationPolicy created; service-specific allow policies pending. | `../../k8s/base/mesh/` | 2026-06-04 |
-| Namespaces | IN_PROGRESS | Dev and staging namespace manifests created; not applied to a live cluster yet. | `../../k8s/overlays/dev/namespace.yaml`, `../../k8s/overlays/staging/namespace.yaml` | 2026-06-04 |
-| Identity Access workload manifests | IN_PROGRESS | Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, and AuthorizationPolicy created; cloud apply not started. | `../../k8s/base/services/identity-access-service/`, `../../docs/evidence/k8s-identity-access/2026-06-04-identity-kustomize-validation.md` | 2026-06-04 |
-| Project Service workload manifests | IN_PROGRESS | Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, AuthorizationPolicy, REST route, and gRPC port created; cloud apply not started. | `../../k8s/base/services/project-service/`, `../../docs/evidence/k8s-project-service/2026-06-04-project-kustomize-validation.md` | 2026-06-04 |
-| Pond Service workload manifests | IN_PROGRESS | Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, AuthorizationPolicy, REST routes, Project gRPC target, and gRPC port created; cloud apply not started. | `../../k8s/base/services/pond-service/`, `../../docs/evidence/k8s-pond-service/2026-06-04-pond-kustomize-validation.md` | 2026-06-04 |
-| Sensor Service workload manifests | IN_PROGRESS | Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, AuthorizationPolicy, REST routes, and gRPC port created; cloud apply not started. | `../../k8s/base/services/sensor-service/`, `../../docs/evidence/k8s-sensor-service/2026-06-04-sensor-kustomize-validation.md` | 2026-06-04 |
-| Ingestion Service workload manifests | IN_PROGRESS | Internal Pub/Sub worker Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, HTTP `8084`, GetReadings gRPC `9095`, and actuator/gRPC AuthorizationPolicy created; no public HTTPRoute by design; cloud apply not started. | `../../k8s/base/services/ingestion-service/`, `../../docs/evidence/k8s-ingestion-service/2026-06-04-ingestion-kustomize-validation.md`, `../../docs/evidence/k8s-ingestion-service/2026-06-04-ingestion-grpc-read-seam-kustomize-validation.md` | 2026-06-04 |
-| Notification Service workload manifests | IN_PROGRESS | Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, AuthorizationPolicy, alert REST route, Redis/project gRPC config, and Pub/Sub subscription config created; cloud apply not started. | `../../k8s/base/services/notification-service/`, `../../docs/evidence/k8s-notification-service/2026-06-04-notification-kustomize-validation.md` | 2026-06-04 |
-| Realtime Gateway workload manifests | IN_PROGRESS | Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, AuthorizationPolicy, WSS edge route, Redis fanout config, and Pub/Sub subscription config created; cloud apply not started. | `../../k8s/base/services/realtime-gateway/`, `../../docs/evidence/k8s-realtime-gateway/2026-06-04-realtime-gateway-kustomize-validation.md` | 2026-06-04 |
-| Analytics Service workload manifests | IN_PROGRESS | TypeScript/Express Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, AuthorizationPolicy, chart route, Redis metadata cache config, and Project/Pond/Ingestion gRPC targets created; cloud apply not started. | `../../k8s/base/services/analytics-service/`, `../../docs/evidence/k8s-analytics-service/2026-06-04-analytics-kustomize-validation.md` | 2026-06-04 |
-| Audit Service workload manifests | IN_PROGRESS | Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, AuthorizationPolicy, audit REST route, Redis authz snapshot config, and Pub/Sub audit subscription config created; cloud apply not started. | `../../k8s/base/services/audit-service/`, `../../docs/evidence/k8s-audit-service/2026-06-04-audit-kustomize-validation.md` | 2026-06-04 |
-| Artifact Registry | IN_PROGRESS | Terraform module scaffold creates service image repositories; cloud apply not started. | `../../infra/modules/artifact-registry/`, `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
-| Terraform remote state | IN_PROGRESS | Bootstrap config and dev `gcs` backend example created; state bucket not applied yet. | `../../infra/bootstrap-state/`, `../../infra/environments/dev/backend.tf.example` | 2026-06-04 |
+| Pod secondary range | IN_PROGRESS | VPC-native pod secondary range is in Terraform scaffold; cloud apply not started. | `../../infra/modules/network/` | 2026-06-04 |
+| Service secondary range | IN_PROGRESS | VPC-native service secondary range is in Terraform scaffold; cloud apply not started. | `../../infra/modules/network/` | 2026-06-04 |
+| Private nodes | IN_PROGRESS | GKE module enables private nodes; cloud apply not started. | `../../infra/modules/gke/` | 2026-06-04 |
+| Cloud NAT | IN_PROGRESS | Network module includes Cloud NAT; cloud apply not started. | `../../infra/modules/network/` | 2026-06-04 |
+| Private Google Access / PSC | IN_PROGRESS | Private Google Access is enabled in the network scaffold; PSC/private service access needs data modules. | `../../infra/modules/network/` | 2026-06-04 |
+| VPC firewall rules | IN_PROGRESS | Health-check and internal allow rules exist; app/data-specific rules remain pending. | `../../infra/modules/network/` | 2026-06-04 |
+| Kubernetes NetworkPolicy | IN_PROGRESS | Base default-deny ingress, app-internal allow, GCLB health-check allow, and per-service policies exist. | `../../k8s/base/network/`, `../../k8s/base/services/` | 2026-06-04 |
+| Istio service mesh | IN_PROGRESS | Namespace mesh labels, strict mTLS, and AuthorizationPolicy skeletons exist; live mesh evidence pending. | `../../k8s/base/mesh/`, `../../k8s/base/services/` | 2026-06-04 |
+| Namespaces | IN_PROGRESS | Dev and staging namespace manifests exist; not applied to a live cluster yet. | `../../k8s/overlays/dev/namespace.yaml`, `../../k8s/overlays/staging/namespace.yaml` | 2026-06-04 |
+| Service workload manifests | IN_PROGRESS | All nine implemented services have Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, and AuthorizationPolicy manifests. | `../../k8s/base/services/`, `../../docs/evidence/k8s-*/` | 2026-06-04 |
+| Artifact Registry | IN_PROGRESS | Terraform module creates per-service Docker repositories; cloud apply not started. | `../../infra/modules/artifact-registry/` | 2026-06-04 |
+| Terraform remote state | IN_PROGRESS | Bootstrap config and dev `gcs` backend example exist; state bucket not applied yet. | `../../infra/bootstrap-state/`, `../../infra/environments/dev/backend.tf.example` | 2026-06-04 |
 
 ## Validation
 
 | Check | Result | Updated |
 |---|---|---|
-| `kubectl kustomize k8s/overlays/dev` | PASS; evidence in `../../docs/evidence/k8s-foundation/2026-06-04-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/staging` | PASS; evidence in `../../docs/evidence/k8s-foundation/2026-06-04-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/dev` after Identity workload | PASS; evidence in `../../docs/evidence/k8s-identity-access/2026-06-04-identity-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/staging` after Identity workload | PASS; evidence in `../../docs/evidence/k8s-identity-access/2026-06-04-identity-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/dev` after Project workload | PASS; evidence in `../../docs/evidence/k8s-project-service/2026-06-04-project-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/staging` after Project workload | PASS; evidence in `../../docs/evidence/k8s-project-service/2026-06-04-project-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/dev` after Pond workload | PASS; evidence in `../../docs/evidence/k8s-pond-service/2026-06-04-pond-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/staging` after Pond workload | PASS; evidence in `../../docs/evidence/k8s-pond-service/2026-06-04-pond-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/dev` after Sensor workload | PASS; evidence in `../../docs/evidence/k8s-sensor-service/2026-06-04-sensor-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/staging` after Sensor workload | PASS; evidence in `../../docs/evidence/k8s-sensor-service/2026-06-04-sensor-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/dev` after Ingestion workload | PASS; evidence in `../../docs/evidence/k8s-ingestion-service/2026-06-04-ingestion-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/staging` after Ingestion workload | PASS; evidence in `../../docs/evidence/k8s-ingestion-service/2026-06-04-ingestion-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/dev` after Ingestion gRPC read seam | PASS; evidence in `../../docs/evidence/k8s-ingestion-service/2026-06-04-ingestion-grpc-read-seam-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/staging` after Ingestion gRPC read seam | PASS; evidence in `../../docs/evidence/k8s-ingestion-service/2026-06-04-ingestion-grpc-read-seam-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/dev` after Notification workload | PASS; evidence in `../../docs/evidence/k8s-notification-service/2026-06-04-notification-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/staging` after Notification workload | PASS; evidence in `../../docs/evidence/k8s-notification-service/2026-06-04-notification-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/dev` after Realtime Gateway workload | PASS; evidence in `../../docs/evidence/k8s-realtime-gateway/2026-06-04-realtime-gateway-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/staging` after Realtime Gateway workload | PASS; evidence in `../../docs/evidence/k8s-realtime-gateway/2026-06-04-realtime-gateway-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/dev` after Analytics workload | PASS; evidence in `../../docs/evidence/k8s-analytics-service/2026-06-04-analytics-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/staging` after Analytics workload | PASS; evidence in `../../docs/evidence/k8s-analytics-service/2026-06-04-analytics-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/dev` after Audit workload | PASS; evidence in `../../docs/evidence/k8s-audit-service/2026-06-04-audit-kustomize-validation.md` | 2026-06-04 |
-| `kubectl kustomize k8s/overlays/staging` after Audit workload | PASS; evidence in `../../docs/evidence/k8s-audit-service/2026-06-04-audit-kustomize-validation.md` | 2026-06-04 |
-| `terraform fmt -check -recursive infra` | PASS; evidence in `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
-| `terraform -chdir=infra/bootstrap-state validate` | PASS; evidence in `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
-| `terraform -chdir=infra/environments/dev validate` | PASS; evidence in `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
+| `kubectl kustomize k8s/overlays/dev` | PASS; evidence recorded. | 2026-06-04 |
+| `kubectl kustomize k8s/overlays/staging` | PASS; evidence recorded. | 2026-06-04 |
+| `terraform fmt -check -recursive infra` | PASS; evidence recorded. | 2026-06-04 |
+| `terraform -chdir=infra/bootstrap-state validate` | PASS; evidence recorded. | 2026-06-04 |
+| `terraform -chdir=infra/environments/dev validate` | PASS; evidence recorded. | 2026-06-04 |
+| Tracker ownership rewrite | PASS; cloud foundation is Codex-owned. | 2026-06-05 |
 
 ## Log
 
 | Date | Update |
 |---|---|
-| 2026-06-04 | Added Audit Service K8s workload manifests on HTTP `8092`, route `/api/audit`, Redis authz snapshot config, audit Pub/Sub subscription config, NetworkPolicy, and Istio AuthorizationPolicy; dev/staging overlays validated. |
-| 2026-06-04 | Added Analytics Service K8s workload manifests on HTTP `8090`, route `^/api/projects/[^/]+/charts/?$`, Redis chart-config metadata cache config, Project/Pond/Ingestion gRPC targets, NetworkPolicy, and Istio AuthorizationPolicy; dev/staging overlays validated. |
-| 2026-06-04 | Updated Ingestion Service K8s workload to expose GetReadings gRPC port `9095` for analytics, including Service, Deployment, NetworkPolicy, and Istio AuthorizationPolicy; dev/staging overlays validated. |
-| 2026-06-04 | Added Pond Service K8s workload manifests on HTTP `8089` and gRPC `9094`, Project gRPC target `project-service:9092`, REST routes for ponds/cycles/treatments/comparison, NetworkPolicy, and Istio AuthorizationPolicy; dev/staging overlays validated. |
-| 2026-06-04 | Added Realtime Gateway K8s workload manifests on port `8088`, with WSS route `/ws`, token mint route `/ws/token`, Redis fanout config, Pub/Sub subscription config, HPA/PDB, NetworkPolicy, and Istio AuthorizationPolicy; dev/staging overlays validated. |
-| 2026-06-04 | Added Notification Service K8s workload manifests on port `8087`, with alert REST route `/api/alerts`, Redis/project gRPC config, Pub/Sub subscription config, HPA/PDB, NetworkPolicy, and Istio AuthorizationPolicy; dev/staging overlays validated. |
-| 2026-06-04 | Added Ingestion Service K8s workload manifests as an internal Pub/Sub worker on port `8084`, with Sensor/Project gRPC targets, HPA/PDB, NetworkPolicy, and actuator-only Istio AuthorizationPolicy; dev/staging overlays validated. |
-| 2026-06-04 | Added Sensor Service K8s workload manifests, REST/gRPC ports, NetworkPolicy, Istio AuthorizationPolicy, and updated HTTPRoute to service port `8083`; dev/staging overlays validated. |
-| 2026-06-04 | Added Project Service K8s workload manifests, REST/gRPC ports, NetworkPolicy, Istio AuthorizationPolicy, and updated HTTPRoute to service port `8082`; dev/staging overlays validated. |
-| 2026-06-04 | Added Identity Access Service K8s workload manifests and updated API Gateway HTTPRoute to service port `8081`; dev/staging overlays validated. |
-| 2026-06-04 | Added validated Terraform scaffold for GCS remote state bootstrap, dev network, private GKE, Artifact Registry repositories, and Cloud Armor policy foundation. No cloud resources applied. |
-| 2026-06-04 | Repo flattened to root layout; platform manifests restored under root `k8s` and dev/staging overlays validated. |
 | 2026-06-04 | Added Kustomize base, dev/staging overlays, service accounts, NetworkPolicy skeleton, Istio strict/default-deny skeleton, and Gateway/HTTPRoute skeleton. |
+| 2026-06-04 | Added validated Terraform scaffold for GCS remote state bootstrap, dev network, private GKE, Artifact Registry repositories, and Cloud Armor policy foundation. No cloud resources applied. |
+| 2026-06-04 | Added and validated workload manifests for all implemented services. |
+| 2026-06-05 | Rephrased tracker for Codex-only non-service ownership and noted that cloud accounts are ready but project details are still needed before apply. |

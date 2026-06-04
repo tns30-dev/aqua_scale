@@ -47,27 +47,27 @@
 
 | Status | Owner | Item | Output | Reference Doc |
 |---|---|---|---|---|
-| [ ] | Claude | Cloud SQL PostgreSQL primary | Transactional database for service-owned business data | `polyglot_persistence.md` |
-| [ ] | Claude | Cloud SQL read replica | Read-scaling evidence for low-risk read paths | `polyglot_persistence.md` |
-| [ ] | Claude | Redis/Memorystore | Authz snapshot, cache, rate-limit, WebSocket fanout | `redis.md`, `authn_authz.md` |
-| [ ] | Claude | Cloud Bigtable | Target telemetry time-series store; cost-safe evidence or emulator path | `polyglot_persistence.md` |
-| [ ] | Claude | BigQuery | Target analytics warehouse; bounded demo dataset and cost controls | `polyglot_persistence.md`, `analytics_service.md` |
-| [ ] | Claude | Cloud Storage | Reports, exports, archives, artifacts, future ML assets | `polyglot_persistence.md` |
-| [ ] | Claude | Google Pub/Sub | Topics, subscriptions, schemas, DLQs | `eda.md`, `pub_sub_contract_docs.md` |
-| [ ] | Claude | AWS IoT Core | MQTT broker, device identity, certificates, policies, rules | `iot.md` |
-| [ ] | Claude | AWS Lambda bridge | AWS IoT event bridge into Google Pub/Sub | `iot.md`, `physical_arch_docs.md` |
-| [ ] | Claude | Terraform-managed infrastructure | Repeatable infrastructure provisioning where feasible | `terraform.md` |
+| [ ] | Codex | Cloud SQL PostgreSQL primary | Transactional database for service-owned business data | `polyglot_persistence.md` |
+| [ ] | Codex | Cloud SQL read replica | Read-scaling evidence for low-risk read paths | `polyglot_persistence.md` |
+| [ ] | Codex | Redis/Memorystore | Authz snapshot, cache, rate-limit, WebSocket fanout | `redis.md`, `authn_authz.md` |
+| [ ] | Codex | Cloud Bigtable | Target telemetry time-series store; cost-safe evidence or emulator path | `polyglot_persistence.md` |
+| [ ] | Codex | BigQuery | Target analytics warehouse; bounded demo dataset and cost controls | `polyglot_persistence.md`, `analytics_service.md` |
+| [ ] | Codex | Cloud Storage | Reports, exports, archives, artifacts, future ML assets | `polyglot_persistence.md` |
+| [ ] | Codex | Google Pub/Sub | Topics, subscriptions, schemas, DLQs | `eda.md`, `pub_sub_contract_docs.md` |
+| [ ] | Codex | AWS IoT Core | MQTT broker, device identity, certificates, policies, rules | `iot.md` |
+| [ ] | Codex | AWS Lambda bridge | AWS IoT event bridge into Google Pub/Sub | `iot.md`, `physical_arch_docs.md` |
+| [ ] | Codex | Terraform-managed infrastructure | Repeatable infrastructure provisioning where feasible | `terraform.md` |
 
 ## Security
 
 | Status | Owner | Item | Output | Reference Doc |
 |---|---|---|---|---|
-| [x] | Claude | Authn/Authz workflow | JWT, Redis authz snapshot, refresh, revocation, ACL flow | `authn_authz.md` |
-| [x] | Claude | Identity authorization snapshot | Feature access and ACL stored in Redis after login | `identity_and_access_service.md`, `redis.md` |
-| [x] | Claude | Token lifecycle | Login, refresh rotation, logout, revocation, MFA optional state | `identity_and_access_service.md`, `authn_authz.md` |
-| [ ] | Claude | Three-layer firewall model | Internet-to-web, web-to-app, app-to-app, app-to-data controls | `network_security.md` |
-| [ ] | Claude | Service-to-service protection | Kubernetes service identity, Istio mTLS, AuthorizationPolicy | `service_discovery.md`, `network_security.md` |
-| [ ] | Claude | Security evidence | SAST, SCA, secret scan, container scan, DAST reports | `ci.md`, `cd.md` |
+| [x] | Codex | Authn/Authz workflow | JWT, Redis authz snapshot, refresh, revocation, ACL flow | `authn_authz.md` |
+| [x] | Codex | Identity authorization snapshot | Feature access and ACL stored in Redis after login | `identity_and_access_service.md`, `redis.md` |
+| [x] | Codex | Token lifecycle | Login, refresh rotation, logout, revocation, MFA optional state | `identity_and_access_service.md`, `authn_authz.md` |
+| [ ] | Codex | Three-layer firewall model | Internet-to-web, web-to-app, app-to-app, app-to-data controls | `network_security.md` |
+| [ ] | Codex | Service-to-service protection | Kubernetes service identity, Istio mTLS, AuthorizationPolicy | `service_discovery.md`, `network_security.md` |
+| [ ] | Codex | Security evidence | SAST, SCA, secret scan, container scan, DAST reports | `ci.md`, `cd.md` |
 
 ## Services
 
@@ -89,11 +89,11 @@
 
 | Status | Owner | Item | Output | Reference Doc |
 |---|---|---|---|---|
-| [x] | Claude | Path-aware CI workflows | Build/test/scan only affected services | `ci.md` |
-| [ ] | Claude | Artifact Registry push | Versioned image pushed by CI | `ci.md`, `cd.md` |
-| [ ] | Claude | GitOps manifest update | Kustomize image tag updated after successful CI | `ci.md`, `cd.md` |
-| [ ] | Claude | Argo CD rollout | Argo CD sync and health evidence | `cd.md` |
-| [ ] | Claude | Smoke tests | Health and contract checks after deployment | `cd.md` |
-| [ ] | Claude | DAST | OWASP ZAP or equivalent scan after deployment | `cd.md` |
-| [ ] | Claude | JMeter load and stress tests | Evidence from dedicated `performance-test` branch or manual dispatch | `ci.md` |
-| [ ] | Claude | Demo evidence | Screenshots, logs, videos, cloud console proof | All docs |
+| [x] | Codex | Path-aware CI workflows | Build/test/scan only affected services | `ci.md` |
+| [ ] | Codex | Artifact Registry push | Versioned image pushed by CI | `ci.md`, `cd.md` |
+| [ ] | Codex | GitOps manifest update | Kustomize image tag updated after successful CI | `ci.md`, `cd.md` |
+| [ ] | Codex | Argo CD rollout | Argo CD sync and health evidence | `cd.md` |
+| [ ] | Codex | Smoke tests | Health and contract checks after deployment | `cd.md` |
+| [ ] | Codex | DAST | OWASP ZAP or equivalent scan after deployment | `cd.md` |
+| [ ] | Codex | JMeter load and stress tests | Evidence from dedicated `performance-test` branch or manual dispatch | `ci.md` |
+| [ ] | Codex | Demo evidence | Screenshots, logs, videos, cloud console proof | All docs |
