@@ -40,6 +40,13 @@ spec:
           port: 8089
     - matches:
         - path:
+            type: RegularExpression
+            value: ^/api/projects/[^/]+/charts/?$
+      backendRefs:
+        - name: analytics-service
+          port: 8090
+    - matches:
+        - path:
             type: PathPrefix
             value: /api/projects
         - path:
@@ -99,7 +106,7 @@ spec:
             value: /api/analytics
       backendRefs:
         - name: analytics-service
-          port: 8080
+          port: 8090
     - matches:
         - path:
             type: PathPrefix

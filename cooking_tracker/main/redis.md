@@ -27,6 +27,7 @@
 | WebSocket token replay protection | Realtime Gateway | One-time token state |
 | WebSocket subscription registry | Realtime Gateway | Short-lived routing metadata |
 | WebSocket cross-pod fanout | Realtime Gateway | Pub/Sub or Stream message |
+| Analytics chart config cache | Analytics Service | Short-lived metadata read-through cache |
 
 ## Key Design Checklist
 
@@ -46,6 +47,7 @@
 | [ ] | Parameter catalogue cache | `project:parameters:{projectId}` |
 | [ ] | Device mapping cache | `sensor:device-map:{deviceId}` |
 | [ ] | Threshold cache | `notification:threshold:{projectId}:{pondId}` |
+| [ ] | Analytics chart config cache | `analytics:chart-config:{projectId}` |
 | [ ] | WebSocket JWT replay | `ws:jti:{jti}` |
 | [ ] | WebSocket subscription | `ws:sub:{userId}:{connectionId}` |
 | [ ] | WebSocket fanout channel | `ws:fanout:{projectId}:{pondId}` |
@@ -105,6 +107,7 @@
 | [ ] | Invalidate parameter cache on update | Chart/device logic reads current settings |
 | [ ] | Invalidate device mapping cache on reassignment | Telemetry mapped to correct project/pond |
 | [ ] | Invalidate threshold cache on alert rule update | Alert decisions use current threshold |
+| [ ] | Keep analytics chart config cache metadata-only with short TTL | Historical chart config reads avoid repeated Project gRPC calls without caching raw readings |
 | [ ] | Add cache hit/miss metrics | Cache behavior visible in evidence |
 
 ## WebSocket Checklist
@@ -159,4 +162,5 @@
 | TTL | Every session, token, cache, rate-limit, and subscription key must have a TTL. |
 | Failure mode | Security-critical Redis failures should fail closed or rebuild the snapshot through Identity before allowing the action. Non-critical read caches may bypass Redis and read from source storage. |
 | WebSocket fanout | Keep socket objects local to each pod; use Redis only for routing metadata and cross-pod messages. |
+| Analytics cache | Analytics may cache chart configuration metadata as `analytics:chart-config:{projectId}` with short TTL. Raw telemetry/readings must never be cached in Redis; they are read through the Ingestion gRPC boundary. |
 | Cost | Use managed Memorystore for final evidence if feasible; use local Redis for development and repeatable demos. |

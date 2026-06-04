@@ -29,3 +29,5 @@ spec:
           port: 8088
         - protocol: TCP
           port: 8089
+        - protocol: TCP
+          port: 8090

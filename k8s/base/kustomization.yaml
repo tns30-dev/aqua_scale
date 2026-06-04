@@ -10,6 +10,7 @@ resources:
   - services/ingestion-service
   - services/notification-service
   - services/realtime-gateway
+  - services/analytics-service
   - edge/gateway.yaml
   - edge/http-redirect.yaml
   - edge/http-route.yaml

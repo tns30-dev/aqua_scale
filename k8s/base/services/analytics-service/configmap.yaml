@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: analytics-service-config
+data:
+  PORT: "8090"
+  JWT_ISSUER: "aquashield"
+  JWT_AUDIENCE: "aquashield-api"
+  REDIS_URL: "redis://redis:6379"
+  PROTO_DIR: "/app/proto"
+  PROJECT_GRPC_TARGET: "project-service:9092"
+  POND_GRPC_TARGET: "pond-service:9094"
+  INGESTION_GRPC_TARGET: "ingestion-service:9095"
+  CHART_CONFIG_CACHE_TTL_SECONDS: "60"

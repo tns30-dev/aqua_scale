@@ -1,7 +1,7 @@
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
-  name: ingestion-service-allow-actuator
+  name: ingestion-service-allow-actuator-grpc
 spec:
   selector:
     matchLabels:
@@ -18,3 +18,7 @@ spec:
               - /actuator/info
               - /actuator/metrics
               - /actuator/metrics/*
+    - to:
+        - operation:
+            ports:
+              - "9095"

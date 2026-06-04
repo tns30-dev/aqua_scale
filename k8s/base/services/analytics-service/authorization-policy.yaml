@@ -1,0 +1,17 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: analytics-service-allow-http
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: analytics-service
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            ports:
+              - "8090"
+            paths:
+              - /api/projects/*
+              - /healthz

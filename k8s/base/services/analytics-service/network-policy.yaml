@@ -1,11 +1,11 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: ingestion-service-ingress
+  name: analytics-service-ingress
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: ingestion-service
+      app.kubernetes.io/name: analytics-service
   policyTypes:
     - Ingress
   ingress:
@@ -15,6 +15,12 @@ spec:
               app.kubernetes.io/part-of: aquashield
       ports:
         - protocol: TCP
-          port: 8084
+          port: 8090
+    - from:
+        - ipBlock:
+            cidr: 35.191.0.0/16
+        - ipBlock:
+            cidr: 130.211.0.0/22
+      ports:
         - protocol: TCP
-          port: 9095
+          port: 8090

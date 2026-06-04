@@ -7,7 +7,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary for Claude
 
 - Current focus: Shared API contract foundation is available under `shared-api/`.
-- Last completed: Sensor Service domain event schemas added and Pub/Sub/EDA docs updated for device and project-sensor events.
+- Last completed: Redis/Memorystore documentation updated with Analytics chart-config metadata cache key ownership.
 - Blockers / questions: None for documentation. Future updates depend on implementation discoveries.
 
 ## Items
@@ -28,6 +28,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 
 | Date | Update |
 |---|---|
+| 2026-06-04 | Updated Redis/Memorystore docs with Analytics Service ownership of `analytics:chart-config:{projectId}` and the guardrail that raw telemetry/readings must not be cached in Redis. |
 | 2026-06-04 | Added Sensor Service Pub/Sub schema files, bootstrap topics, and main/shared event catalogues to match implemented sensor event publishing. |
 | 2026-06-04 | Added Project Service Pub/Sub schema files and updated main/shared event catalogues to match implemented project event publishing. |
 | 2026-06-04 | Extracted Project Service public REST OpenAPI contract from `module_project` and frontend call sites; validated YAML parse. |

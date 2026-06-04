@@ -4,6 +4,7 @@ metadata:
   name: ingestion-service-config
 data:
   SERVER_PORT: "8084"
+  GRPC_PORT: "9095"
   DB_HOST: "postgres"
   DB_PORT: "5432"
   DB_NAME: "aquashield"

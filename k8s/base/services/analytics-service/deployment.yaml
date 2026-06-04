@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ingestion-service
+  name: analytics-service
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app.kubernetes.io/name: ingestion-service
+      app.kubernetes.io/name: analytics-service
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: ingestion-service
+        app.kubernetes.io/name: analytics-service
     spec:
-      serviceAccountName: ingestion-service
+      serviceAccountName: analytics-service
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -21,41 +21,39 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: ingestion-service
-          image: ingestion-service:latest
+        - name: analytics-service
+          image: analytics-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 8084
-            - name: grpc
-              containerPort: 9095
+              containerPort: 8090
           envFrom:
             - configMapRef:
-                name: ingestion-service-config
+                name: analytics-service-config
           env:
-            - name: DB_PASSWORD
+            - name: JWT_PUBLIC_KEY_PEM
               valueFrom:
                 secretKeyRef:
-                  name: ingestion-service-secrets
-                  key: DB_PASSWORD
+                  name: analytics-service-secrets
+                  key: JWT_PUBLIC_KEY_PEM
                   optional: true
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
+              path: /healthz
               port: http
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 6
           livenessProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /healthz
               port: http
             periodSeconds: 20
             timeoutSeconds: 3
             failureThreshold: 3
           startupProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /healthz
               port: http
             periodSeconds: 10
             timeoutSeconds: 3
