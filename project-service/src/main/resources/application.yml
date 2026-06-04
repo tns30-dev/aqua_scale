@@ -57,6 +57,12 @@ aquashield:
   cache:
     catalogue-ttl: ${CACHE_CATALOGUE_TTL:PT1H}
     settings-ttl: ${CACHE_SETTINGS_TTL:PT15M}
+  grpc:
+    ingestion:
+      target: ${INGESTION_GRPC_TARGET:localhost:9095}
+      in-process-name: ${INGESTION_GRPC_INPROCESS:}
+  # monolith TIME_ZONE (config/settings/base.py) — energy bucketing/labels are local time
+  timezone: ${AQUASHIELD_TIMEZONE:Asia/Singapore}
   events:
     enabled: ${EVENTS_ENABLED:true}
     source: project-service

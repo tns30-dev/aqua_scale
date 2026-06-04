@@ -1,5 +1,9 @@
 package com.aquashield.project;
 
+import com.aquashield.api.ingestion.v1.GetReadingsRequest;
+import com.aquashield.api.ingestion.v1.GetReadingsResponse;
+import com.aquashield.api.ingestion.v1.IngestionReadServiceGrpc;
+import com.aquashield.api.ingestion.v1.ReadingRow;
 import com.aquashield.api.project.v1.ChartConfigEntry;
 import com.aquashield.api.project.v1.GetChartConfigRequest;
 import com.aquashield.api.project.v1.GetParameterSettingsRequest;
@@ -97,8 +101,35 @@ class ProjectApiIT {
   static final UUID MEMBER = UUID.randomUUID();
   static final UUID OUTSIDER = UUID.randomUUID();
 
+  /** fake Ingestion read seam (energy dashboard): rows keyed by project_id. */
+  static final java.util.Map<String, java.util.List<ReadingRow>> READINGS =
+      new java.util.concurrent.ConcurrentHashMap<>();
+  static io.grpc.Server fakeIngestion;
+
+  static class FakeIngestion extends IngestionReadServiceGrpc.IngestionReadServiceImplBase {
+    @Override
+    public void getReadings(GetReadingsRequest req,
+                            io.grpc.stub.StreamObserver<GetReadingsResponse> obs) {
+      // window-filter like the real seam (the energy service queries two periods)
+      Instant from = Instant.parse(req.getStart());
+      Instant to = Instant.parse(req.getEnd());
+      GetReadingsResponse.Builder resp = GetReadingsResponse.newBuilder();
+      for (ReadingRow row : READINGS.getOrDefault(req.getProjectId(), java.util.List.of())) {
+        Instant at = Instant.parse(row.getMeasuredAt());
+        if (!at.isBefore(from) && !at.isAfter(to)) {
+          resp.addRows(row);
+        }
+      }
+      obs.onNext(resp.build());
+      obs.onCompleted();
+    }
+  }
+
   @DynamicPropertySource
-  static void props(DynamicPropertyRegistry registry) {
+  static void props(DynamicPropertyRegistry registry) throws Exception {
+    fakeIngestion = io.grpc.inprocess.InProcessServerBuilder.forName("project-it-ingestion")
+        .addService(new FakeIngestion()).build().start();
+    registry.add("aquashield.grpc.ingestion.in-process-name", () -> "project-it-ingestion");
     registry.add("spring.datasource.url", postgres::getJdbcUrl);
     registry.add("spring.datasource.username", postgres::getUsername);
     registry.add("spring.datasource.password", postgres::getPassword);
@@ -141,6 +172,9 @@ class ProjectApiIT {
   static void shutdown() {
     if (grpcChannel != null) {
       grpcChannel.shutdownNow();
+    }
+    if (fakeIngestion != null) {
+      fakeIngestion.shutdownNow();
     }
     if (subscriberStub != null) {
       subscriberStub.close();
@@ -341,6 +375,89 @@ class ProjectApiIT {
     assertThat(r.at("/body/kpis/totalKwh").asDouble()).isZero();
     assertThat(r.at("/body/kpis/currencySymbol").asText()).isEqualTo("€"); // settings from t07
     assertThat(r.at("/body/kpis/peakHourLabel").asText()).isEqualTo("—");
+  }
+
+  @Test
+  void t08b_energyDashboard_realReadings_oracle() throws Exception {
+    String member = mintToken(MEMBER, "user", 2);
+    String base = "/api/projects/" + createdProjectId + "/energy/dashboard";
+
+    // settings: tariff 0.25 USD, hourly threshold 2.0 (t07 left 0.5 EUR — overwrite)
+    JsonNode put = call("/api/projects/" + createdProjectId + "/energy/settings",
+        HttpMethod.PUT, Map.of("tariffPerUnit", 0.25, "currency", "USD",
+            "highHourlyThreshold", 2.0), member);
+    assertThat(put.get("status").asInt()).isEqualTo(200);
+
+    // Oracle B.6 (CPython-verified): UTC instants -> Asia/Singapore local hours.
+    // current day 2026-06-03: 06:00Z+06:20Z -> 14:00 sum 2.5; 08:00Z -> 16:00 0.5
+    // previous day 2026-06-02: 02:00Z -> 10:00 1.0
+    READINGS.put(createdProjectId.toString(), List.of(
+        ReadingRow.newBuilder().setMeasuredAt("2026-06-02T02:00:00Z")
+            .putValues("electricity", 1.0).build(),
+        ReadingRow.newBuilder().setMeasuredAt("2026-06-03T06:00:00Z")
+            .putValues("electricity", 1.5).build(),
+        ReadingRow.newBuilder().setMeasuredAt("2026-06-03T06:20:00Z")
+            .putValues("electricity", 1.0).build(),
+        ReadingRow.newBuilder().setMeasuredAt("2026-06-03T08:00:00Z")
+            .putValues("electricity", 0.5).build()));
+    try {
+      JsonNode r = call(base + "?groupBy=day&startDate=2026-06-03&endDate=2026-06-03",
+          HttpMethod.GET, null, member);
+      assertThat(r.get("status").asInt()).isEqualTo(200);
+      JsonNode b = r.get("body");
+
+      JsonNode kpis = b.get("kpis");
+      assertThat(kpis.get("totalKwh").asDouble()).isEqualTo(3.0);
+      assertThat(kpis.get("estimatedCost").asDouble()).isEqualTo(0.75);
+      assertThat(kpis.get("tariffPerKwh").asDouble()).isEqualTo(0.25);
+      assertThat(kpis.get("currencySymbol").asText()).isEqualTo("$");
+      assertThat(kpis.get("avgKwhPerDay").asDouble()).isEqualTo(3.0);
+      assertThat(kpis.get("avgKwhPerHour").asDouble()).isEqualTo(0.12); // 0.125 -> even
+      assertThat(kpis.get("peakHourKwh").asDouble()).isEqualTo(2.5);
+      assertThat(kpis.get("peakHourLabel").asText()).isEqualTo("14:00"); // local +08
+      assertThat(kpis.get("changeVsPreviousPct").asDouble()).isEqualTo(200.0);
+      assertThat(kpis.get("costChange").asDouble()).isEqualTo(0.5);
+      assertThat(kpis.get("compareLabel").asText()).isEqualTo("vs previous 1 day");
+
+      assertThat(b.get("trend")).hasSize(1);
+      assertThat(b.at("/trend/0/label").asText()).isEqualTo("Jun 03");
+      assertThat(b.at("/trend/0/current").asDouble()).isEqualTo(3.0);
+      assertThat(b.at("/trend/0/previous").asDouble()).isEqualTo(1.0);
+
+      assertThat(b.at("/heatmap/dateLabels/0").asText()).isEqualTo("Jun 03");
+      assertThat(b.at("/heatmap/matrix/14/0").asDouble()).isEqualTo(2.5);
+      assertThat(b.at("/heatmap/matrix/16/0").asDouble()).isEqualTo(0.5);
+      assertThat(b.at("/heatmap/matrix/13/0").isNull()).isTrue(); // empty cell = null
+      assertThat(b.at("/heatmap/maxValue").asDouble()).isEqualTo(2.5);
+
+      assertThat(b.get("alerts")).hasSize(1);
+      assertThat(b.at("/alerts/0/title").asText()).isEqualTo("High hourly consumption");
+      assertThat(b.at("/alerts/0/when").asText()).isEqualTo("Jun 03, 14:00");
+      assertThat(b.at("/alerts/0/value").asText()).isEqualTo("2.5 kWh");
+
+      JsonNode dq = b.get("dataQuality");
+      assertThat(dq.get("expectedRecords").asLong()).isEqualTo(24);
+      assertThat(dq.get("availableRecords").asInt()).isEqualTo(2);
+      assertThat(dq.get("completenessPct").asDouble()).isEqualTo(8.3);
+      assertThat(dq.get("missingPct").asDouble()).isEqualTo(91.7);
+      assertThat(dq.get("lastReceived").asText()).isEqualTo("Jun 03, 16:00");
+
+      JsonNode total = b.at("/summary/0");
+      assertThat(total.get("current").asText()).isEqualTo("3.00 kWh");
+      assertThat(total.get("previous").asText()).isEqualTo("1.00 kWh");
+      assertThat(total.get("change").asText()).isEqualTo("200.0% higher");
+      assertThat(total.get("improved").asBoolean()).isFalse();
+      JsonNode cost = b.at("/summary/3");
+      assertThat(cost.get("current").asText()).isEqualTo("$0.75");
+      assertThat(cost.get("previous").asText()).isEqualTo("$0.25");
+
+      assertThat(b.at("/byPeriod/title").asText()).isEqualTo("Consumption by Day");
+      assertThat(b.at("/byPeriod/rows/0/kwh").asDouble()).isEqualTo(3.0);
+      assertThat(b.at("/compareInfo/currentRange").asText()).isEqualTo("Jun 03 – Jun 03, 2026");
+      assertThat(b.at("/compareInfo/previousRange").asText()).isEqualTo("Jun 02 – Jun 02, 2026");
+    } finally {
+      READINGS.clear();
+    }
   }
 
   @Test
