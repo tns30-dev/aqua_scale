@@ -111,16 +111,78 @@ Trigger behavior:
 | `terraform -chdir=infra/environments/dev plan -var-file=terraform.tfvars` after WIF apply | PASS; remaining plan is `9 to add, 0 to change, 0 to destroy` for network/GKE/Cloud Armor only |
 | Ruby YAML parse for `deploy-handoff.yml` | PASS |
 
-## Next Test
+## GitHub Proof Run
 
-Push this workflow to `main`, then manually dispatch:
+Run:
 
-```bash
-gh workflow run deploy-handoff.yml --ref main -f services=identity-access-service
+```text
+https://github.com/tns30-dev/aqua_scale/actions/runs/26970676442
 ```
 
-Expected proof:
+Run summary:
 
-- `identity-access-service` image exists in Artifact Registry with the full Git SHA tag.
-- `identity-access-service` image exists with the short Git SHA tag.
-- `k8s/overlays/dev/kustomization.yaml` points to the short Git SHA image.
+```text
+event: workflow_dispatch
+conclusion: success
+headSha: 88db1611e9a4f91141efe00208c67023406e79e3
+createdAt: 2026-06-04T18:13:29Z
+updatedAt: 2026-06-04T18:16:03Z
+```
+
+Jobs:
+
+| Job | Result |
+|---|---|
+| `detect-changes` | PASS |
+| `build-push (identity-access-service)` | PASS; WIF auth, Docker login, build, Trivy image scan, and push completed |
+| `gitops-update` | PASS; dev Kustomize image tag committed back to `main` |
+
+## Artifact Registry Proof
+
+Command:
+
+```bash
+gcloud artifacts docker tags list \
+  asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/identity-access-service/identity-access-service \
+  --project=aerobic-guide-498413-u6 \
+  --format='table(tag,version)'
+```
+
+Observed tags:
+
+| Tag | Digest |
+|---|---|
+| `88db1611e9a4` | `sha256:b6b9d8d5e25ee1577336bf54528ed820e8a7a401adb684a72496501bf9f3bd07` |
+| `88db1611e9a4f91141efe00208c67023406e79e3` | `sha256:b6b9d8d5e25ee1577336bf54528ed820e8a7a401adb684a72496501bf9f3bd07` |
+
+## GitOps Manifest Proof
+
+Workflow-generated commit:
+
+```text
+f2c55fb chore(gitops): update dev images to 88db1611e9a4 [skip ci]
+```
+
+Dev overlay now contains:
+
+```yaml
+images:
+- name: identity-access-service
+  newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/identity-access-service/identity-access-service
+  newTag: 88db1611e9a4
+```
+
+Validation:
+
+```text
+kubectl kustomize k8s/overlays/dev
+PASS
+```
+
+## Next Test
+
+After the GKE/network foundation exists, install/connect Argo CD and prove that the GitOps image tag reconciles to a running pod:
+
+```text
+Argo CD sync -> healthy application -> running pod image digest matches Artifact Registry digest
+```

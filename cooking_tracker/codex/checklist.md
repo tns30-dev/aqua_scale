@@ -78,8 +78,8 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | Status | Item | Output | Reference Doc |
 |---|---|---|---|
 | [x] | Path-aware CI workflows | Build/test/scan only affected services | [ci.md](../main/ci.md) |
-| [ ] | Artifact Registry push | Versioned image pushed by CI | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
-| [ ] | GitOps manifest update | Kustomize image tag updated after successful CI | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
+| [x] | Artifact Registry push | Versioned image pushed by CI | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
+| [x] | GitOps manifest update | Kustomize image tag updated after successful CI | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
 | [ ] | Argo CD rollout | Argo CD sync and health evidence | [cd.md](../main/cd.md) |
 | [ ] | Smoke tests | Health and contract checks after deployment | [cd.md](../main/cd.md) |
 | [ ] | DAST | OWASP ZAP or equivalent scan after deployment | [cd.md](../main/cd.md) |
