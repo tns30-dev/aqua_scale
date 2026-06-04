@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aquashield.local/events/alert.created.v1.json",
+  "title": "alert.created v1",
+  "type": "object",
+  "required": ["eventId", "eventType", "schemaVersion", "occurredAt", "publishedAt", "source", "correlationId", "projectId", "pondId", "payload"],
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1 },
+    "eventType": { "const": "alert.created" },
+    "schemaVersion": { "const": "v1" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "publishedAt": { "type": "string", "format": "date-time" },
+    "source": { "type": "string", "minLength": 1 },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "causationId": { "type": "string" },
+    "projectId": { "type": "string", "minLength": 1 },
+    "pondId": { "type": "string", "minLength": 1 },
+    "payload": {
+      "type": "object",
+      "required": ["alertId", "readingId", "parameterCode", "value", "severity", "status", "createdAt"],
+      "properties": {
+        "alertId": { "type": "string", "minLength": 1 },
+        "readingId": { "type": "string", "minLength": 1 },
+        "projectSensorId": { "type": "string" },
+        "parameterCode": { "type": "string", "minLength": 1 },
+        "value": { "type": "number" },
+        "unit": { "type": "string" },
+        "severity": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "minLength": 1 },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

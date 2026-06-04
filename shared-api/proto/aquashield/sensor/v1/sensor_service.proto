@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package aquashield.sensor.v1;
+
+import "google/protobuf/timestamp.proto";
+import "aquashield/common/v1/common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.aquashield.shared.api.sensor.v1";
+option csharp_namespace = "AquaShield.Shared.Api.Sensor.V1";
+
+service SensorService {
+  rpc ResolveDevice(ResolveDeviceRequest) returns (Device);
+  rpc ResolveDevicePort(ResolveDevicePortRequest) returns (DevicePortResolution);
+  rpc GetDeviceValidationMetadata(GetDeviceValidationMetadataRequest) returns (DeviceValidationMetadata);
+  rpc GetProjectSensor(GetProjectSensorRequest) returns (ProjectSensor);
+  rpc UpdateDeviceStatus(UpdateDeviceStatusRequest) returns (UpdateDeviceStatusResponse);
+}
+
+message ResolveDeviceRequest {
+  aquashield.common.v1.RequestContext context = 1;
+  string device_id = 2;
+  string device_code = 3;
+}
+
+message Device {
+  string device_id = 1;
+  string device_code = 2;
+  string device_name = 3;
+  string status = 4;
+  bool active = 5;
+  map<string, string> config = 6;
+}
+
+message ResolveDevicePortRequest {
+  aquashield.common.v1.RequestContext context = 1;
+  string device_id = 2;
+  string device_code = 3;
+  string port = 4;
+  string parameter_code = 5;
+}
+
+message DevicePortResolution {
+  string project_id = 1;
+  string pond_id = 2;
+  string project_sensor_id = 3;
+  string sensor_type_id = 4;
+  string parameter_code = 5;
+  string parameter_id = 6;
+  string port = 7;
+  bool active = 8;
+}
+
+message GetDeviceValidationMetadataRequest {
+  aquashield.common.v1.RequestContext context = 1;
+  string device_id = 2;
+  string device_code = 3;
+}
+
+message DeviceValidationMetadata {
+  string device_id = 1;
+  string device_code = 2;
+  string credential_version = 3;
+  string signing_algorithm = 4;
+  string public_key_id = 5;
+  bool hmac_required = 6;
+  bool active = 7;
+}
+
+message GetProjectSensorRequest {
+  aquashield.common.v1.RequestContext context = 1;
+  string project_sensor_id = 2;
+}
+
+message ProjectSensor {
+  string project_sensor_id = 1;
+  string project_id = 2;
+  string pond_id = 3;
+  string sensor_type_id = 4;
+  string device_id = 5;
+  string port = 6;
+  string status = 7;
+}
+
+message UpdateDeviceStatusRequest {
+  aquashield.common.v1.RequestContext context = 1;
+  string device_id = 2;
+  string status = 3;
+  google.protobuf.Timestamp observed_at = 4;
+  string reason = 5;
+}
+
+message UpdateDeviceStatusResponse {
+  bool updated = 1;
+  string previous_status = 2;
+  string current_status = 3;
+}

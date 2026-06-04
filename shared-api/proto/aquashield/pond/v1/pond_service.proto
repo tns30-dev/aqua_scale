@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package aquashield.pond.v1;
+
+import "google/protobuf/timestamp.proto";
+import "aquashield/common/v1/common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.aquashield.shared.api.pond.v1";
+option csharp_namespace = "AquaShield.Shared.Api.Pond.V1";
+
+service PondService {
+  rpc GetPond(GetPondRequest) returns (Pond);
+  rpc GetPondsByProject(GetPondsByProjectRequest) returns (GetPondsByProjectResponse);
+  rpc GetCurrentCycle(GetCurrentCycleRequest) returns (Cycle);
+  rpc ValidatePondInProject(ValidatePondInProjectRequest) returns (ValidatePondInProjectResponse);
+  rpc GetPondSummary(GetPondSummaryRequest) returns (PondSummary);
+}
+
+message GetPondRequest {
+  aquashield.common.v1.RequestContext context = 1;
+  string pond_id = 2;
+}
+
+message Pond {
+  string pond_id = 1;
+  string project_id = 2;
+  string name = 3;
+  string status = 4;
+  string photo_url = 5;
+  map<string, string> metadata = 6;
+}
+
+message GetPondsByProjectRequest {
+  aquashield.common.v1.RequestContext context = 1;
+  string project_id = 2;
+  bool active_only = 3;
+}
+
+message GetPondsByProjectResponse {
+  repeated Pond ponds = 1;
+}
+
+message GetCurrentCycleRequest {
+  aquashield.common.v1.RequestContext context = 1;
+  string pond_id = 2;
+}
+
+message Cycle {
+  string cycle_id = 1;
+  string pond_id = 2;
+  string project_id = 3;
+  string status = 4;
+  google.protobuf.Timestamp started_at = 5;
+  google.protobuf.Timestamp ended_at = 6;
+  map<string, string> metadata = 7;
+}
+
+message ValidatePondInProjectRequest {
+  aquashield.common.v1.RequestContext context = 1;
+  string project_id = 2;
+  string pond_id = 3;
+}
+
+message ValidatePondInProjectResponse {
+  bool valid = 1;
+  string reason_code = 2;
+}
+
+message GetPondSummaryRequest {
+  aquashield.common.v1.RequestContext context = 1;
+  string pond_id = 2;
+}
+
+message PondSummary {
+  string pond_id = 1;
+  string project_id = 2;
+  string pond_name = 3;
+  string status = 4;
+  string current_cycle_id = 5;
+  repeated LatestReading latest_readings = 6;
+  int32 active_alert_count = 7;
+}
+
+message LatestReading {
+  string parameter_code = 1;
+  aquashield.common.v1.DecimalValue value = 2;
+  google.protobuf.Timestamp measured_at = 3;
+}

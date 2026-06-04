@@ -55,9 +55,15 @@ This optional Analytics topic is only for future precomputed aggregate jobs. It 
 | Status | Event | Schema File |
 |---|---|---|
 | [ ] | `iot.telemetry.received` | `shared-api/events/iot.telemetry.received.v1.json` |
+| [ ] | `sensor.message.validated` | `shared-api/events/sensor.message.validated.v1.json` |
+| [ ] | `sensor.message.rejected` | `shared-api/events/sensor.message.rejected.v1.json` |
 | [ ] | `reading.ingested` | `shared-api/events/reading.ingested.v1.json` |
+| [ ] | `reading.quarantined` | `shared-api/events/reading.quarantined.v1.json` |
+| [ ] | `threshold.violated` | `shared-api/events/threshold.violated.v1.json` |
 | [ ] | `alert.created` | `shared-api/events/alert.created.v1.json` |
 | [ ] | `alert.resolved` | `shared-api/events/alert.resolved.v1.json` |
+| [ ] | `notification.requested` | `shared-api/events/notification.requested.v1.json` |
+| [ ] | `notification.sent` | `shared-api/events/notification.sent.v1.json` |
 | [ ] | `audit.event.recorded` | `shared-api/events/audit.event.recorded.v1.json` |
 
 ## Operational Checklist

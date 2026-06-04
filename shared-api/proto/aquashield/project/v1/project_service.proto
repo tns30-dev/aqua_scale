@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package aquashield.project.v1;
+
+import "aquashield/common/v1/common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.aquashield.shared.api.project.v1";
+option csharp_namespace = "AquaShield.Shared.Api.Project.V1";
+
+service ProjectService {
+  rpc GetProject(GetProjectRequest) returns (Project);
+  rpc GetProfileType(GetProfileTypeRequest) returns (ProfileType);
+  rpc GetParameterSettings(GetParameterSettingsRequest) returns (GetParameterSettingsResponse);
+  rpc GetParameterCatalogue(GetParameterCatalogueRequest) returns (GetParameterCatalogueResponse);
+  rpc ValidateProjectAccess(ValidateProjectAccessRequest) returns (ValidateProjectAccessResponse);
+}
+
+message GetProjectRequest {
+  aquashield.common.v1.RequestContext context = 1;
+  string project_id = 2;
+}
+
+message Project {
+  string project_id = 1;
+  string owner_user_id = 2;
+  string profile_type_id = 3;
+  string name = 4;
+  string description = 5;
+  bool active = 6;
+}
+
+message GetProfileTypeRequest {
+  aquashield.common.v1.RequestContext context = 1;
+  string profile_type_id = 2;
+}
+
+message ProfileType {
+  string profile_type_id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string growth_stage_codes = 4;
+  repeated string key_parameter_codes = 5;
+}
+
+message GetParameterSettingsRequest {
+  aquashield.common.v1.RequestContext context = 1;
+  string project_id = 2;
+  repeated string parameter_codes = 3;
+}
+
+message GetParameterSettingsResponse {
+  repeated ParameterSetting settings = 1;
+}
+
+message ParameterSetting {
+  string project_id = 1;
+  string parameter_id = 2;
+  string parameter_code = 3;
+  string parameter_name = 4;
+  string unit = 5;
+  string data_type = 6;
+  aquashield.common.v1.DecimalValue min_threshold = 7;
+  aquashield.common.v1.DecimalValue max_threshold = 8;
+  bool key_parameter = 9;
+}
+
+message GetParameterCatalogueRequest {
+  aquashield.common.v1.RequestContext context = 1;
+  repeated string parameter_codes = 2;
+}
+
+message GetParameterCatalogueResponse {
+  repeated ParameterType parameters = 1;
+}
+
+message ParameterType {
+  string parameter_id = 1;
+  string code = 2;
+  string name = 3;
+  string unit = 4;
+  string data_type = 5;
+}
+
+message ValidateProjectAccessRequest {
+  aquashield.common.v1.RequestContext context = 1;
+  string user_id = 2;
+  string project_id = 3;
+  string action = 4;
+}
+
+message ValidateProjectAccessResponse {
+  bool project_exists = 1;
+  bool allowed = 2;
+  string reason_code = 3;
+}

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aquashield.local/events/notification.sent.v1.json",
+  "title": "notification.sent v1",
+  "type": "object",
+  "required": ["eventId", "eventType", "schemaVersion", "occurredAt", "publishedAt", "source", "correlationId", "projectId", "payload"],
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1 },
+    "eventType": { "const": "notification.sent" },
+    "schemaVersion": { "const": "v1" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "publishedAt": { "type": "string", "format": "date-time" },
+    "source": { "type": "string", "minLength": 1 },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "causationId": { "type": "string" },
+    "projectId": { "type": "string", "minLength": 1 },
+    "pondId": { "type": "string" },
+    "payload": {
+      "type": "object",
+      "required": ["notificationRequestId", "notificationDeliveryId", "channel", "recipientUserId", "sentAt"],
+      "properties": {
+        "notificationRequestId": { "type": "string", "minLength": 1 },
+        "notificationDeliveryId": { "type": "string", "minLength": 1 },
+        "channel": { "type": "string", "minLength": 1 },
+        "recipientUserId": { "type": "string", "minLength": 1 },
+        "sentAt": { "type": "string", "format": "date-time" },
+        "providerMessageId": { "type": "string" },
+        "deliveryStatus": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

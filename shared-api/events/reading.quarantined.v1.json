@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aquashield.local/events/reading.quarantined.v1.json",
+  "title": "reading.quarantined v1",
+  "type": "object",
+  "required": ["eventId", "eventType", "schemaVersion", "occurredAt", "publishedAt", "source", "correlationId", "payload"],
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1 },
+    "eventType": { "const": "reading.quarantined" },
+    "schemaVersion": { "const": "v1" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "publishedAt": { "type": "string", "format": "date-time" },
+    "source": { "type": "string", "minLength": 1 },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "causationId": { "type": "string" },
+    "projectId": { "type": "string" },
+    "pondId": { "type": "string" },
+    "payload": {
+      "type": "object",
+      "required": ["quarantineId", "deviceId", "reasonCode", "quarantinedAt"],
+      "properties": {
+        "quarantineId": { "type": "string", "minLength": 1 },
+        "deviceId": { "type": "string", "minLength": 1 },
+        "deviceCode": { "type": "string" },
+        "seqNo": { "type": "integer", "minimum": 0 },
+        "projectSensorId": { "type": "string" },
+        "parameterCode": { "type": "string" },
+        "reasonCode": { "type": "string", "minLength": 1 },
+        "reasonMessage": { "type": "string" },
+        "quarantinedAt": { "type": "string", "format": "date-time" },
+        "rawPayload": { "type": ["object", "string"] }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

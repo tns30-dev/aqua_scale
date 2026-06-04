@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aquashield.local/events/threshold.violated.v1.json",
+  "title": "threshold.violated v1",
+  "type": "object",
+  "required": ["eventId", "eventType", "schemaVersion", "occurredAt", "publishedAt", "source", "correlationId", "projectId", "pondId", "payload"],
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1 },
+    "eventType": { "const": "threshold.violated" },
+    "schemaVersion": { "const": "v1" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "publishedAt": { "type": "string", "format": "date-time" },
+    "source": { "type": "string", "minLength": 1 },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "causationId": { "type": "string" },
+    "projectId": { "type": "string", "minLength": 1 },
+    "pondId": { "type": "string", "minLength": 1 },
+    "payload": {
+      "type": "object",
+      "required": ["alertCandidateId", "readingId", "projectSensorId", "parameterCode", "value", "severity", "measuredAt"],
+      "properties": {
+        "alertCandidateId": { "type": "string", "minLength": 1 },
+        "readingId": { "type": "string", "minLength": 1 },
+        "projectSensorId": { "type": "string", "minLength": 1 },
+        "parameterCode": { "type": "string", "minLength": 1 },
+        "value": { "type": "number" },
+        "unit": { "type": "string" },
+        "minThreshold": { "type": ["number", "null"] },
+        "maxThreshold": { "type": ["number", "null"] },
+        "direction": { "enum": ["BELOW_MIN", "ABOVE_MAX", "OUTSIDE_RANGE", "UNKNOWN"] },
+        "severity": { "type": "string", "minLength": 1 },
+        "measuredAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

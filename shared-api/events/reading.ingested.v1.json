@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aquashield.local/events/reading.ingested.v1.json",
+  "title": "reading.ingested v1",
+  "type": "object",
+  "required": ["eventId", "eventType", "schemaVersion", "occurredAt", "publishedAt", "source", "correlationId", "projectId", "pondId", "payload"],
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1 },
+    "eventType": { "const": "reading.ingested" },
+    "schemaVersion": { "const": "v1" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "publishedAt": { "type": "string", "format": "date-time" },
+    "source": { "type": "string", "minLength": 1 },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "causationId": { "type": "string" },
+    "projectId": { "type": "string", "minLength": 1 },
+    "pondId": { "type": "string", "minLength": 1 },
+    "payload": {
+      "type": "object",
+      "required": ["readingId", "sensorMessageId", "projectSensorId", "deviceId", "port", "parameterCode", "value", "measuredAt", "receivedAt"],
+      "properties": {
+        "readingId": { "type": "string", "minLength": 1 },
+        "sensorMessageId": { "type": "string", "minLength": 1 },
+        "projectSensorId": { "type": "string", "minLength": 1 },
+        "deviceId": { "type": "string", "minLength": 1 },
+        "deviceCode": { "type": "string" },
+        "port": { "type": "string", "minLength": 1 },
+        "parameterCode": { "type": "string", "minLength": 1 },
+        "value": { "type": "number" },
+        "unit": { "type": "string" },
+        "measuredAt": { "type": "string", "format": "date-time" },
+        "receivedAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

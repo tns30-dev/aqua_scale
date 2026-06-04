@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aquashield.local/events/alert.resolved.v1.json",
+  "title": "alert.resolved v1",
+  "type": "object",
+  "required": ["eventId", "eventType", "schemaVersion", "occurredAt", "publishedAt", "source", "correlationId", "projectId", "pondId", "payload"],
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1 },
+    "eventType": { "const": "alert.resolved" },
+    "schemaVersion": { "const": "v1" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "publishedAt": { "type": "string", "format": "date-time" },
+    "source": { "type": "string", "minLength": 1 },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "causationId": { "type": "string" },
+    "projectId": { "type": "string", "minLength": 1 },
+    "pondId": { "type": "string", "minLength": 1 },
+    "payload": {
+      "type": "object",
+      "required": ["alertId", "resolvedAt", "resolutionReason"],
+      "properties": {
+        "alertId": { "type": "string", "minLength": 1 },
+        "resolvedAt": { "type": "string", "format": "date-time" },
+        "resolvedByUserId": { "type": "string" },
+        "resolutionReason": { "type": "string", "minLength": 1 },
+        "previousStatus": { "type": "string" },
+        "currentStatus": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

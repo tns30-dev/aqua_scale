@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package aquashield.common.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_package = "com.aquashield.shared.api.common.v1";
+option csharp_namespace = "AquaShield.Shared.Api.Common.V1";
+
+message RequestContext {
+  string correlation_id = 1;
+  string actor_user_id = 2;
+  string authz_snapshot_key = 3;
+  string authz_snapshot_version = 4;
+  map<string, string> attributes = 5;
+}
+
+message PageRequest {
+  int32 page = 1;
+  int32 size = 2;
+  string sort = 3;
+}
+
+message PageResponse {
+  int32 page = 1;
+  int32 size = 2;
+  int64 total_items = 3;
+  int32 total_pages = 4;
+}
+
+message TimeRange {
+  google.protobuf.Timestamp start_at = 1;
+  google.protobuf.Timestamp end_at = 2;
+}
+
+message ResourceScope {
+  string project_id = 1;
+  string pond_id = 2;
+  string device_id = 3;
+}
+
+message DecimalValue {
+  string value = 1;
+  string unit = 2;
+}
+
+message ErrorDetail {
+  string code = 1;
+  string message = 2;
+  string field = 3;
+}
