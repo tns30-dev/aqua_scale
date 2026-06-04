@@ -32,8 +32,8 @@
     <module>sensor-service</module>
     <module>ingestion-service</module>
     <module>notification-service</module>
+    <module>realtime-gateway</module>
     <!-- <module>pond-service</module> -->
-    <!-- <module>realtime-gateway</module> -->
     <!-- <module>audit-service</module> -->
   </modules>
 

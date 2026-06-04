@@ -1,0 +1,39 @@
+=== Realtime Gateway — evidence (2026-06-04) ===
+
+WebFlux WSS gateway per main/websocket.md. Stateless (no DB): sockets pod-local; Redis
+carries routing metadata + the cross-pod fanout channel (ws:fanout:{projectId}); domain
+events arrive via load-balanced Pub/Sub subscriptions and are republished to Redis so
+EVERY pod delivers to its local sockets.
+
+Security model (spec implementation):
+  POST /ws/token: normal JWT verified locally (Identity public key) + Redis authz
+  snapshot loaded FAIL-CLOSED -> one-time WS token (opaque, Redis-backed, TTL 60s,
+  atomic GETDEL consume + ws:jti marker) carrying the user's authorized projectIds.
+  /ws: origin allow-list (CSWH), first-frame AUTH required, auth timeout closes idle
+  unauthenticated sessions, bounded auth-frame size, replay REJECTED, subscription
+  metadata ws:sub:{userId}:{connId} with TTL refreshed by PING heartbeat.
+
+Frame shapes preserve the monolith broadcast contracts:
+  sensor.reading {project_id, pond_id, measured_at, values} ·
+  alert {"alert":{...broadcast dict...}, project_id, pond_id} ·
+  alert_resolved (new-arch, clears banners).
+
+mvn clean verify (full reactor): 84 tests green
+  common 6 · identity 32 · project 17 · sensor 8 · ingestion 9 · notification 7 ·
+  realtime 5
+
+RealtimeGatewayIT (REAL ReactorNetty WebSocket client + Redis + Pub/Sub emulator):
+  t01 /ws/token: no JWT -> 401; valid JWT but missing snapshot -> 401 (fail closed);
+      JWT+snapshot -> one-time token visible in Redis
+  t02 AUTH -> AUTH_OK + ws:sub registered; REPLAYED token on a second connection ->
+      AUTH_FAILED "invalid or replayed"; PING -> PONG heartbeat
+  t03 PROJECT-SCOPED delivery: reading for another project never arrives; own project
+      arrives as parity sensor.reading frame; alert.created -> "alert" frame
+      (broadcast-dict under "alert"); alert.resolved -> alert_resolved frame
+  t04 auth timeout (PT2S) closes idle unauthenticated sessions
+  t05 first frame must be AUTH (PING before auth -> AUTH_FAILED)
+
+THE FULL DEMO CHAIN IS NOW COMPLETE LOCALLY:
+  HMAC-signed device payload -> Pub/Sub -> Ingestion (validate/resolve/dedup/persist)
+  -> reading.ingested -> Notification (threshold eval -> alert.created/resolved)
+  -> Realtime Gateway -> authorized browser WebSocket frames.
