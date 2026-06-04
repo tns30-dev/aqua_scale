@@ -5,12 +5,14 @@ import com.aquashield.project.api.dto.ProjectDtos.EnergySettingsDto;
 import com.aquashield.project.api.dto.ProjectDtos.ParameterSettingDto;
 import com.aquashield.project.api.dto.ProjectDtos.ProjectAdminItem;
 import com.aquashield.project.api.dto.ProjectDtos.ProjectDto;
+import com.aquashield.project.api.dto.ProjectDtos.ProjectSummaryDto;
 import com.aquashield.project.api.dto.ProjectDtos.PutEnergySettingsRequest;
 import com.aquashield.project.api.dto.ProjectDtos.PutParameterSettingItem;
 import com.aquashield.project.api.dto.ProjectDtos.UpdateProjectRequest;
 import com.aquashield.project.config.SnapshotAuthFilter.SnapshotPrincipal;
 import com.aquashield.project.service.EnergyService;
 import com.aquashield.project.service.ProjectAppService;
+import com.aquashield.project.service.SummaryService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -42,10 +44,13 @@ public class ProjectController {
 
   private final ProjectAppService projectsService;
   private final EnergyService energy;
+  private final SummaryService summary;
 
-  public ProjectController(ProjectAppService projectsService, EnergyService energy) {
+  public ProjectController(ProjectAppService projectsService, EnergyService energy,
+                           SummaryService summary) {
     this.projectsService = projectsService;
     this.energy = energy;
+    this.summary = summary;
   }
 
   @GetMapping
@@ -72,6 +77,15 @@ public class ProjectController {
   public ProjectDto get(@PathVariable UUID projectId,
                         @AuthenticationPrincipal SnapshotPrincipal principal) {
     return projectsService.getAccessible(projectId, principal.hasProjectAccess(projectId));
+  }
+
+  @GetMapping({"/{projectId}/summary", "/{projectId}/summary/"})
+  public ProjectSummaryDto getSummary(@PathVariable UUID projectId,
+                                      @AuthenticationPrincipal SnapshotPrincipal principal) {
+    if (!principal.hasProjectAccess(projectId)) {
+      throw new ProjectAppService.NotFoundException();
+    }
+    return summary.getSummary(projectId);
   }
 
   @PatchMapping("/{projectId}")
