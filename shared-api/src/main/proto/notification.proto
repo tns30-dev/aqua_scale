@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package aquashield.notification.v1;
+
+option java_multiple_files = true;
+option java_package = "com.aquashield.api.notification.v1";
+
+// Notification Service — internal gRPC contract.
+// First consumer: Project Service's overview summary (activeAlerts count).
+service NotificationService {
+
+  // Active = acknowledged=false AND resolved=false (the monolith's summary filter).
+  rpc GetActiveAlertCount (GetActiveAlertCountRequest) returns (GetActiveAlertCountResponse);
+}
+
+message GetActiveAlertCountRequest {
+  string project_id = 1;
+}
+
+message GetActiveAlertCountResponse {
+  int64 count = 1;
+}

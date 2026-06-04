@@ -8,4 +8,7 @@ import java.util.UUID;
 
 public interface ActionControlRepository extends JpaRepository<ActionControl, UUID> {
   List<ActionControl> findByDefaultGrantTrue();
+
+  /** PARITY (catalogue endpoints): order_by("name") ascending. */
+  List<ActionControl> findAllByOrderByNameAsc();
 }

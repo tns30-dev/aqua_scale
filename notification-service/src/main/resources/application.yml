@@ -34,6 +34,10 @@ spring:
 server:
   port: ${SERVER_PORT:8087}   # 8085/8086 are the pubsub/bigtable emulators on host
 
+grpc:
+  server:
+    port: ${GRPC_PORT:9096}   # NotificationService (GetActiveAlertCount) — in-cluster only
+
 management:
   endpoints:
     web:

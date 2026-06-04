@@ -17,6 +17,9 @@ public interface AlertLogRepository extends JpaRepository<AlertLog, UUID> {
   boolean existsByPondIdAndParameterAndAcknowledgedFalseAndResolvedFalse(
       UUID pondId, String parameter);
 
+  /** PARITY (project summary): active = unacknowledged AND unresolved. */
+  long countByProjectIdAndAcknowledgedFalseAndResolvedFalse(UUID projectId);
+
   /**
    * PARITY auto-resolve: bulk resolved=true on active rows for (pond, parameter).
    * DIVERGENCE (improvement): also stamps resolved_at (column existed unused).
