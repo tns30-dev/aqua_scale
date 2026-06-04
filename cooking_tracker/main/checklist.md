@@ -75,7 +75,7 @@
 |---|---|---|---|---|
 | [x] | Claude | Identity and Access Service | Java service skeleton, auth contracts, Redis authz snapshot | `identity_and_access_service.md` |
 | [x] | Claude | Project Service | Java service skeleton and project/profile/config contracts | `project_service.md` |
-| [ ] | Claude | Pond Service | Java service skeleton and pond/cycle contracts | `pond_service.md` |
+| [x] | Claude | Pond Service | Java service skeleton and pond/cycle contracts | `pond_service.md` |
 | [x] | Claude | Sensor Service | Java service skeleton and device/port mapping contracts | `sensor_service.md` |
 | [x] | Claude | Ingestion Service | Java Pub/Sub consumer, validation, Bigtable/persistence flow | `ingestion_service.md` |
 | [x] | Claude | Notification Service | Java alert and notification event flow | `notification_service.md` |

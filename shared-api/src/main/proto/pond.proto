@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package aquashield.pond.v1;
+
+option java_multiple_files = true;
+option java_package = "com.aquashield.api.pond.v1";
+
+// Pond Service — internal gRPC contract.
+// Spec: cooking_tracker/main/pond_service.md (gRPC Contract Checklist).
+// Consumers: API edge, Notification (pond context for alerts), Analytics.
+service PondService {
+
+  rpc GetPond (GetPondRequest) returns (Pond);
+
+  rpc GetPondsByProject (GetPondsByProjectRequest) returns (GetPondsByProjectResponse);
+
+  // Active ("ongoing") cycle for a pond; NOT_FOUND when none.
+  rpc GetCurrentCycle (GetCurrentCycleRequest) returns (Cycle);
+
+  rpc ValidatePondInProject (ValidatePondInProjectRequest) returns (ValidatePondInProjectResponse);
+
+  rpc GetPondSummary (GetPondSummaryRequest) returns (PondSummary);
+}
+
+message GetPondRequest {
+  string pond_id = 1;
+}
+
+message Pond {
+  string pond_id = 1;
+  string project_id = 2;
+  string name = 3;
+  string status = 4;
+  double size_value = 5;
+  string size_unit = 6;
+  string pond_type = 7;
+}
+
+message GetPondsByProjectRequest {
+  string project_id = 1;
+}
+
+message GetPondsByProjectResponse {
+  repeated Pond ponds = 1;
+}
+
+message GetCurrentCycleRequest {
+  string pond_id = 1;
+}
+
+message Cycle {
+  string cycle_id = 1;
+  string pond_id = 2;
+  string status = 3;
+  string start_date = 4;   // ISO date
+  string end_date = 5;     // empty when ongoing
+  int32 current_day = 6;   // derived: days since start (ongoing cycles)
+  string species = 7;
+}
+
+message ValidatePondInProjectRequest {
+  string pond_id = 1;
+  string project_id = 2;
+}
+
+message ValidatePondInProjectResponse {
+  bool valid = 1;
+}
+
+message GetPondSummaryRequest {
+  string pond_id = 1;
+}
+
+message PondSummary {
+  Pond pond = 1;
+  bool has_active_cycle = 2;
+  Cycle current_cycle = 3;     // unset when none
+  int32 total_cycles = 4;
+  string latest_health_status = 5; // from the most recent daily health record, if any
+}

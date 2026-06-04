@@ -1,0 +1,35 @@
+=== Pond Service — evidence (2026-06-04) ===
+
+Parity-spec-driven (agent on module_pond, DDL authoritative). Key findings honored:
+- photo_url EXPOSED (existed in DDL, silently dropped by the monolith API — DIV-3)
+- ponds had NO created_by/updated_by columns; daily_health/stage_metrics had no
+  updated_at/by (model declared them; serializers referencing them could 500) — dropped
+- day_number CHECK is 1..200 (DDL), not the docstring's 192
+- NO (cycle,stage_name) unique (DDL truth), NO one-ongoing-cycle constraint (parity)
+- broken /api/ponds/{id}/historical endpoint NOT ported (documented monolith bug)
+- ponds.status CHECK added (improvement: monolith enum was app-only; we have write APIs)
+
+Business-rule ports (oracle-pinned):
+  current_day 1-BASED (ongoing=today-based; completed=end-based; 0-cases) ·
+  duration_days fallback · display names "Cycle Mon YYYY - Mon YYYY/- Ongoing"/"Unknown
+  Cycle" · stage-by-day resolution via Project gRPC stage_config (camelCase
+  startDay/endDay, dual shapes) · comparison: frozen 4-parameter catalogue in fixed
+  order, grouping auto-resolution (<=1 hourly/<=31 daily/<=90 weekly/else monthly),
+  Monday-anchored weekly + day-1 monthly buckets all present, pct-diff 0 on zero
+  denominator, exact validation messages incl. "Pond not found in this project".
+  [XSVC] comparison metric values/series + hasSensorData flags are zero-filled until
+  Ingestion exposes GetReadings (structurally identical to the monolith no-readings
+  case) — tracked cross-service dependency.
+
+REST casing parity: snake lists ({"ponds":[...]}, DRF pagination envelope on /api/cycles,
+bare treatments array) vs camelCase /cycles/{id}/details + pond-comparison payloads.
+
+mvn clean verify (full reactor): 99 tests green
+  common 6 · identity 32 · project 17 · sensor 8 · ingestion 9 · notification 7 ·
+  realtime 5 · pond 15 (5 cycle oracles + 4 comparison math + 6 IT)
+
+PondApiIT highlights: parity list shape + photo_url roundtrip + project/profile names
+via fake Project gRPC · DRF envelope · DB oracles (uq_cycle_daily_health, day CHECK)
+firing · camelCase details with avg->current flattening + stage-by-day ·
+comparison validation messages + contract invariants · 5-RPC gRPC contract incl.
+GetPondSummary with latest health status.

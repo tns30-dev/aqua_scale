@@ -34,7 +34,7 @@ Source checklist: [main/checklist.md](../main/checklist.md)
 |---|---|---|---|
 | [x] | Identity and Access Service | Java service skeleton, auth contracts, Redis authz snapshot | [identity_and_access_service.md](../main/identity_and_access_service.md) |
 | [x] | Project Service | Java service skeleton and project/profile/config contracts | [project_service.md](../main/project_service.md) |
-| [ ] | Pond Service | Java service skeleton and pond/cycle contracts | [pond_service.md](../main/pond_service.md) |
+| [x] | Pond Service | Java service skeleton and pond/cycle contracts | [pond_service.md](../main/pond_service.md) |
 | [x] | Sensor Service | Java service skeleton and device/port mapping contracts | [sensor_service.md](../main/sensor_service.md) |
 | [x] | Ingestion Service | Java Pub/Sub consumer, validation, Bigtable/persistence flow | [ingestion_service.md](../main/ingestion_service.md) |
 | [x] | Notification Service | Java alert and notification event flow | [notification_service.md](../main/notification_service.md) |

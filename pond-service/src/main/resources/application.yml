@@ -1,0 +1,64 @@
+spring:
+  application:
+    name: pond-service
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:aquashield}
+    username: ${DB_USER:pond_svc}
+    password: ${DB_PASSWORD:pond_local}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.default_schema: pond
+    open-in-view: false
+
+  flyway:
+    schemas: pond
+    default-schema: pond
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}
+
+  cloud:
+    gcp:
+      project-id: ${PUBSUB_PROJECT_ID:aquashield-local}
+      pubsub:
+        emulator-host: ${PUBSUB_EMULATOR_HOST:localhost:8085}
+
+server:
+  port: ${SERVER_PORT:8089}
+
+grpc:
+  server:
+    port: ${GRPC_PORT:9094}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+aquashield:
+  jwt:
+    issuer: ${JWT_ISSUER:aquashield-local}
+    audience: ${JWT_AUDIENCE:aquashield-api}
+    public-key-pem: ${JWT_PUBLIC_KEY_PEM:}
+  cache:
+    pond-list-ttl: ${CACHE_POND_LIST_TTL:PT5M}
+  grpc:
+    project:
+      target: ${PROJECT_GRPC_TARGET:localhost:9092}
+      in-process-name: ${PROJECT_GRPC_INPROCESS:}
+  events:
+    enabled: ${EVENTS_ENABLED:true}
+    source: pond-service
