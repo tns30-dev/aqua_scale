@@ -1,6 +1,6 @@
 package com.aquashield.identity.api.dto;
 
-import com.aquashield.identity.domain.FeatureActionEntry;
+import com.aquashield.common.authz.FeatureActionEntry;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

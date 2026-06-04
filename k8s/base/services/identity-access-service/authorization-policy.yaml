@@ -1,0 +1,22 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: identity-access-service-allow-http
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: identity-access-service
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            ports:
+              - "8081"
+            paths:
+              - /api/auth
+              - /api/auth/*
+              - /api/users
+              - /api/users*
+              - /api/users/*
+              - /actuator/health
+              - /actuator/health/*

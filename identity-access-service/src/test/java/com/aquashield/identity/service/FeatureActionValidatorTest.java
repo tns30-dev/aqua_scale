@@ -1,6 +1,6 @@
 package com.aquashield.identity.service;
 
-import com.aquashield.identity.domain.FeatureActionEntry;
+import com.aquashield.common.authz.FeatureActionEntry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

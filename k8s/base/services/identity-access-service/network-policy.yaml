@@ -1,11 +1,11 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-app-internal-traffic
+  name: identity-access-service-ingress
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/part-of: aquashield
+      app.kubernetes.io/name: identity-access-service
   policyTypes:
     - Ingress
   ingress:
@@ -15,8 +15,12 @@ spec:
               app.kubernetes.io/part-of: aquashield
       ports:
         - protocol: TCP
-          port: 8080
+          port: 8081
+    - from:
+        - ipBlock:
+            cidr: 35.191.0.0/16
+        - ipBlock:
+            cidr: 130.211.0.0/22
+      ports:
         - protocol: TCP
           port: 8081
-        - protocol: TCP
-          port: 9090

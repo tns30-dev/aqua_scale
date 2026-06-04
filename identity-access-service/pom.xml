@@ -19,6 +19,31 @@
   </properties>
 
   <dependencies>
+    <!-- Shared platform modules -->
+    <dependency>
+      <groupId>com.aquashield</groupId>
+      <artifactId>common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.aquashield</groupId>
+      <artifactId>shared-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- gRPC server (internal service-to-service API) — plain grpc-java managed by a
+         small SmartLifecycle (no starter: net.devh 3.1.0 breaks on Boot 3.4/Security 6.4) -->
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-netty-shaded</artifactId>
+      <version>${grpc.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-inprocess</artifactId>
+      <version>${grpc.version}</version>
+    </dependency>
+
     <!-- Web + Security -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

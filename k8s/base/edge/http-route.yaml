@@ -20,7 +20,7 @@ spec:
             value: /api/users
       backendRefs:
         - name: identity-access-service
-          port: 8080
+          port: 8081
     - matches:
         - path:
             type: PathPrefix

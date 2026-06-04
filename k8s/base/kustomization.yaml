@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - service-accounts.yaml
+  - services/identity-access-service
   - edge/gateway.yaml
   - edge/http-redirect.yaml
   - edge/http-route.yaml

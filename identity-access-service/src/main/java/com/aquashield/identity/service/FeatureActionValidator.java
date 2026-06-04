@@ -1,13 +1,13 @@
 package com.aquashield.identity.service;
 
-import com.aquashield.identity.domain.FeatureActionEntry;
+import com.aquashield.common.authz.FeatureActionEntry;
 import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static com.aquashield.identity.domain.FeatureActionEntry.WILDCARD;
+import static com.aquashield.common.authz.FeatureActionEntry.WILDCARD;
 
 /**
  * Structural validation of feature_action_assigned (port of module_user/validators.py).

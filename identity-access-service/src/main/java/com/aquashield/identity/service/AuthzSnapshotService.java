@@ -1,7 +1,7 @@
 package com.aquashield.identity.service;
 
+import com.aquashield.common.authz.AuthzSnapshot;
 import com.aquashield.identity.config.AuthProperties;
-import com.aquashield.identity.domain.FeatureActionEntry;
 import com.aquashield.identity.domain.User;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,17 +43,8 @@ public class AuthzSnapshotService {
     this.mapper = mapper;
   }
 
-  public record AuthzSnapshot(
-      UUID userId,
-      long version,
-      String roleType,
-      List<FeatureActionEntry> features,
-      List<UUID> projectIds,
-      Map<String, List<UUID>> pondIdsByProject,
-      Map<String, List<UUID>> deviceIdsByProject,
-      List<String> deniedFeatures,
-      Instant issuedAt,
-      Instant expiresAt) {}
+  // Snapshot record = com.aquashield.common.authz.AuthzSnapshot — the cross-service
+  // contract lives in `common` so producers and consumers can never diverge.
 
   /** Build + store a fresh snapshot from Cloud SQL state; bumps the active version. */
   public AuthzSnapshot buildForLogin(User user) {

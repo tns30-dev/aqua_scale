@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package aquashield.identity.v1;
+
+option java_multiple_files = true;
+option java_package = "com.aquashield.api.identity.v1";
+
+// Identity and Access Service — internal gRPC contract.
+// Spec: cooking_tracker/main/identity_and_access_service.md (gRPC Contract Checklist).
+//
+// IMPORTANT (main/authn_authz.md): these RPCs are NOT the authorization hot path.
+// Services validate JWTs locally and read the Redis authz snapshot. Call Identity only
+// for: snapshot rebuild / cache-miss recovery, admin/support queries, or high-risk
+// actions needing fresh verification.
+service IdentityService {
+
+  // Validate an access token for internal callers that cannot verify locally.
+  rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
+
+  // Rebuild (or return) the Redis authorization snapshot for a user.
+  rpc GetAuthorizationSnapshot (GetAuthorizationSnapshotRequest) returns (AuthorizationSnapshot);
+
+  // Roles + feature access + project ids, for admin/support use cases.
+  rpc GetUserAccess (GetUserAccessRequest) returns (UserAccess);
+
+  // Explicit fallback authorization check (fresh verification path).
+  rpc AuthorizeAction (AuthorizeActionRequest) returns (AuthorizeActionResponse);
+
+  // Users assigned to a project.
+  rpc GetProjectUsers (GetProjectUsersRequest) returns (GetProjectUsersResponse);
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+  string role = 3;
+  int64 authz_version = 4;
+  string error = 5; // populated when valid=false
+}
+
+message FeatureAction {
+  string feature_access = 1;
+  repeated string action_controls = 2;
+}
+
+message GetAuthorizationSnapshotRequest {
+  string user_id = 1;
+}
+
+message AuthorizationSnapshot {
+  string user_id = 1;
+  int64 version = 2;
+  string role_type = 3;
+  repeated FeatureAction features = 4;
+  repeated string project_ids = 5;
+  string issued_at = 6;  // ISO-8601
+  string expires_at = 7; // ISO-8601
+}
+
+message GetUserAccessRequest {
+  string user_id = 1;
+}
+
+message UserAccess {
+  string role = 1;
+  repeated FeatureAction features = 2;
+  repeated string project_ids = 3;
+}
+
+message AuthorizeActionRequest {
+  string user_id = 1;
+  // All provided checks must pass (empty field = check skipped).
+  string feature_code = 2;
+  string action_code = 3;
+  string project_id = 4;
+}
+
+message AuthorizeActionResponse {
+  bool allowed = 1;
+  string reason = 2; // first failed check when denied
+}
+
+message GetProjectUsersRequest {
+  string project_id = 1;
+}
+
+message ProjectUser {
+  string user_id = 1;
+  string email = 2;
+  string full_name = 3;
+  string role = 4;
+}
+
+message GetProjectUsersResponse {
+  repeated ProjectUser users = 1;
+}

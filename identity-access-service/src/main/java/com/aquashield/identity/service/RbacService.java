@@ -1,8 +1,9 @@
 package com.aquashield.identity.service;
 
+import com.aquashield.common.authz.AccessEvaluator;
+import com.aquashield.common.authz.FeatureActionEntry;
 import com.aquashield.identity.domain.ActionControl;
 import com.aquashield.identity.domain.FeatureAccess;
-import com.aquashield.identity.domain.FeatureActionEntry;
 import com.aquashield.identity.domain.User;
 import com.aquashield.identity.repo.ActionControlRepository;
 import com.aquashield.identity.repo.FeatureAccessRepository;
@@ -15,8 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import static com.aquashield.identity.domain.FeatureActionEntry.WILDCARD;
 
 /**
  * Exact port of monolith RBACService (module_user/services.py). The unit-test oracle
@@ -53,30 +52,14 @@ public class RbacService {
     return userProjects.existsByUserIdAndProjectId(userId, projectId);
   }
 
+  /** Delegates to the CANONICAL shared evaluator (common) so semantics never drift. */
   public boolean hasFeatureAccess(User user, String featureCode) {
-    for (FeatureActionEntry e : safeEntries(user)) {
-      if (WILDCARD.equals(e.featureAccess()) || e.featureAccess().equals(featureCode)) {
-        return true;
-      }
-    }
-    return false;
+    return AccessEvaluator.hasFeatureAccess(entries(user), featureCode);
   }
 
+  /** Delegates to the CANONICAL shared evaluator (common) so semantics never drift. */
   public boolean hasActionControl(User user, String actionCode) {
-    for (FeatureActionEntry e : safeEntries(user)) {
-      if (WILDCARD.equals(e.featureAccess())) {
-        return true; // feature wildcard grants every action
-      }
-      List<String> actions = e.actionControls();
-      if (actions == null) {
-        continue; // malformed tolerance
-      }
-      // PARITY: "*" in ANY entry grants ANY action (global leak — intentional)
-      if (actions.contains(WILDCARD) || actions.contains(actionCode)) {
-        return true;
-      }
-    }
-    return false;
+    return AccessEvaluator.hasActionControl(entries(user), actionCode);
   }
 
   public boolean isPlatformAdmin(User user) {
@@ -103,13 +86,7 @@ public class RbacService {
         .toList();
   }
 
-  /** PARITY (_iter_entries): tolerate malformed data — skip null/invalid entries. */
-  private List<FeatureActionEntry> safeEntries(User user) {
-    if (user == null || user.getFeatureActionAssigned() == null) {
-      return List.of();
-    }
-    return user.getFeatureActionAssigned().stream()
-        .filter(e -> e != null && e.featureAccess() != null)
-        .toList();
+  private static List<FeatureActionEntry> entries(User user) {
+    return user == null ? List.of() : user.getFeatureActionAssigned();
   }
 }

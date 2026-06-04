@@ -1,6 +1,6 @@
 package com.aquashield.identity.config;
 
-import com.aquashield.identity.domain.FeatureActionEntry;
+import com.aquashield.common.authz.FeatureActionEntry;
 import com.aquashield.identity.domain.User;
 import com.aquashield.identity.repo.UserRepository;
 import org.slf4j.Logger;

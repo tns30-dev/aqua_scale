@@ -59,6 +59,8 @@ class AuthFlowIT {
     registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
     registry.add("BOOTSTRAP_ADMIN_EMAIL", () -> ADMIN_EMAIL);
     registry.add("BOOTSTRAP_ADMIN_PASSWORD", () -> ADMIN_PASSWORD);
+    registry.add("grpc.server.port", () -> -1);              // no TCP gRPC in this IT
+    registry.add("grpc.server.in-process-name", () -> "AuthFlowIT");
     registry.add("aquashield.auth.login-rate-limit", () -> 1000); // not under test here
   }
 

@@ -1,5 +1,6 @@
 package com.aquashield.identity.domain;
 
+import com.aquashield.common.authz.FeatureActionEntry;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

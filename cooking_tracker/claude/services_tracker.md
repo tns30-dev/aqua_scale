@@ -5,7 +5,8 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔
 
 ## Summary for Codex
 
-- **Current focus:** Identity & Access Service core is BUILT and TESTED (31 tests green + live smoke vs compose). Next: identity gRPC contracts (`shared-api/proto/`) + audit event publishing, or start project-service — user directs.
+- **Current focus:** Identity gRPC contract + shared modules DONE (32 tests green). Next: project-service (parity-agent → implement → test loop), or audit event publishing for identity — user directs.
+- **New shared modules (2026-06-04):** `shared-api` (gRPC protos; `identity.proto` v1 with the 5 spec RPCs) and `common` (canonical authz contract: FeatureActionEntry + AccessEvaluator + AuthzSnapshot + fail-closed AuthzSnapshotConsumer, JwtVerifier for RS256 public-key validation, EventEnvelope). Resource services consume these — semantics can't drift. NOTE: net.devh grpc starter is INCOMPATIBLE with Boot 3.4/Security 6.4 — we run plain grpc-java via a SmartLifecycle (`grpc.server.port`, `grpc.server.in-process-name`); also pinned protobuf-java 4.29.3 in parent dependencyManagement (spring-cloud-gcp BOM downgrades it → gencode/runtime clash).
 - **Last completed (2026-06-04):** identity-access-service: Maven module, Flyway schema (parity port of module_user minus dead `roles` table), RBAC service with exact monolith semantics (incl. the intentional global action-wildcard leak), RS256 JWT (compact claims: sub/jti/role/authzVersion), opaque rotating refresh tokens w/ family reuse-detection, Redis authz snapshot build/version/invalidate, jti revocation, login rate limiting, admin user mgmt (onboard defaults hydration, access diff-sync), parity error envelopes. Monolith parity spec extracted first (agent) and used as test oracles.
 - **Blockers / questions:** None. NOTE for everyone: host ports — monolith's local postgres/redis own 5432/6379, compose stack now maps **5433 (pg) / 6380 (redis)**.
 
@@ -13,7 +14,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔
 
 | Item | Status | Progress notes | Evidence | Updated |
 |---|---|---|---|---|
-| Identity and Access Service (Java) | 🟨 | Core DONE: REST auth (login/refresh/logout/me) + admin user mgmt, RBAC parity, Redis snapshot, refresh rotation+reuse detection, jti revocation, rate limit. 31 tests green (13 RBAC oracles, 6 validator, 12 IT w/ Testcontainers) + live smoke vs compose. PENDING: gRPC contracts, audit event publishing, image build, k8s manifests | `docs/evidence/identity-access/2026-06-04-test-and-smoke.txt` | 2026-06-04 |
+| Identity and Access Service (Java) | 🟨 | Core + gRPC DONE: REST auth + admin mgmt, RBAC parity, Redis snapshot, refresh rotation+reuse detection, jti revocation, rate limit, and the 5 spec gRPC RPCs (in-process IT-tested). 32 tests green + live smoke. PENDING: audit event publishing, image build, k8s manifests | `docs/evidence/identity-access/` (2 files) | 2026-06-04 |
 | Project Service (Java) | ⬜ | — | — | — |
 | Pond Service (Java) | ⬜ | — | — | — |
 | Sensor Service (Java) | ⬜ | — | — | — |
@@ -33,3 +34,4 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔
 | 2026-06-04 | Clean repo `aquashield/` created with full monorepo layout; local compose foundation verified (postgres/redis/pubsub/bigtable). Service development unblocked — no service code yet. |
 | 2026-06-04 | RESTRUCTURE (user decision): single repo `tns30-dev/aqua_scale`; `aquashield/` layer dissolved. Flat ChronoFlow-style layout — one service folder per repo root + `common/` + `shared-api/{proto,events}` + `k8s/` + `infra/` + `jmeter/`; root `pom.xml` Maven multi-module parent (Java 21, Boot 3.4.x). CI path filters/Argo paths now `<service>/**` and `k8s/overlays/...` — Codex notified to update `main/ci.md`, `main/cd.md`, `main/pub_sub_contract_docs.md` paths. |
 | 2026-06-04 | identity-access-service core implemented: parity-spec-driven (agent analysis of module_user), 31 tests green (incl. Testcontainers ITs for rotation/reuse/revocation/snapshot), live smoke vs compose. Compose host ports remapped pg→5433, redis→6380 (monolith owns 5432/6379). Commit pending push. |
+| 2026-06-04 | shared-api (identity.proto v1) + common (canonical authz contract, JwtVerifier, EventEnvelope) modules added; identity gRPC server live (plain grpc-java SmartLifecycle — net.devh incompatible w/ Boot 3.4). 32 tests green. protobuf-java pinned 4.29.3 (GCP BOM downgrade clash). |

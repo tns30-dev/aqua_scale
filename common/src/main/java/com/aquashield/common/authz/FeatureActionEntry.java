@@ -1,11 +1,13 @@
-package com.aquashield.identity.domain;
+package com.aquashield.common.authz;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
 /**
- * One entry of the {@code feature_action_assigned} JSONB array.
+ * One entry of the {@code feature_action_assigned} permission array — THE canonical
+ * cross-service shape (Identity produces it; every service consumes it via the Redis
+ * authorization snapshot).
  *
  * PARITY: inner keys are snake_case ON THE WIRE ("feature_access", "action_controls") —
  * the monolith stores and the frontend parses snake_case. Do not camelCase these.

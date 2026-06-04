@@ -13,7 +13,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔
 
 | Item | Status | Progress notes | Evidence | Updated |
 |---|---|---|---|---|
-| Authn/Authz workflow (JWT + Redis snapshot + refresh + revocation + ACL) | 🟨 | Identity side DONE+tested; pending: shared consumer middleware in `common/` for other services + Identity gRPC fallback | `docs/evidence/identity-access/2026-06-04-test-and-smoke.txt` | 2026-06-04 |
+| Authn/Authz workflow (JWT + Redis snapshot + refresh + revocation + ACL) | 🟨 | Identity side DONE+tested. Shared consumer pieces now exist in `common/` (JwtVerifier + fail-closed AuthzSnapshotConsumer + AccessEvaluator) and Identity gRPC fallback (`AuthorizeAction`, `GetAuthorizationSnapshot`) is live+IT-tested. Remaining: prove the consumer path inside the first resource service (project-service) | `docs/evidence/identity-access/` | 2026-06-04 |
 | Identity authorization snapshot (feature access + ACL in Redis post-login) | ✅ | Built on login (`authz:snapshot:{userId}:{version}` + `authz:version`), TTL'd, version-bumped + old deleted on access/role change; IT-tested + live keys verified | same file (Redis key listing) | 2026-06-04 |
 | Token lifecycle (login, refresh rotation, logout, revocation, MFA-optional) | ✅ | Login/refresh-rotation/reuse-detection/logout/jti-revocation done + tested. MFA = optional state, deferred by design | same file | 2026-06-04 |
 | Three-layer firewall model (internet→web→app→data) | ⬜ | — | — | — |

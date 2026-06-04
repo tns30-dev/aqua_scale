@@ -25,9 +25,9 @@
        analytics-service (TypeScript), ml-service / llm-service (Python placeholders)
        are intentionally NOT Maven modules. -->
   <modules>
+    <module>common</module>
+    <module>shared-api</module>
     <module>identity-access-service</module>
-    <!-- <module>common</module> -->
-    <!-- <module>shared-api</module> -->
     <!-- <module>project-service</module> -->
     <!-- <module>pond-service</module> -->
     <!-- <module>sensor-service</module> -->
@@ -54,6 +54,13 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <!-- pin: imported BOMs (spring-cloud-gcp) manage an older protobuf runtime,
+             which must never be older than our protoc gencode version -->
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
+        <version>${protobuf.version}</version>
+      </dependency>
       <dependency>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-dependencies</artifactId>

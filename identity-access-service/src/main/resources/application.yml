@@ -28,6 +28,10 @@ spring:
 server:
   port: ${SERVER_PORT:8081}
 
+grpc:
+  server:
+    port: ${GRPC_PORT:9091}   # internal-only; protected by NetworkPolicy + mesh mTLS in-cluster
+
 management:
   endpoints:
     web:
