@@ -7,6 +7,7 @@ resources:
   - services/project-service
   - services/sensor-service
   - services/ingestion-service
+  - services/notification-service
   - edge/gateway.yaml
   - edge/http-redirect.yaml
   - edge/http-route.yaml

@@ -73,7 +73,7 @@ spec:
             value: /api/alerts
       backendRefs:
         - name: notification-service
-          port: 8080
+          port: 8087
     - matches:
         - path:
             type: PathPrefix
