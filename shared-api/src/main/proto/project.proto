@@ -22,6 +22,11 @@ service ProjectService {
 
   // Existence/ownership helper (NOT user authorization — that is the Redis snapshot).
   rpc ValidateProjectAccess (ValidateProjectAccessRequest) returns (ValidateProjectAccessResponse);
+
+  // Enabled chart configuration for a project — Analytics Service hot dependency.
+  // PARITY: mirrors the monolith chart engine's config read (project_visualisations
+  // enabled=true joined to visualisation_types, y_parameters resolved to parameter_code).
+  rpc GetChartConfig (GetChartConfigRequest) returns (GetChartConfigResponse);
 }
 
 message GetProjectRequest {
@@ -93,4 +98,26 @@ message ValidateProjectAccessRequest {
 message ValidateProjectAccessResponse {
   bool exists = 1;
   string profile_type_code = 2;
+}
+
+message GetChartConfigRequest {
+  string project_id = 1;
+}
+
+message ChartConfigEntry {
+  string project_visualisation_id = 1;
+  // EXACT visualisation_types.name join key (e.g. "Multi-Parameter Trends") — the
+  // chart engine's case-sensitive dispatch string; never localized or normalized.
+  string visualisation_name = 2;
+  string chart_type = 3;
+  string title = 4;
+  // y_parameters UUIDs resolved to parameter_code values (chart engine inputs).
+  // May be empty — PARITY: empty config = empty chart, NOT the fallback defaults.
+  repeated string y_parameter_codes = 5;
+}
+
+message GetChartConfigResponse {
+  string project_id = 1;
+  // Only enabled rows (monolith filters enabled=True at the engine).
+  repeated ChartConfigEntry charts = 2;
 }

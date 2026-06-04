@@ -6,6 +6,8 @@ import com.aquashield.project.domain.ProfileType;
 import com.aquashield.project.domain.Project;
 import com.aquashield.project.domain.ProjectEnergySetting;
 import com.aquashield.project.domain.ProjectParameterSetting;
+import com.aquashield.project.domain.ProjectVisualisation;
+import com.aquashield.project.domain.VisualisationType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Collection;
@@ -52,5 +54,15 @@ public final class Repositories {
   public interface ProjectEnergySettingRepository
       extends JpaRepository<ProjectEnergySetting, UUID> {
     Optional<ProjectEnergySetting> findByProjectIdAndType(UUID projectId, String type);
+  }
+
+  public interface VisualisationTypeRepository extends JpaRepository<VisualisationType, UUID> {
+    Optional<VisualisationType> findByName(String name);
+  }
+
+  public interface ProjectVisualisationRepository
+      extends JpaRepository<ProjectVisualisation, UUID> {
+    /** PARITY: the chart engine reads enabled rows only (enabled=True filter). */
+    List<ProjectVisualisation> findByProjectIdAndEnabledTrue(UUID projectId);
   }
 }

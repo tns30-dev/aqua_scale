@@ -1,5 +1,7 @@
 package com.aquashield.project;
 
+import com.aquashield.api.project.v1.ChartConfigEntry;
+import com.aquashield.api.project.v1.GetChartConfigRequest;
 import com.aquashield.api.project.v1.GetParameterSettingsRequest;
 import com.aquashield.api.project.v1.GetProfileTypeRequest;
 import com.aquashield.api.project.v1.ProjectServiceGrpc;
@@ -151,6 +153,7 @@ class ProjectApiIT {
   @Autowired TestRestTemplate http;
   @Autowired ObjectMapper json;
   @Autowired StringRedisTemplate redisTemplate;
+  @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
 
   // ---------- auth helpers (simulating Identity's outputs) ----------
 
@@ -369,6 +372,53 @@ class ProjectApiIT {
     assertThat(profile.getCode()).isEqualTo("shrimp");
     assertThat(profile.getStageConfigJson()).contains("startDay"); // camelCase passthrough
     assertThat(profile.getKeyParameterCodesList()).contains("temperature");
+  }
+
+  @Test
+  void t10_grpcChartConfig_enabledRowsOnly_yParametersResolvedToCodes() {
+    if (grpcChannel == null) {
+      grpcChannel = InProcessChannelBuilder.forName(IN_PROCESS).usePlaintext().build();
+    }
+    var stub = ProjectServiceGrpc.newBlockingStub(grpcChannel);
+
+    // enabled multi-param chart with y_parameters -> [temperature, ph]
+    jdbc.update("""
+        INSERT INTO project.project_visualisations
+          (project_id, visualisation_type_id, enabled, y_parameters, title)
+        SELECT ?::uuid, visualisation_type_id, true,
+               ARRAY(SELECT parameter_id FROM project.parameter_types
+                     WHERE parameter_code IN ('temperature','ph')),
+               'Multi-Parameter Trends'
+        FROM project.visualisation_types WHERE name = 'Multi-Parameter Trends'
+        """, createdProjectId.toString());
+    // enabled stub chart with NULL y_parameters
+    jdbc.update("""
+        INSERT INTO project.project_visualisations (project_id, visualisation_type_id, enabled)
+        SELECT ?::uuid, visualisation_type_id, true
+        FROM project.visualisation_types WHERE name = 'Disease Risk Assessment'
+        """, createdProjectId.toString());
+    // DISABLED chart -> must not appear (engine filters enabled=True)
+    jdbc.update("""
+        INSERT INTO project.project_visualisations (project_id, visualisation_type_id, enabled)
+        SELECT ?::uuid, visualisation_type_id, false
+        FROM project.visualisation_types WHERE name = 'Water Quality Index'
+        """, createdProjectId.toString());
+
+    var config = stub.getChartConfig(GetChartConfigRequest.newBuilder()
+        .setProjectId(createdProjectId.toString()).build());
+    assertThat(config.getChartsCount()).isEqualTo(2);
+    assertThat(config.getChartsList().stream().map(ChartConfigEntry::getVisualisationName))
+        .containsExactlyInAnyOrder("Multi-Parameter Trends", "Disease Risk Assessment");
+    var multi = config.getChartsList().stream()
+        .filter(c -> c.getVisualisationName().equals("Multi-Parameter Trends"))
+        .findFirst().orElseThrow();
+    assertThat(multi.getYParameterCodesList())
+        .containsExactlyInAnyOrder("temperature", "ph");
+    assertThat(multi.getChartType()).isEqualTo("line");
+    var disease = config.getChartsList().stream()
+        .filter(c -> c.getVisualisationName().equals("Disease Risk Assessment"))
+        .findFirst().orElseThrow();
+    assertThat(disease.getYParameterCodesList()).isEmpty();
   }
 
   // ---------- key helpers ----------

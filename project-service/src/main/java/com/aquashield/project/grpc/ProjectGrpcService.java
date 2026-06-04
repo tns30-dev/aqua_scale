@@ -1,5 +1,8 @@
 package com.aquashield.project.grpc;
 
+import com.aquashield.api.project.v1.ChartConfigEntry;
+import com.aquashield.api.project.v1.GetChartConfigRequest;
+import com.aquashield.api.project.v1.GetChartConfigResponse;
 import com.aquashield.api.project.v1.GetParameterCatalogueRequest;
 import com.aquashield.api.project.v1.GetParameterCatalogueResponse;
 import com.aquashield.api.project.v1.GetParameterSettingsRequest;
@@ -17,6 +20,7 @@ import com.aquashield.project.repo.Repositories.ParameterTypeRepository;
 import com.aquashield.project.repo.Repositories.ProfileTypeRepository;
 import com.aquashield.project.repo.Repositories.ProjectParameterSettingRepository;
 import com.aquashield.project.repo.Repositories.ProjectRepository;
+import com.aquashield.project.repo.Repositories.ProjectVisualisationRepository;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.springframework.stereotype.Service;
@@ -37,14 +41,17 @@ public class ProjectGrpcService extends ProjectServiceGrpc.ProjectServiceImplBas
   private final ProfileTypeRepository profileTypes;
   private final ParameterTypeRepository parameterTypes;
   private final ProjectParameterSettingRepository settings;
+  private final ProjectVisualisationRepository visualisations;
 
   public ProjectGrpcService(ProjectRepository projects, ProfileTypeRepository profileTypes,
                             ParameterTypeRepository parameterTypes,
-                            ProjectParameterSettingRepository settings) {
+                            ProjectParameterSettingRepository settings,
+                            ProjectVisualisationRepository visualisations) {
     this.projects = projects;
     this.profileTypes = profileTypes;
     this.parameterTypes = parameterTypes;
     this.settings = settings;
+    this.visualisations = visualisations;
   }
 
   @Override
@@ -161,6 +168,36 @@ public class ProjectGrpcService extends ProjectServiceGrpc.ProjectServiceImplBas
       }
     } catch (IllegalArgumentException ignored) {
       // malformed id -> exists=false
+    }
+    observer.onNext(resp.build());
+    observer.onCompleted();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public void getChartConfig(GetChartConfigRequest request,
+                             StreamObserver<GetChartConfigResponse> observer) {
+    UUID id = parseUuid(request.getProjectId(), observer);
+    if (id == null) {
+      return;
+    }
+    GetChartConfigResponse.Builder resp =
+        GetChartConfigResponse.newBuilder().setProjectId(request.getProjectId());
+    for (var vis : visualisations.findByProjectIdAndEnabledTrue(id)) {
+      ChartConfigEntry.Builder entry = ChartConfigEntry.newBuilder()
+          .setProjectVisualisationId(vis.getProjectVisualisationId().toString())
+          .setVisualisationName(vis.getVisualisationType().getName())
+          .setChartType(nullSafe(vis.getVisualisationType().getChartType()))
+          .setTitle(nullSafe(vis.getTitle()));
+      if (vis.getYParameters() != null) {
+        // PARITY: resolve y_parameters UUIDs -> parameter_code; unknown ids drop out
+        // silently (the monolith's filter(parameter_id__in=...) does the same).
+        for (UUID parameterId : vis.getYParameters()) {
+          parameterTypes.findById(parameterId)
+              .ifPresent(p -> entry.addYParameterCodes(p.getParameterCode()));
+        }
+      }
+      resp.addCharts(entry);
     }
     observer.onNext(resp.build());
     observer.onCompleted();
