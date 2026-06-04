@@ -94,3 +94,16 @@ Parameter value keys stay snake_case (`dissolved_oxygen`) — never normalized.
 - Project create does NOT auto-seed `project_visualisations` (parity: the monolith seeded via manual SQL
   migrations). A project with no config rows gets `{}` for charts — same as the monolith. Demo seeding can be
   added to the demo dataset scripts later.
+
+## CI verdict (post-push)
+
+Run `26948392573` (push `e64bed7`, 2026-06-04): **SUCCESS — 22/22 jobs green.**
+- `analytics-verify` (npm ci → tsc → 49 vitest → prod audit) ✓ in 21s
+- `analytics-container` (image build + Trivy CRITICAL gate) ✓ in 40s
+- `java-verify` fanned out to ALL SEVEN java services (proto change → shared filter) ✓
+  — including `pond-service`, proving the path-filter fix (its first-ever CI run)
+- all security gates (gitleaks / semgrep / trivy-fs / sbom) + 7 container scans ✓
+
+Note (non-blocking): GitHub annotations warn `actions/checkout@v4`, `upload-artifact@v4`,
+`setup-java@v4`, `dorny/paths-filter@v3` run on Node 20, deprecated 2026-06-16 — bump
+action majors in a follow-up CI hygiene pass.
