@@ -14,12 +14,15 @@ import type {
   LoginResponse,
   MeResponse,
   RefreshResponse,
+  Cycle,
   Pond,
   Alert,
   Project,
   ProjectSummary,
   CyclesResponse,
   CycleDetails,
+  ProfileTemplate,
+  Stage,
   UserListItem,
   ProfileUpdateRequest,
   FeatureAccess,
@@ -113,7 +116,7 @@ interface UserAccessApiResponse {
 type HistoricalDataResponse = Record<string, unknown>;
 type ChartDataPoint = Record<string, string | number | null>;
 
-interface HistoricalChartsResponse {
+export interface HistoricalChartsResponse {
   multiParameterTrends?: ChartDataPoint[];
   correlationHeatmap?: {
     parameters: string[];
@@ -128,6 +131,27 @@ interface HistoricalChartsResponse {
   waterQualityIndex?: ChartDataPoint[];
 }
 
+interface CycleApiRow {
+  cycle_id: string;
+  pond_id: string;
+  pond_name: string;
+  start_date: string;
+  end_date: string | null;
+  status: Cycle['status'];
+  current_day: number;
+  duration_days: number;
+  is_ongoing: boolean;
+}
+
+interface CycleListApiResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: CycleApiRow[];
+}
+
+type StageConfigValue = unknown;
+
 function mapProfileTypeDTO(raw: ProfileTypeApiRow): ProfileConfig {
   return {
     profileTypeId: raw.profile_type_id,
@@ -138,6 +162,63 @@ function mapProfileTypeDTO(raw: ProfileTypeApiRow): ProfileConfig {
     keyParameterIndicators: raw.key_parameter_indicators ?? [],
     keyGrowthIndicators: raw.key_growth_indicators ?? [],
     theme: raw.theme,
+  };
+}
+
+function normalizeStageConfig(stageConfig: StageConfigValue): Stage[] {
+  const rawStages =
+    Array.isArray(stageConfig)
+      ? stageConfig
+      : stageConfig &&
+          typeof stageConfig === 'object' &&
+          Array.isArray((stageConfig as { stages?: unknown }).stages)
+        ? (stageConfig as { stages: unknown[] }).stages
+        : [];
+
+  return rawStages.flatMap((raw) => {
+    if (!raw || typeof raw !== 'object') {
+      return [];
+    }
+    const stage = raw as Record<string, unknown>;
+    const name = typeof stage.name === 'string' ? stage.name : '';
+    const startDay = typeof stage.startDay === 'number' ? stage.startDay : Number(stage.startDay);
+    const endDay = typeof stage.endDay === 'number' ? stage.endDay : Number(stage.endDay);
+    if (!name || !Number.isFinite(startDay) || !Number.isFinite(endDay)) {
+      return [];
+    }
+    return [{ name, startDay, endDay }];
+  });
+}
+
+function profileTemplateFromConfig(profile?: ProfileConfig): ProfileTemplate {
+  const stages = normalizeStageConfig(profile?.stageConfig);
+  const configuredLength =
+    profile?.stageConfig &&
+    typeof profile.stageConfig === 'object' &&
+    !Array.isArray(profile.stageConfig) &&
+    typeof (profile.stageConfig as { cycleLengthDays?: unknown }).cycleLengthDays === 'number'
+      ? (profile.stageConfig as { cycleLengthDays: number }).cycleLengthDays
+      : 0;
+  const inferredLength = stages.reduce((max, stage) => Math.max(max, stage.endDay), 0);
+
+  return {
+    profileType: profile?.code ?? '',
+    stages,
+    keyIndicators: profile?.keyParameterIndicators ?? [],
+    cycleLengthDays: configuredLength || inferredLength,
+  };
+}
+
+function mapCycleDto(raw: CycleApiRow): Cycle {
+  const end = raw.end_date ?? null;
+  return {
+    cycleId: raw.cycle_id,
+    pondId: raw.pond_id,
+    pondName: raw.pond_name,
+    startDate: raw.start_date,
+    endDate: end,
+    status: raw.status,
+    displayName: end ? `${raw.start_date} - ${end}` : `${raw.start_date} - Ongoing`,
   };
 }
 
@@ -346,7 +427,7 @@ class ApiService {
 
   // Ponds
   async getPonds(projectId: string): Promise<{ ponds: Pond[] }> {
-    const response = await this.api.get<{ ponds: Pond[] }>('/api/ponds/', {
+    const response = await this.api.get<{ ponds: Pond[] }>('/api/ponds', {
       params: { projectId },
     });
     return response.data;
@@ -434,33 +515,36 @@ class ApiService {
   //   return response.data;
   // }
 
-    async getHistoricalCharts(
-        pondId: string,
-        projectId: string,
-        startDate: string,
-        endDate: string,
-        grouping: string = 'auto',
-    ): Promise<HistoricalChartsResponse> {
-        const response = await this.api.get<HistoricalChartsResponse>(`/api/projects/${projectId}/charts/`,{
-            params: {
-                pondId,
-                startDate,
-                endDate,
-                grouping,
-            },
-        });
+  async getHistoricalCharts(
+    pondId: string,
+    projectId: string,
+    startDate: string,
+    endDate: string,
+    grouping: string = 'auto',
+  ): Promise<HistoricalChartsResponse> {
+    const response = await this.api.get<HistoricalChartsResponse>(
+      `/api/projects/${projectId}/charts/`,
+      {
+        params: {
+          pondId,
+          startDate,
+          endDate,
+          grouping,
+        },
+      },
+    );
 
-        return response.data;
-    }
+    return response.data;
+  }
 
   // Treatments
   async getTreatments(): Promise<Treatment[]> {
-    const response = await this.api.get<Treatment[]>('/api/treatments/');
+    const response = await this.api.get<Treatment[]>('/api/treatments');
     return response.data;
   }
 
   async getPondTreatments(pondId: string): Promise<PondTreatment[]> {
-    const response = await this.api.get<PondTreatment[]>('/api/pond-treatments/', {
+    const response = await this.api.get<PondTreatment[]>('/api/pond-treatments', {
       params: { pond: pondId },
     });
     return response.data;
@@ -495,17 +579,32 @@ class ApiService {
    * Get all cycles for a project with profile template
    */
   async getProjectCycles(projectId: string, pondId?: string): Promise<CyclesResponse> {
-    const response = await this.api.get<CyclesResponse>(`/api/projects/${projectId}/cycles/`, {
-      params: pondId ? { pondId } : {}
-    });
-    return response.data;
+    if (!pondId) {
+      throw new Error('pondId is required for cycle lookup');
+    }
+
+    const [cyclesResponse, projects, profiles] = await Promise.all([
+      this.api.get<CycleListApiResponse>('/api/cycles', {
+        params: { pond: pondId },
+      }),
+      this.getProjects().catch(() => []),
+      this.getProfileTypes().catch(() => []),
+    ]);
+    const project = projects.find((item) => item.projectId === projectId);
+    const profile = profiles.find((item) => item.code === project?.profileType);
+
+    return {
+      projectId,
+      profileTemplate: profileTemplateFromConfig(profile),
+      cycles: cyclesResponse.data.results.map(mapCycleDto),
+    };
   }
 
   /**
    * Get detailed information for a specific cycle
    */
   async getCycleDetails(cycleId: string): Promise<CycleDetails> {
-    const response = await this.api.get<CycleDetails>(`/api/cycles/${cycleId}/details/`);
+    const response = await this.api.get<CycleDetails>(`/api/cycles/${cycleId}/details`);
     return response.data;
   }
 
@@ -518,7 +617,7 @@ class ApiService {
    */
   async getPondComparisonOptions(projectId: string): Promise<PondComparisonOptionsResponse> {
     const response = await this.api.get<PondComparisonOptionsResponse>(
-      `/api/projects/${projectId}/pond-comparison/ponds/`,
+      `/api/projects/${projectId}/pond-comparison/ponds`,
     );
     return response.data;
   }
@@ -538,7 +637,7 @@ class ApiService {
   }): Promise<PondComparisonResponse> {
     const { projectId, ...params } = args;
     const response = await this.api.get<PondComparisonResponse>(
-      `/api/projects/${projectId}/pond-comparison/`,
+      `/api/projects/${projectId}/pond-comparison`,
       { params: { grouping: 'auto', ...params } },
     );
     return response.data;

@@ -200,6 +200,147 @@ describe("apiService — notification and realtime endpoints", () => {
   });
 });
 
+describe("apiService — analytics and historical adapters", () => {
+  it("getHistoricalCharts calls the Analytics Service chart contract with expected query params", async () => {
+    let observedUrl = "";
+    const payload = {
+      multiParameterTrends: [
+        { date: "2026-03-17", label: "Mar 17", temperature: 28.5, ph: 7.85 },
+      ],
+      diseaseRisk: [],
+    };
+
+    server.use(
+      http.get("*/api/projects/:projectId/charts/", ({ request, params }) => {
+        observedUrl = request.url;
+        expect(params.projectId).toBe("proj-1");
+        return HttpResponse.json(payload);
+      }),
+    );
+
+    const result = await apiService.getHistoricalCharts(
+      "pond-1",
+      "proj-1",
+      "2026-03-17",
+      "2026-03-18",
+      "daily",
+    );
+
+    const url = new URL(observedUrl);
+    expect(url.pathname).toBe("/api/projects/proj-1/charts/");
+    expect(url.searchParams.get("pondId")).toBe("pond-1");
+    expect(url.searchParams.get("startDate")).toBe("2026-03-17");
+    expect(url.searchParams.get("endDate")).toBe("2026-03-18");
+    expect(url.searchParams.get("grouping")).toBe("daily");
+    expect(result).toEqual(payload);
+  });
+
+  it("getProjectCycles maps Pond Service cycle list plus Project profile config into the frontend contract", async () => {
+    let observedCyclesUrl = "";
+    const profileType = {
+      profile_type_id: "pt-1",
+      code: "shrimp",
+      name: "shrimp",
+      description: "Shrimp grow-out farming",
+      stage_config: [
+        { name: "Post-Larvae Stocking", startDay: 1, endDay: 30 },
+        { name: "Growth Phase", startDay: 31, endDay: 60 },
+        { name: "Pre-Harvest", startDay: 61, endDay: 90 },
+      ],
+      key_parameter_indicators: ["temperature", "salinity"],
+      key_growth_indicators: [],
+      theme: {
+        primary: "#888888",
+        gradient: { from: "#888888", to: "#cccccc" },
+      },
+    };
+
+    server.use(
+      http.get("*/api/cycles", ({ request }) => {
+        observedCyclesUrl = request.url;
+        return HttpResponse.json({
+          count: 1,
+          next: null,
+          previous: null,
+          results: [
+            {
+              cycle_id: "cycle-1",
+              pond_id: "pond-1",
+              pond_name: "Pond Alpha",
+              start_date: "2026-03-01",
+              end_date: null,
+              status: "ongoing",
+              current_day: 18,
+              duration_days: 90,
+              is_ongoing: true,
+            },
+          ],
+        });
+      }),
+      http.get("*/api/projects", () =>
+        HttpResponse.json([
+          {
+            project_id: "proj-1",
+            name: "Shrimp Farm",
+            profile_type: profileType,
+          },
+        ]),
+      ),
+      http.get("*/api/profile-types", () => HttpResponse.json([profileType])),
+    );
+
+    const result = await apiService.getProjectCycles("proj-1", "pond-1");
+
+    expect(new URL(observedCyclesUrl).searchParams.get("pond")).toBe("pond-1");
+    expect(result.projectId).toBe("proj-1");
+    expect(result.cycles).toEqual([
+      {
+        cycleId: "cycle-1",
+        pondId: "pond-1",
+        pondName: "Pond Alpha",
+        startDate: "2026-03-01",
+        endDate: null,
+        status: "ongoing",
+        displayName: "2026-03-01 - Ongoing",
+      },
+    ]);
+    expect(result.profileTemplate).toEqual({
+      profileType: "shrimp",
+      stages: profileType.stage_config,
+      keyIndicators: ["temperature", "salinity"],
+      cycleLengthDays: 90,
+    });
+  });
+
+  it("getCycleDetails calls the Pond Service slashless detail endpoint", async () => {
+    let observedPath = "";
+    const payload = {
+      cycle: {
+        cycleId: "cycle-1",
+        pondId: "pond-1",
+        pondName: "Pond Alpha",
+        startDate: "2026-03-01",
+        endDate: null,
+        status: "ongoing",
+        displayName: "2026-03-01 - Ongoing",
+      },
+      stageMetrics: {},
+      dailyHealth: [],
+    };
+
+    server.use(
+      http.get("*/api/cycles/:cycleId/details", ({ request, params }) => {
+        observedPath = new URL(request.url).pathname;
+        expect(params.cycleId).toBe("cycle-1");
+        return HttpResponse.json(payload);
+      }),
+    );
+
+    await expect(apiService.getCycleDetails("cycle-1")).resolves.toEqual(payload);
+    expect(observedPath).toBe("/api/cycles/cycle-1/details");
+  });
+});
+
 describe("apiService — bearer auth interceptor", () => {
   it("attaches Authorization header on POST when an access token exists", async () => {
     setAuthTokens("test-access-token", "test-refresh-token");
