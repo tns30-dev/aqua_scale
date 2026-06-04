@@ -130,7 +130,7 @@ jobs:
       - name: Trivy filesystem scan (dependencies + config + secrets)
         # gate on CRITICAL (zero after the Boot 3.5.14 + tomcat 10.1.55 hardening);
         # HIGH is reported in the json artifact — ratchet the gate once HIGHs are burned down
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -140,7 +140,7 @@ jobs:
           format: table
       - name: Trivy report artifact (json)
         if: always()
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -186,7 +186,7 @@ jobs:
       - name: Build image
         run: docker build -f ${{ matrix.service }}/Dockerfile -t ${{ matrix.service }}:${{ github.sha }} .
       - name: Trivy image scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: ${{ matrix.service }}:${{ github.sha }}
