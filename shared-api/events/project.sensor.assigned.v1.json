@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://aquashield.local/events/project.settings.updated.v1.json",
-  "title": "project.settings.updated v1",
+  "$id": "https://aquashield.local/events/project.sensor.assigned.v1.json",
+  "title": "project.sensor.assigned v1",
   "type": "object",
   "required": ["eventId", "eventType", "schemaVersion", "occurredAt", "publishedAt", "source", "correlationId", "projectId", "payload"],
   "properties": {
     "eventId": { "type": "string", "minLength": 1 },
-    "eventType": { "const": "project.settings.updated" },
+    "eventType": { "const": "project.sensor.assigned" },
     "schemaVersion": { "const": "v1" },
     "occurredAt": { "type": "string", "format": "date-time" },
     "publishedAt": { "type": "string", "format": "date-time" },
@@ -17,9 +17,9 @@
     "pondId": { "type": ["string", "null"] },
     "payload": {
       "type": "object",
-      "required": ["updatedParameters"],
+      "required": ["projectSensorId"],
       "properties": {
-        "updatedParameters": { "type": "string", "minLength": 1 }
+        "projectSensorId": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": false
     }

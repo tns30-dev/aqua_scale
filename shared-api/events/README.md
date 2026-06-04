@@ -16,6 +16,8 @@ Event schemas use a shared envelope shape:
 | `pondId` | Required for pond-scoped events |
 | `payload` | Event-specific body |
 
+Optional envelope fields may be omitted or serialized as `null` by the shared Java `EventEnvelope`.
+
 ## Topic Catalogue
 
 | Topic | Schema | Publisher | Consumers | DLQ |
@@ -34,6 +36,10 @@ Event schemas use a shared envelope shape:
 | `project.created` | `project.created.v1.json` | Project | Audit | `project.created.dlq` |
 | `project.updated` | `project.updated.v1.json` | Project | Audit | `project.updated.dlq` |
 | `project.settings.updated` | `project.settings.updated.v1.json` | Project | Notification, Audit | `project.settings.updated.dlq` |
+| `device.registered` | `device.registered.v1.json` | Sensor | Audit | `device.registered.dlq` |
+| `device.status.changed` | `device.status.changed.v1.json` | Sensor | Realtime, Audit | `device.status.changed.dlq` |
+| `project.sensor.assigned` | `project.sensor.assigned.v1.json` | Sensor | Ingestion, Audit | `project.sensor.assigned.dlq` |
+| `project.sensor.updated` | `project.sensor.updated.v1.json` | Sensor | Ingestion, Audit | `project.sensor.updated.dlq` |
 
 ## Validation
 

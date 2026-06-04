@@ -23,6 +23,13 @@ spec:
           port: 8081
     - matches:
         - path:
+            type: RegularExpression
+            value: ^/api/projects/[^/]+/sensors(/.*)?$
+      backendRefs:
+        - name: sensor-service
+          port: 8083
+    - matches:
+        - path:
             type: PathPrefix
             value: /api/projects
         - path:
@@ -48,9 +55,18 @@ spec:
         - path:
             type: PathPrefix
             value: /api/sensors
+        - path:
+            type: PathPrefix
+            value: /api/sensor-types
+        - path:
+            type: PathPrefix
+            value: /api/iot-devices
+        - path:
+            type: PathPrefix
+            value: /api/project-sensors
       backendRefs:
         - name: sensor-service
-          port: 8080
+          port: 8083
     - matches:
         - path:
             type: PathPrefix

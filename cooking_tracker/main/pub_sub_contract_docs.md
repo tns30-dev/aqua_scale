@@ -44,6 +44,10 @@
 | [ ] | `project.created` | Project | Audit | `project.created.dlq` |
 | [ ] | `project.updated` | Project | Audit | `project.updated.dlq` |
 | [ ] | `project.settings.updated` | Project | Notification, Audit | `project.settings.updated.dlq` |
+| [ ] | `device.registered` | Sensor | Audit | `device.registered.dlq` |
+| [ ] | `device.status.changed` | Sensor | Realtime, Audit | `device.status.changed.dlq` |
+| [ ] | `project.sensor.assigned` | Sensor | Ingestion, Audit | `project.sensor.assigned.dlq` |
+| [ ] | `project.sensor.updated` | Sensor | Ingestion, Audit | `project.sensor.updated.dlq` |
 
 ## Future Optional Topic Contract
 
@@ -71,6 +75,10 @@ This optional Analytics topic is only for future precomputed aggregate jobs. It 
 | [ ] | `project.created` | `shared-api/events/project.created.v1.json` |
 | [ ] | `project.updated` | `shared-api/events/project.updated.v1.json` |
 | [ ] | `project.settings.updated` | `shared-api/events/project.settings.updated.v1.json` |
+| [ ] | `device.registered` | `shared-api/events/device.registered.v1.json` |
+| [ ] | `device.status.changed` | `shared-api/events/device.status.changed.v1.json` |
+| [ ] | `project.sensor.assigned` | `shared-api/events/project.sensor.assigned.v1.json` |
+| [ ] | `project.sensor.updated` | `shared-api/events/project.sensor.updated.v1.json` |
 
 ## Operational Checklist
 

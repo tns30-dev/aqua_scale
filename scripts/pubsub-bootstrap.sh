@@ -26,6 +26,10 @@ audit.event.recorded:audit
 project.created:audit
 project.updated:audit
 project.settings.updated:notification,audit
+device.registered:audit
+device.status.changed:realtime,audit
+project.sensor.assigned:ingestion,audit
+project.sensor.updated:ingestion,audit
 "
 
 # idempotent: 409 (already exists) is fine on re-runs

@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://aquashield.local/events/sensor.message.rejected.v1.json",
-  "title": "sensor.message.rejected v1",
+  "$id": "https://aquashield.local/events/device.registered.v1.json",
+  "title": "device.registered v1",
   "type": "object",
   "required": ["eventId", "eventType", "schemaVersion", "occurredAt", "publishedAt", "source", "correlationId", "payload"],
   "properties": {
     "eventId": { "type": "string", "minLength": 1 },
-    "eventType": { "const": "sensor.message.rejected" },
+    "eventType": { "const": "device.registered" },
     "schemaVersion": { "const": "v1" },
     "occurredAt": { "type": "string", "format": "date-time" },
     "publishedAt": { "type": "string", "format": "date-time" },
@@ -17,15 +17,9 @@
     "pondId": { "type": ["string", "null"] },
     "payload": {
       "type": "object",
-      "required": ["deviceId", "reasonCode", "rejectedAt"],
+      "required": ["deviceCode"],
       "properties": {
-        "deviceId": { "type": "string", "minLength": 1 },
-        "deviceCode": { "type": "string" },
-        "seqNo": { "type": "integer", "minimum": 0 },
-        "reasonCode": { "type": "string", "minLength": 1 },
-        "reasonMessage": { "type": "string" },
-        "rejectedAt": { "type": "string", "format": "date-time" },
-        "rawPayload": { "type": ["object", "string"] }
+        "deviceCode": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": false
     }

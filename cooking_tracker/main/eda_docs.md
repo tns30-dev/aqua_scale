@@ -43,6 +43,18 @@ flowchart LR
   P2 --> Audit
   P3 --> Notification
   P3 --> Audit
+
+  Sensor[Sensor Service] --> S1[device.registered]
+  Sensor --> S2[device.status.changed]
+  Sensor --> S3[project.sensor.assigned]
+  Sensor --> S4[project.sensor.updated]
+  S1 --> Audit
+  S2 --> Realtime
+  S2 --> Audit
+  S3 --> Ingestion
+  S3 --> Audit
+  S4 --> Ingestion
+  S4 --> Audit
 ```
 
 ## Contract Checklist
@@ -68,6 +80,8 @@ flowchart LR
 | [ ] | Audit on audit events | `audit.event.recorded.dlq` |
 | [ ] | Notification on `project.settings.updated` | `project.settings.updated.dlq` |
 | [ ] | Audit on Project events | `project.created.dlq`, `project.updated.dlq`, `project.settings.updated.dlq` |
+| [ ] | Ingestion on Sensor mapping events | `project.sensor.assigned.dlq`, `project.sensor.updated.dlq` |
+| [ ] | Audit on Sensor events | `device.registered.dlq`, `device.status.changed.dlq`, `project.sensor.assigned.dlq`, `project.sensor.updated.dlq` |
 
 ## Evidence Checklist
 

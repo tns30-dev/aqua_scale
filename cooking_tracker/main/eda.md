@@ -29,6 +29,10 @@
 | [ ] | `project.created` | Project Service | Audit |
 | [ ] | `project.updated` | Project Service | Audit |
 | [ ] | `project.settings.updated` | Project Service | Notification, Audit |
+| [ ] | `device.registered` | Sensor Service | Audit |
+| [ ] | `device.status.changed` | Sensor Service | Realtime, Audit |
+| [ ] | `project.sensor.assigned` | Sensor Service | Ingestion, Audit |
+| [ ] | `project.sensor.updated` | Sensor Service | Ingestion, Audit |
 
 ## Future Optional Topics
 

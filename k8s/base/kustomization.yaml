@@ -5,6 +5,7 @@ resources:
   - service-accounts.yaml
   - services/identity-access-service
   - services/project-service
+  - services/sensor-service
   - edge/gateway.yaml
   - edge/http-redirect.yaml
   - edge/http-route.yaml

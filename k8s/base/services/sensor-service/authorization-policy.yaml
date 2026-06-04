@@ -1,0 +1,28 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: sensor-service-allow-http-grpc
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sensor-service
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            ports:
+              - "8083"
+            paths:
+              - /api/sensor-types
+              - /api/sensor-types/*
+              - /api/iot-devices
+              - /api/iot-devices/*
+              - /api/project-sensors
+              - /api/project-sensors/*
+              - /api/projects/*
+              - /actuator/health
+              - /actuator/health/*
+    - to:
+        - operation:
+            ports:
+              - "9093"

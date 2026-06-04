@@ -12,9 +12,9 @@
     "publishedAt": { "type": "string", "format": "date-time" },
     "source": { "type": "string", "minLength": 1 },
     "correlationId": { "type": "string", "minLength": 1 },
-    "causationId": { "type": "string" },
-    "projectId": { "type": "string" },
-    "pondId": { "type": "string" },
+    "causationId": { "type": ["string", "null"] },
+    "projectId": { "type": ["string", "null"] },
+    "pondId": { "type": ["string", "null"] },
     "payload": {
       "type": "object",
       "required": ["deviceId", "seqNo", "measurements", "receivedAt"],
