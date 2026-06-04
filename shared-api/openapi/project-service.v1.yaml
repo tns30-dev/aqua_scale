@@ -1,0 +1,785 @@
+openapi: 3.0.3
+info:
+  title: AquaShield Project Service API
+  version: 1.0.0
+  description: >
+    Public REST parity contract extracted from the current Django `module_project`
+    and active frontend callers. Preserve these endpoint paths and response
+    shapes during the microservice migration unless the frontend is explicitly
+    changed.
+servers:
+  - url: /api
+security:
+  - bearerAuth: []
+tags:
+  - name: Projects
+  - name: Project Charts
+  - name: Project Cycles
+  - name: Pond Comparison
+  - name: Energy
+  - name: Catalogues
+paths:
+  /projects/:
+    get:
+      tags: [Projects]
+      summary: List projects accessible to the authenticated user.
+      operationId: listProjects
+      responses:
+        "200":
+          description: Accessible project list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+  /projects/all/:
+    get:
+      tags: [Projects]
+      summary: List every project for platform administrator assignment workflows.
+      operationId: listAllProjectsForAdmin
+      responses:
+        "200":
+          description: Lightweight project assignment list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminProjectAssignmentItem"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /projects/{projectId}/:
+    get:
+      tags: [Projects]
+      summary: Get project detail and dashboard counts.
+      operationId: getProject
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /projects/{projectId}/summary/:
+    get:
+      tags: [Projects]
+      summary: Get dashboard project summary.
+      operationId: getProjectSummary
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project summary metrics.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectSummary"
+  /projects/{projectId}/charts/:
+    get:
+      tags: [Project Charts]
+      summary: Get historical chart package for one pond.
+      operationId: getHistoricalCharts
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: pondId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: grouping
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/Grouping"
+          description: Defaults to `auto`.
+      responses:
+        "200":
+          description: Frontend-compatible chart package.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoricalChartPackage"
+        "400":
+          description: Missing or invalid query parameter.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyError"
+        "404":
+          description: Pond is not part of the project.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyError"
+  /projects/{projectId}/cycles/:
+    get:
+      tags: [Project Cycles]
+      summary: List project cycles and profile template.
+      operationId: getProjectCycles
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: pondId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Project cycle list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CyclesResponse"
+  /projects/{projectId}/pond-comparison/ponds/:
+    get:
+      tags: [Pond Comparison]
+      summary: List selectable ponds for comparison.
+      operationId: getPondComparisonOptions
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Pond comparison options.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PondComparisonOptionsResponse"
+  /projects/{projectId}/pond-comparison/:
+    get:
+      tags: [Pond Comparison]
+      summary: Compare two ponds over a date range.
+      operationId: getPondComparison
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: pondAId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: pondBId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: grouping
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/Grouping"
+      responses:
+        "200":
+          description: Fixed-shape pond comparison payload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PondComparisonResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestDetail"
+        "404":
+          $ref: "#/components/responses/NotFoundDetail"
+  /projects/{projectId}/energy/dashboard/:
+    get:
+      tags: [Energy]
+      summary: Get energy dashboard data.
+      operationId: getEnergyDashboard
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: startDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: groupBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [hour, day, week, month]
+      responses:
+        "200":
+          description: Energy dashboard payload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnergyDashboardData"
+        "400":
+          $ref: "#/components/responses/BadRequestDetail"
+  /projects/{projectId}/energy/settings/:
+    get:
+      tags: [Energy]
+      summary: Get project energy settings.
+      operationId: getEnergySettings
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/EnergyType"
+      responses:
+        "200":
+          description: Energy settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnergySettings"
+    put:
+      tags: [Energy]
+      summary: Create or update project energy settings.
+      operationId: updateEnergySettings
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/EnergyType"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnergySettingsUpdate"
+      responses:
+        "200":
+          description: Updated energy settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnergySettings"
+  /profile-types/:
+    get:
+      tags: [Catalogues]
+      summary: List profile type catalogue.
+      operationId: listProfileTypes
+      responses:
+        "200":
+          description: Profile type list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProfileType"
+  /profile-types/{profileTypeId}/:
+    get:
+      tags: [Catalogues]
+      summary: Get profile type detail.
+      operationId: getProfileType
+      parameters:
+        - name: profileTypeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Profile type detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileType"
+  /parameter-types/:
+    get:
+      tags: [Catalogues]
+      summary: List water quality parameter catalogue.
+      operationId: listParameterTypes
+      responses:
+        "200":
+          description: Parameter type list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ParameterType"
+  /parameter-types/{parameterTypeId}/:
+    get:
+      tags: [Catalogues]
+      summary: Get parameter type detail.
+      operationId: getParameterType
+      parameters:
+        - name: parameterTypeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Parameter type detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParameterType"
+  /growth-indicators/:
+    get:
+      tags: [Catalogues]
+      summary: List growth indicator catalogue.
+      operationId: listGrowthIndicators
+      responses:
+        "200":
+          description: Growth indicator list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GrowthIndicator"
+  /growth-indicators/{growthIndicatorId}/:
+    get:
+      tags: [Catalogues]
+      summary: Get growth indicator detail.
+      operationId: getGrowthIndicator
+      parameters:
+        - name: growthIndicatorId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Growth indicator detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrowthIndicator"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        type: string
+    EnergyType:
+      name: type
+      in: query
+      required: false
+      schema:
+        type: string
+        default: electricity
+  responses:
+    BadRequestDetail:
+      description: Bad request.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DetailError"
+    Forbidden:
+      description: Forbidden.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DetailError"
+    NotFound:
+      description: Not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/LegacyError"
+    NotFoundDetail:
+      description: Not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DetailError"
+  schemas:
+    DetailError:
+      type: object
+      properties:
+        detail:
+          type: string
+      additionalProperties: true
+    LegacyError:
+      type: object
+      properties:
+        error:
+          type: string
+      additionalProperties: true
+    Grouping:
+      type: string
+      enum: [auto, hourly, daily, weekly, monthly]
+    ProfileType:
+      type: object
+      properties:
+        profile_type_id:
+          type: string
+        code:
+          type: string
+          nullable: true
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        stage_config:
+          nullable: true
+        key_parameter_indicators:
+          type: array
+          nullable: true
+          items:
+            type: string
+        key_growth_indicators:
+          type: array
+          nullable: true
+          items:
+            type: string
+        theme:
+          type: object
+          additionalProperties: true
+    Project:
+      type: object
+      properties:
+        project_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        profile_type:
+          $ref: "#/components/schemas/ProfileType"
+        owner_email:
+          type: string
+          format: email
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        pond_count:
+          type: integer
+    ProjectDetail:
+      allOf:
+        - $ref: "#/components/schemas/Project"
+        - type: object
+          properties:
+            active_cycles:
+              type: integer
+            active_alerts:
+              type: integer
+    AdminProjectAssignmentItem:
+      type: object
+      required: [projectId, name, profileTypeId, profileType]
+      properties:
+        projectId:
+          type: string
+        name:
+          type: string
+        profileTypeId:
+          type: string
+        profileType:
+          type: string
+    ProjectSummary:
+      type: object
+      required: [totalPonds, activeAlerts, averageQuality, forecast]
+      properties:
+        totalPonds:
+          type: integer
+        activeAlerts:
+          type: integer
+        averageQuality:
+          type: number
+        forecast:
+          type: string
+          enum: [good, fair, poor]
+    Stage:
+      type: object
+      properties:
+        name:
+          type: string
+        startDay:
+          type: integer
+        endDay:
+          type: integer
+    ProfileTemplate:
+      type: object
+      nullable: true
+      properties:
+        profileType:
+          type: string
+        stages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Stage"
+        keyIndicators:
+          type: array
+          items:
+            type: string
+        cycleLengthDays:
+          type: integer
+    Cycle:
+      type: object
+      properties:
+        cycleId:
+          type: string
+        pondId:
+          type: string
+        pondName:
+          type: string
+        startDate:
+          type: string
+          nullable: true
+        endDate:
+          type: string
+          nullable: true
+        status:
+          type: string
+        displayName:
+          type: string
+    CyclesResponse:
+      type: object
+      properties:
+        projectId:
+          type: string
+        profileTemplate:
+          $ref: "#/components/schemas/ProfileTemplate"
+        cycles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Cycle"
+    HistoricalChartPackage:
+      type: object
+      description: >
+        Current chart response is a keyed package produced by `module_chart`.
+        Supported keys include multiParameterTrends, correlationHeatmap,
+        historicalTrends, nitrogenCycle, temperatureTrend, dissolvedOxygen,
+        diseaseRisk, and waterQualityIndex.
+      additionalProperties: true
+    PondTreatmentInfo:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        startedAt:
+          type: string
+    PondComparisonPondOption:
+      type: object
+      properties:
+        pondId:
+          type: string
+        name:
+          type: string
+        companyName:
+          type: string
+        gpsLocation:
+          type: string
+        treatments:
+          type: array
+          items:
+            $ref: "#/components/schemas/PondTreatmentInfo"
+        hasSensorData:
+          type: boolean
+        firstReadingAt:
+          type: string
+          nullable: true
+        lastReadingAt:
+          type: string
+          nullable: true
+    PondComparisonOptionsResponse:
+      type: object
+      properties:
+        projectId:
+          type: string
+        ponds:
+          type: array
+          items:
+            $ref: "#/components/schemas/PondComparisonPondOption"
+    PondComparisonMetric:
+      type: object
+      properties:
+        parameter:
+          type: string
+        label:
+          type: string
+        unit:
+          type: string
+        pondAValue:
+          type: number
+        pondBValue:
+          type: number
+        difference:
+          type: number
+        percentDifference:
+          type: number
+        lowerIsBetter:
+          type: boolean
+    PondComparisonChartPoint:
+      type: object
+      properties:
+        label:
+          type: string
+        seriesA:
+          type: number
+        seriesB:
+          type: number
+    PondComparisonChart:
+      type: object
+      properties:
+        parameter:
+          type: string
+        title:
+          type: string
+        unit:
+          type: string
+        variant:
+          type: string
+          enum: [line, bar]
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PondComparisonChartPoint"
+    PondComparisonPondSummary:
+      type: object
+      properties:
+        pondId:
+          type: string
+        name:
+          type: string
+        treatments:
+          type: array
+          items:
+            $ref: "#/components/schemas/PondTreatmentInfo"
+    PondComparisonResponse:
+      type: object
+      properties:
+        projectId:
+          type: string
+        pondA:
+          $ref: "#/components/schemas/PondComparisonPondSummary"
+        pondB:
+          $ref: "#/components/schemas/PondComparisonPondSummary"
+        dateRange:
+          type: object
+          properties:
+            startDate:
+              type: string
+              format: date
+            endDate:
+              type: string
+              format: date
+            grouping:
+              type: string
+              enum: [hourly, daily, weekly, monthly]
+        metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/PondComparisonMetric"
+        charts:
+          type: array
+          items:
+            $ref: "#/components/schemas/PondComparisonChart"
+    EnergyDashboardData:
+      type: object
+      additionalProperties: true
+      description: >
+        Matches frontend `EnergyDashboardData`: kpis, trend, heatmap, summary,
+        byPeriod, alerts, dataQuality, and compareInfo.
+    EnergySettings:
+      type: object
+      properties:
+        type:
+          type: string
+        unit:
+          type: string
+        tariffPerUnit:
+          type: number
+        currency:
+          type: string
+        highHourlyThreshold:
+          type: number
+          nullable: true
+        highDailyThreshold:
+          type: number
+          nullable: true
+        manualEntryEnabled:
+          type: boolean
+        notes:
+          type: string
+          nullable: true
+        exists:
+          type: boolean
+    EnergySettingsUpdate:
+      type: object
+      properties:
+        unit:
+          type: string
+        tariffPerUnit:
+          type: number
+        currency:
+          type: string
+        highHourlyThreshold:
+          type: number
+          nullable: true
+        highDailyThreshold:
+          type: number
+          nullable: true
+        manualEntryEnabled:
+          type: boolean
+        notes:
+          type: string
+          nullable: true
+    ParameterType:
+      type: object
+      properties:
+        parameter_id:
+          type: string
+        parameter_code:
+          type: string
+        parameter_name:
+          type: string
+        unit:
+          type: string
+          nullable: true
+        data_type:
+          type: string
+    GrowthIndicator:
+      type: object
+      properties:
+        growth_indicator_id:
+          type: string
+        code:
+          type: string
+        name:
+          type: string
+        unit:
+          type: string
+          nullable: true
+        data_type:
+          type: string

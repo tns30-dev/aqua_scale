@@ -24,6 +24,12 @@
 | [ ] | Contract tests | API compatibility checks |
 | [ ] | API docs export | Report-ready API contract |
 
+## OpenAPI File Catalogue
+
+| Status | Service | OpenAPI File | Source |
+|---|---|---|---|
+| [ ] | Project Service | `shared-api/openapi/project-service.v1.yaml` | Django `module_project` and active frontend call sites |
+
 ## API Ownership Map
 
 | API Group | Owner Service |
