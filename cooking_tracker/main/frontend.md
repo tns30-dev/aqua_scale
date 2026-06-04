@@ -50,6 +50,22 @@
 | [ ] | Alerts | Route alert list and acknowledge actions to notification contracts | Notification Service |
 | [ ] | Audit views | Add admin audit query UI only if required for demo evidence | Audit Service |
 
+## Platform Admin UI Checklist
+
+| Status | Area | Frontend Work | Backend Owner |
+|---|---|---|---|
+| [ ] | Django Admin replacement | Identify CRUD operations currently performed through Django Admin and move required platform-admin workflows into React pages | All owning services |
+| [ ] | Admin navigation | Add platform-admin navigation entries only for authorized users | Identity and Access Service |
+| [ ] | User and access administration | Manage users, roles/profile assignment, project access, feature access, and action controls | Identity and Access Service |
+| [ ] | Project administration | Create/update projects, assign profile type, manage project-level settings, and view project status | Project Service |
+| [ ] | Profile/config administration | Manage profile types, parameter catalogues, growth/stage templates, and chart-relevant config when required | Project Service |
+| [ ] | Pond administration | Create/update ponds, operational status, pond metadata, photos/URLs, and pond-project assignment | Pond Service |
+| [ ] | Cycle and treatment administration | Manage cycles, treatment catalogue, and pond treatment assignments | Pond Service |
+| [ ] | Sensor administration | Manage sensor types, devices, device status, ports, and project sensor mappings | Sensor Service |
+| [ ] | Ingestion administration | View ingestion status, rejected telemetry, device mapping errors, and DLQ/replay evidence if exposed | Ingestion Service |
+| [ ] | Notification administration | Manage alert acknowledgement/history and future threshold/rule screens if exposed | Notification Service |
+| [ ] | Audit administration | Provide read-only audit search/filter/export views for assessor evidence if implemented | Audit Service |
+
 ## Authentication Checklist
 
 | Status | Task | Output |
@@ -125,6 +141,9 @@
 | UI scope | Do not redesign the whole UI during integration. Keep the existing pages and workflows stable while replacing API and realtime boundaries. |
 | API contract source | Do not invent frontend endpoints. Use the implemented service REST contracts and `api_contract_docs.md`. |
 | WebSocket contract source | Use `websocket.md` and the implemented Realtime Gateway contract for token, auth-frame, event, subscribe, and heartbeat shapes. |
+| Django Admin dependency | The cloud-native version should not depend on Django Admin for normal demo/admin workflows. Required platform-admin CRUD must be available from React UI pages backed by microservice APIs. |
+| Admin permissions | Platform-admin UI pages must use the same Identity feature/action access model as backend services. Hide unavailable controls in the UI and still rely on backend authorization for enforcement. |
+| Admin data safety | Sensitive values such as device keys, service credentials, and certificate material must not be listed casually in React tables. Show one-time generated secrets only when the backend contract intentionally supports that flow. |
 | Auth security | Frontend feature gating is only UX. Backend services remain responsible for JWT validation, Redis authorization snapshot checks, and resource authorization. |
 | Realtime security | Public deployments must use WSS. Plain WS is acceptable only for local development. |
 | Data correctness | Cache chart metadata/config only when useful. Do not cache live telemetry or sensitive authorization data in a way that can show stale or unauthorized business records. |
