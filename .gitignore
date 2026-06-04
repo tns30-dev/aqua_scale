@@ -23,6 +23,7 @@ device-certs/
 **/node_modules/
 **/dist/
 *.tsbuildinfo
+frontend copy/
 
 # Python (ML/LLM placeholders)
 **/__pycache__/

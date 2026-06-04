@@ -4,25 +4,27 @@
  */
 
 import { config } from '../config/env';
-import type { SensorReading } from '../types';
+import type { SensorParameters, SensorReading } from '../types';
 
 type ReadingCallback = (data: SensorReading) => void;
 type ErrorCallback = (error: Error) => void;
 type Status = 'connecting' | 'connected' | 'disconnected';
 type StatusCallback = (status: Status) => void;
 type MessageType = 'sensor_reading' | 'readings' | 'alert_notification' | 'project_update' | 'connection' | 'pong' | 'error';
+type LatestReading = { timestamp?: string } & Partial<SensorParameters> & Record<string, unknown>;
+type WebSocketUpdate = Record<string, unknown>;
 
 interface WebSocketMessage {
   type: MessageType;
-  data?: any;
+  data?: { alerts?: SensorReading['alerts'] } & WebSocketUpdate;
   message?: string;
   pond_id?: string;
   sensor_type?: string;
   value?: number;
   unit?: string;
   timestamp?: string;
-  readings?: any;
-  latest_readings?: any;
+  readings?: Partial<SensorParameters>;
+  latest_readings?: LatestReading[];
 }
 
 interface WebSocketConnection {
@@ -37,6 +39,16 @@ class WebSocketService {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 3000; // 3 seconds
   private pingInterval = 30000; // 30 seconds
+
+  private mapLatestReading(latestReading: LatestReading): SensorReading {
+    const { timestamp: _timestamp, ...parameters } = latestReading;
+    return {
+      type: 'reading',
+      timestamp: latestReading.timestamp || new Date().toISOString(),
+      parameters: parameters as SensorParameters,
+      alerts: [],
+    };
+  }
 
   /**
    * Connect to pond's real-time data stream
@@ -86,41 +98,26 @@ class WebSocketService {
           
           // Handle different message types
           switch (message.type) {
-            case 'sensor_reading':
+            case 'sensor_reading': {
               const reading: SensorReading = {
                 type: 'reading',
                 timestamp: message.timestamp || new Date().toISOString(),
                 parameters: message.readings || {},
-                alerts: (message.data && message.data.alerts) || [],
+                alerts: message.data?.alerts || [],
               };
               onReading(reading);
               break;
+            }
 
             case 'readings':
                 if (message.latest_readings && message.latest_readings.length > 0) {
-                    const latestReading = message.latest_readings[0];
-                    const { timestamp, ...parameters } = latestReading;
-                    const reading: SensorReading = {
-                        type:       'reading',
-                        timestamp:  latestReading.timestamp || new Date().toISOString(),
-                        parameters: parameters || {},
-                        alerts:     [],
-                    };
-                    onReading(reading);
+                    onReading(this.mapLatestReading(message.latest_readings[0]));
                 }
                 break;
               
             case 'connection':
                 if (message.latest_readings && message.latest_readings.length > 0) {
-                    const latestReading = message.latest_readings[0];
-                    const { timestamp, ...parameters } = latestReading;
-                    const reading: SensorReading = {
-                        type:       'reading',
-                        timestamp:  latestReading.timestamp || new Date().toISOString(),
-                        parameters: parameters || {},
-                        alerts:     [],
-                    };
-                    onReading(reading);
+                    onReading(this.mapLatestReading(message.latest_readings[0]));
                 }
                 break;
               
@@ -203,7 +200,7 @@ class WebSocketService {
    */
   connectToProject(
     projectId: string,
-    onUpdate: (data: any) => void,
+    onUpdate: (data: WebSocketUpdate | WebSocketMessage) => void,
     onError?: ErrorCallback
   ): () => void {
     const connectionId = `project_${projectId}`;
@@ -338,4 +335,3 @@ class WebSocketService {
 }
 
 export const websocketService = new WebSocketService();
-

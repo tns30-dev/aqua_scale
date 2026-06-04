@@ -10,7 +10,8 @@ export const PARAMETER_THRESHOLDS = {
 } as const;
 
 export function getThreshold(parameterKey: string): { min: number; max: number; unit: string } | null {
-  return (PARAMETER_THRESHOLDS as any)[parameterKey] || null;
+  return parameterKey in PARAMETER_THRESHOLDS
+    ? PARAMETER_THRESHOLDS[parameterKey as keyof typeof PARAMETER_THRESHOLDS]
+    : null;
 }
-
 

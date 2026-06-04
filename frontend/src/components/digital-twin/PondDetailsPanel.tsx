@@ -164,7 +164,7 @@ export function PondDetailsPanel({
               <div className="flex justify-between items-center">
                 <span className="text-base text-gray-600">Larvae Count</span>
                 <span className="text-base font-bold text-gray-900">
-                  {(metadata as any).larvae_count?.toLocaleString() || 'N/A'}
+                  {metadata.larvae_count?.toLocaleString() || 'N/A'}
                 </span>
               </div>
 
@@ -173,7 +173,7 @@ export function PondDetailsPanel({
                 <div className="flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-green-600" />
                   <span className="text-base font-bold text-gray-900">
-                    {(metadata as any).survival_rate_percent || 'N/A'}%
+                    {metadata.survival_rate_percent || 'N/A'}%
                   </span>
                 </div>
               </div>
@@ -199,7 +199,7 @@ export function PondDetailsPanel({
               </div>
 
               <div className="text-sm text-gray-500 pt-2 border-t border-gray-200">
-                <span className="font-medium">Species:</span> {(metadata as any).target_species || 'N/A'}
+                <span className="font-medium">Species:</span> {metadata.target_species || 'N/A'}
               </div>
             </div>
           ) : (
@@ -294,5 +294,4 @@ export function PondDetailsPanel({
     </Card>
   );
 }
-
 

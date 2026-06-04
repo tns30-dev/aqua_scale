@@ -66,6 +66,24 @@ interface ProfileTypeApiRow {
   theme: { primary: string; gradient: { from: string; to: string } };
 }
 
+type HistoricalDataResponse = Record<string, unknown>;
+type ChartDataPoint = Record<string, string | number | null>;
+
+interface HistoricalChartsResponse {
+  multiParameterTrends?: ChartDataPoint[];
+  correlationHeatmap?: {
+    parameters: string[];
+    parameterLabels: Record<string, string>;
+    matrix: number[][];
+  } | null;
+  historicalTrends?: ChartDataPoint[];
+  nitrogenCycle?: ChartDataPoint[];
+  temperatureTrend?: ChartDataPoint[];
+  dissolvedOxygen?: ChartDataPoint[];
+  diseaseRisk?: ChartDataPoint[];
+  waterQualityIndex?: ChartDataPoint[];
+}
+
 function mapProfileTypeDTO(raw: ProfileTypeApiRow): ProfileConfig {
   return {
     profileTypeId: raw.profile_type_id,
@@ -211,8 +229,8 @@ class ApiService {
     startDate: string,
     endDate: string,
     parameters?: string[]
-  ): Promise<any> {
-    const response = await this.api.get(`/api/ponds/${pondId}/historical/`, {
+  ): Promise<HistoricalDataResponse> {
+    const response = await this.api.get<HistoricalDataResponse>(`/api/ponds/${pondId}/historical/`, {
       params: {
         start: startDate,
         end: endDate,
@@ -294,8 +312,8 @@ class ApiService {
         startDate: string,
         endDate: string,
         grouping: string = 'auto',
-    ): Promise<any> {
-        const response = await this.api.get(`/api/projects/${projectId}/charts/`,{
+    ): Promise<HistoricalChartsResponse> {
+        const response = await this.api.get<HistoricalChartsResponse>(`/api/projects/${projectId}/charts/`,{
             params: {
                 pondId,
                 startDate,
@@ -501,4 +519,3 @@ class ApiService {
 
 // Export singleton
 export const apiService = new ApiService();
-

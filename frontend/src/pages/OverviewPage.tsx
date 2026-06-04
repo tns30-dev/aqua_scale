@@ -135,9 +135,9 @@ export function OverviewPage() {
 
       setAlerts(alertsData.alerts);
       setSummary(summaryData);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to fetch overview data:', err);
-      setError(err.message || 'Failed to load data');
+      setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setIsLoading(false);
     }
