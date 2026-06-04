@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: identity-access-service
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:aquashield}
+    username: ${DB_USER:identity_access_svc}
+    password: ${DB_PASSWORD:identity_access_local}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate          # Flyway owns the schema
+    properties:
+      hibernate.default_schema: identity_access
+    open-in-view: false
+
+  flyway:
+    schemas: identity_access
+    default-schema: identity_access
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}
+
+server:
+  port: ${SERVER_PORT:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true             # /actuator/health/{liveness,readiness} for K8s
+
+aquashield:
+  jwt:
+    issuer: ${JWT_ISSUER:aquashield-local}
+    audience: ${JWT_AUDIENCE:aquashield-api}
+    access-token-ttl: ${JWT_ACCESS_TTL:PT15M}
+    # RSA PEM via env/secret in cloud; when absent (local dev/tests) an ephemeral
+    # keypair is generated at startup and a warning is logged.
+    private-key-pem: ${JWT_PRIVATE_KEY_PEM:}
+    public-key-pem: ${JWT_PUBLIC_KEY_PEM:}
+  auth:
+    refresh-token-ttl: ${REFRESH_TTL:P7D}
+    authz-snapshot-ttl: ${AUTHZ_SNAPSHOT_TTL:PT12H}
+    login-rate-limit: ${LOGIN_RATE_LIMIT:10}          # attempts
+    login-rate-window: ${LOGIN_RATE_WINDOW:PT15M}     # per window per user/IP

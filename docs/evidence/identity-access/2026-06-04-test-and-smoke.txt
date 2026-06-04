@@ -1,0 +1,26 @@
+=== Identity & Access Service — evidence (2026-06-04) ===
+
+--- mvn verify (unit + Testcontainers IT):
+RbacServiceTest: 13/13 (parity oracles incl. global wildcard leak)
+FeatureActionValidatorTest: 6/6
+AuthFlowIT: 11/11 (login envelope, generic 401s, snapshot+TTL, onboard defaults+grants,
+  dup-email 400, non-admin 403, refresh rotation + reuse->family revoked, logout revokes
+  jti+family, access-update bumps authz version, self-update, disabled-user 401)
+LoginRateLimitIT: 1/1 (429 after limit)
+BUILD SUCCESS
+
+--- live smoke vs docker compose stack (pg:5433 redis:6380):
+{"status":"UP"}
+login -> RS256 JWT claims: sub, jti, iss, aud, role, authzVersion (decoded header.payload below)
+{"sub":"5c5cd0b9-6954-48e8-9cdd-a59b420eeb55","jti":"d5f060e6-f7e4-49ea-a96e-838a1d5766ab","iss":"aquashield-local","aud":["aquashield-api"],"role":"platform_admin","authzVersion":2,"iat":1780553307,"exp":1780554207}
+
+--- Redis keys after login (snapshot + version + refresh family):
+auth:refresh-family:42aa0c1e-7b82-45ba-824b-f20e281dc296
+auth:refresh-family:8984aad0-8255-4de3-802a-fa83303e83c1
+auth:refresh:7a2d6b00de3aa74ea061c334b6c504728e1e0de8465cdb0bb81297032e2aef03
+auth:refresh:beb2894179d2365f0a7dcf35751efcf04693923d07e448232766c38762ebca20
+authz:snapshot:5c5cd0b9-6954-48e8-9cdd-a59b420eeb55:1
+authz:snapshot:5c5cd0b9-6954-48e8-9cdd-a59b420eeb55:2
+authz:version:5c5cd0b9-6954-48e8-9cdd-a59b420eeb55
+ratelimit:login:0:0:0:0:0:0:0:1
+ratelimit:login:admin@aquashield.local

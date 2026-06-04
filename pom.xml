@@ -25,9 +25,9 @@
        analytics-service (TypeScript), ml-service / llm-service (Python placeholders)
        are intentionally NOT Maven modules. -->
   <modules>
+    <module>identity-access-service</module>
     <!-- <module>common</module> -->
     <!-- <module>shared-api</module> -->
-    <!-- <module>identity-access-service</module> -->
     <!-- <module>project-service</module> -->
     <!-- <module>pond-service</module> -->
     <!-- <module>sensor-service</module> -->
@@ -36,6 +36,21 @@
     <!-- <module>realtime-gateway</module> -->
     <!-- <module>audit-service</module> -->
   </modules>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <configuration>
+            <!-- required for Spring @PathVariable/@RequestParam name resolution -->
+            <parameters>true</parameters>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
 
   <dependencyManagement>
     <dependencies>
