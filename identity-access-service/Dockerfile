@@ -1,9 +1,10 @@
+# syntax=docker/dockerfile:1
 # Build from REPO ROOT: docker build -f identity-access-service/Dockerfile .
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
 # copy the full reactor (root pom declares every module); .dockerignore trims junk
 COPY . .
-RUN mvn -q -pl identity-access-service -am package -DskipTests
+RUN --mount=type=cache,target=/root/.m2 mvn -q -pl identity-access-service -am package -DskipTests
 
 # Runtime stage — minimal JRE, non-root
 FROM eclipse-temurin:21-jre-alpine

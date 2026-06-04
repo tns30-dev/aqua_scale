@@ -1,9 +1,10 @@
+# syntax=docker/dockerfile:1
 # Build context = repo root (consistent with the Java services):
 #   docker build -f analytics-service/Dockerfile .
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY analytics-service/package.json analytics-service/package-lock.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 COPY analytics-service/tsconfig.json ./
 COPY analytics-service/src ./src
 RUN npm run build && npm prune --omit=dev
