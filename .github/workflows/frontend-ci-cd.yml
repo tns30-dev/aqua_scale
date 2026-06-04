@@ -1,0 +1,149 @@
+# AquaShield frontend CI/CD (spec: main/frontend.md, frontend_deployment.md, cdn.md)
+# DELIBERATELY separate from backend ci.yml: React/Vite SPA -> static build ->
+# Firebase Hosting (CDN). Backend service changes never deploy Firebase; frontend
+# changes never trigger the backend service matrix.
+#
+# Required GitHub configuration (deploy jobs SKIP CLEANLY until these exist):
+#   secrets.FIREBASE_SERVICE_ACCOUNT  service-account JSON with the
+#                                     "Firebase Hosting Admin" role on the project
+#   vars.FIREBASE_PROJECT_ID          Firebase project id
+#   vars.VITE_API_BASE_URL            e.g. https://api.aquashield.example.com
+#   vars.VITE_WS_BASE_URL             e.g. wss://api.aquashield.example.com/ws
+#   vars.FIREBASE_HOSTING_SITE        optional, when the site id differs from project id
+# Safe default: pushes deploy to the STAGING channel; the live channel is reached only
+# via manual workflow_dispatch (channel=live) for demo day.
+
+name: frontend-ci-cd
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci-cd.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci-cd.yml'
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Hosting channel (staging is the safe default; live for demo)
+        type: choice
+        options: [staging, live]
+        default: staging
+
+permissions:
+  contents: read
+  pull-requests: write   # the preview action comments the channel URL on the PR
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+      - name: Unit tests (vitest)
+        working-directory: frontend
+        run: npm run test -- --run
+      - name: Build (deployment env)
+        working-directory: frontend
+        env:
+          # placeholders keep CI green before the API edge exists; deploys use real vars
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://api.aquashield.example.com' }}
+          VITE_WS_BASE_URL: ${{ vars.VITE_WS_BASE_URL || 'wss://api.aquashield.example.com/ws' }}
+        run: npm run build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 7
+
+  # ---------- PR preview channel (spec: Firebase preview per change) ----------
+  preview-deploy:
+    needs: frontend-ci
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: creds
+        name: Check Firebase credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ] && [ -n "$FIREBASE_PROJECT_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Preview deploy skipped — configure secrets.FIREBASE_SERVICE_ACCOUNT and vars.FIREBASE_PROJECT_ID to enable (see workflow header)."
+          fi
+      - name: Download build
+        if: steps.creds.outputs.enabled == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+      - name: Deploy preview channel
+        if: steps.creds.outputs.enabled == 'true'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          target: ${{ vars.FIREBASE_HOSTING_SITE }}
+          entryPoint: frontend
+          channelId: pr-${{ github.event.number }}
+          expires: 7d
+
+  # ---------- staging on main push; live only via manual dispatch ----------
+  hosting-deploy:
+    needs: frontend-ci
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: creds
+        name: Check Firebase credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ] && [ -n "$FIREBASE_PROJECT_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Hosting deploy skipped — configure secrets.FIREBASE_SERVICE_ACCOUNT and vars.FIREBASE_PROJECT_ID to enable (see workflow header)."
+          fi
+      - name: Download build
+        if: steps.creds.outputs.enabled == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+      - name: Deploy (staging by default; live only when dispatched explicitly)
+        if: steps.creds.outputs.enabled == 'true'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          target: ${{ vars.FIREBASE_HOSTING_SITE }}
+          entryPoint: frontend
+          channelId: ${{ github.event_name == 'workflow_dispatch' && inputs.channel || 'staging' }}
+          expires: 30d

@@ -1,0 +1,40 @@
+=== Frontend CI/CD — validation evidence (2026-06-04) ===
+
+Workflow: .github/workflows/frontend-ci-cd.yml — DELIBERATELY separate from backend
+ci.yml (spec: frontend.md / frontend_deployment.md / cdn.md). Path isolation both ways:
+frontend changes never trigger the backend service matrix; backend changes never touch
+Firebase.
+
+Shape:
+  frontend-ci (PR + main push + dispatch, paths frontend/** + the workflow):
+    Node 22 (npm cache keyed on frontend/package-lock.json) -> npm ci -> lint ->
+    vitest --run -> vite build with VITE_API_BASE_URL / VITE_WS_BASE_URL from repo vars
+    (documented placeholders until the API edge exists) -> dist uploaded as artifact
+  preview-deploy (PR only): Firebase Hosting preview channel pr-<num>, 7d expiry,
+    PR comment with the channel URL
+  hosting-deploy (main push or manual dispatch): STAGING channel by default (30d);
+    the LIVE channel is reachable ONLY via workflow_dispatch channel=live (demo day)
+
+Credentials safety: both deploy jobs gate on a check step — when
+secrets.FIREBASE_SERVICE_ACCOUNT / vars.FIREBASE_PROJECT_ID are absent they SKIP CLEANLY
+with a ::notice documenting exactly what to configure. CI stays green pre-credentials.
+
+Required GitHub config (documented in the workflow header):
+  secrets.FIREBASE_SERVICE_ACCOUNT (SA JSON, Firebase Hosting Admin role)
+  vars.FIREBASE_PROJECT_ID · vars.VITE_API_BASE_URL · vars.VITE_WS_BASE_URL ·
+  vars.FIREBASE_HOSTING_SITE (optional)
+
+frontend/firebase.json added: SPA rewrite to /index.html + cdn.md cache policy
+(hashed /assets/** immutable 1y; index.html no-cache).
+
+Local validation (2026-06-04):
+  npm run lint            -> 0 errors (16 warnings)
+  npm run test -- --run   -> 10 files, 100 passed, 8 skipped
+  npm run build (with VITE env) -> built in 2.17s, dist/ 3.9M
+  workflow YAML           -> parses clean
+  hygiene                 -> no node_modules/dist/html/playwright-report/.env tracked
+                             (137 source files tracked; "frontend copy/" untracked, left alone)
+
+Related fix shipped separately (62d8383): CI's container matrix caught that all service
+Dockerfiles broke once the root pom declared 7 modules ("Child module does not exist") —
+uniform COPY . . + root .dockerignore; verified with a local image build.
