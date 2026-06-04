@@ -5,21 +5,21 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔
 
 ## Summary for Codex
 
-- **Current focus:** Local foundation DONE (compose stack verified). Next: first service skeleton (identity-access) or Terraform skeleton — user directs.
-- **Last completed:** Clean implementation repo `aquashield/` created (git, monorepo layout). Docker Compose foundation up & verified: Postgres 16 with 9 service-owned schemas + per-service roles, Redis 7, Pub/Sub emulator with FULL decided catalogue (11 topics + 11 DLQs + all subscriptions with dead-letter policies, naming `<service>.<topic>.sub`), Bigtable emulator. (2026-06-04)
-- **Blockers / questions:** None for local work. User confirmed GCP project + AWS account exist — will request credentials when provisioning starts.
+- **Current focus:** The data layer is in heavy production use by FIVE services locally. Next data-side work: event schema files (`shared-api/events/*.v1.json`), Bigtable raw-store impl behind the ReadingStore seam, then Terraform for the cloud instances.
+- **Last completed (2026-06-04):** Redis key catalogue from `main/redis.md` is now LIVE and IT-tested across services: `auth:refresh{,-family}` + `auth:revoked:{jti}` + `ratelimit:login` (identity), `authz:snapshot/{version}` (identity→all consumers), `project:parameters:{id}` + `project:catalogue:*` (project), `sensor:device-map:{code}` (sensor), `notification:threshold:{projectId}` (notification, event-invalidated). Pub/Sub catalogue extended (+project.*, device.*, project.sensor.*) and exercised by 4 publisher/consumer services against the emulator. 5 service schemas under Flyway (identity_access, project, sensor, ingestion, notification).
+- **Blockers / questions:** None for local work. GCP project + AWS account confirmed to exist — will request credentials when Terraform/provisioning starts.
 
 ## Items
 
 | Item | Status | Progress notes | Evidence | Updated |
 |---|---|---|---|---|
-| Cloud SQL PostgreSQL primary | 🟨 | Local equivalent live: postgres16, schema-per-service (`local/postgres-init/01-schemas.sql`); cloud instance pending Terraform | `aquashield/docs/evidence/local-foundation/` | 2026-06-04 |
+| Cloud SQL PostgreSQL primary | 🟨 | Local equivalent in production use: 5 service schemas with Flyway migrations + service DB roles; schema-per-service ownership enforced (no cross-schema access in code). Cloud instance pending Terraform | `docs/evidence/local-foundation/` + per-service ITs | 2026-06-04 |
 | Cloud SQL read replica | ⬜ | — | — | — |
-| Redis/Memorystore (authz snapshot, cache, rate-limit, fanout) | 🟨 | Local Redis 7 up (compose); key catalogue per `main/redis.md` to be implemented with Identity service | `aquashield/docs/evidence/local-foundation/` | 2026-06-04 |
-| Cloud Bigtable (telemetry; emulator-first, cost-safe) | 🟨 | Emulator running on :8086 (emulator-first per cost plan); row-key/table design lands with Ingestion | `aquashield/docs/evidence/local-foundation/` | 2026-06-04 |
+| Redis/Memorystore (authz snapshot, cache, rate-limit, fanout) | 🟨 | Key catalogue IMPLEMENTED + IT-tested: refresh rotation/family, jti revocation, login rate-limit, authz snapshots (producer + fail-closed consumers), project settings/catalogue caches, sensor device-map (invalidated on mapping/credential writes), notification threshold cache (event-invalidated). WS fanout keys land with realtime-gateway. Memorystore cloud instance pending Terraform | live key listings in `docs/evidence/identity-access/`; per-service ITs | 2026-06-04 |
+| Cloud Bigtable (telemetry; emulator-first, cost-safe) | 🟨 | Emulator in compose; Ingestion persists to the spec-sanctioned Postgres demo store behind the `ReadingStore` seam — Bigtable impl (row key device/pond hash + reverse ts + seq; families raw/sig/meta/reading) is the swap-in next step | `docs/evidence/ingestion-service/` | 2026-06-04 |
 | BigQuery (bounded demo dataset, cost controls) | ⬜ | — | — | — |
 | Cloud Storage (reports/exports/artifacts) | ⬜ | — | — | — |
-| Google Pub/Sub (topics, subscriptions, schemas, DLQs) | 🟨 | Full decided catalogue scripted + verified on emulator (`scripts/pubsub-bootstrap.sh`); event schema files (`contracts/events/*.v1.json`) + cloud topics pending | `aquashield/docs/evidence/local-foundation/2026-06-04-compose-foundation.txt` | 2026-06-04 |
+| Google Pub/Sub (topics, subscriptions, schemas, DLQs) | 🟨 | Catalogue scripted (idempotent bootstrap, +project.*/device.*/project.sensor.* extensions) AND exercised in anger: project/sensor publish, ingestion consumes iot.telemetry.received with ack/nack DLQ discipline, notification consumes reading.ingested + settings invalidation — all IT-tested vs emulator with the canonical EventEnvelope. PENDING: schema files `shared-api/events/*.v1.json`, cloud topics | per-service ITs + `docs/evidence/` | 2026-06-04 |
 | AWS IoT Core (things, certs, policies, rules) | ⬜ | — | — | — |
 | AWS Lambda bridge (TS, WIF → Pub/Sub) | ⬜ | — | — | — |
 | Terraform-managed infrastructure (GCS remote state) | ⬜ | — | — | — |
@@ -30,3 +30,4 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔
 |---|---|
 | 2026-06-04 | Tracker initialized. Specs read (`polyglot_persistence.md`, `redis.md`, `eda.md`, `pub_sub_contract_docs.md`, `iot.md`, `terraform.md`). |
 | 2026-06-04 | Clean repo `aquashield/` scaffolded (services/, libs/proto-contracts/, contracts/events/, deploy/k8s/, infra/, tests/jmeter/). Compose foundation up & verified: postgres (9 schemas, healthy), redis (PONG), pubsub emulator (22 topics incl. DLQs, subs with deadLetterPolicy maxDeliveryAttempts=5, ackDeadline=30s), bigtable emulator. First commit `22a6d19`. |
+| 2026-06-04 | CORRECTION/refresh: evidence paths fixed (`aquashield/` layer was dissolved — everything lives at repo root `docs/evidence/`). Redis catalogue + Pub/Sub flows now live across 5 services (items updated). |

@@ -62,9 +62,9 @@
 
 | Status | Owner | Item | Output | Reference Doc |
 |---|---|---|---|---|
-| [ ] | Claude | Authn/Authz workflow | JWT, Redis authz snapshot, refresh, revocation, ACL flow | `authn_authz.md` |
-| [ ] | Claude | Identity authorization snapshot | Feature access and ACL stored in Redis after login | `identity_and_access_service.md`, `redis.md` |
-| [ ] | Claude | Token lifecycle | Login, refresh rotation, logout, revocation, MFA optional state | `identity_and_access_service.md`, `authn_authz.md` |
+| [x] | Claude | Authn/Authz workflow | JWT, Redis authz snapshot, refresh, revocation, ACL flow | `authn_authz.md` |
+| [x] | Claude | Identity authorization snapshot | Feature access and ACL stored in Redis after login | `identity_and_access_service.md`, `redis.md` |
+| [x] | Claude | Token lifecycle | Login, refresh rotation, logout, revocation, MFA optional state | `identity_and_access_service.md`, `authn_authz.md` |
 | [ ] | Claude | Three-layer firewall model | Internet-to-web, web-to-app, app-to-app, app-to-data controls | `network_security.md` |
 | [ ] | Claude | Service-to-service protection | Kubernetes service identity, Istio mTLS, AuthorizationPolicy | `service_discovery.md`, `network_security.md` |
 | [ ] | Claude | Security evidence | SAST, SCA, secret scan, container scan, DAST reports | `ci.md`, `cd.md` |
@@ -73,12 +73,12 @@
 
 | Status | Owner | Service | Output | Reference Doc |
 |---|---|---|---|---|
-| [ ] | Claude | Identity and Access Service | Java service skeleton, auth contracts, Redis authz snapshot | `identity_and_access_service.md` |
-| [ ] | Claude | Project Service | Java service skeleton and project/profile/config contracts | `project_service.md` |
+| [x] | Claude | Identity and Access Service | Java service skeleton, auth contracts, Redis authz snapshot | `identity_and_access_service.md` |
+| [x] | Claude | Project Service | Java service skeleton and project/profile/config contracts | `project_service.md` |
 | [ ] | Claude | Pond Service | Java service skeleton and pond/cycle contracts | `pond_service.md` |
-| [ ] | Claude | Sensor Service | Java service skeleton and device/port mapping contracts | `sensor_service.md` |
-| [ ] | Claude | Ingestion Service | Java Pub/Sub consumer, validation, Bigtable/persistence flow | `ingestion_service.md` |
-| [ ] | Claude | Notification Service | Java alert and notification event flow | `notification_service.md` |
+| [x] | Claude | Sensor Service | Java service skeleton and device/port mapping contracts | `sensor_service.md` |
+| [x] | Claude | Ingestion Service | Java Pub/Sub consumer, validation, Bigtable/persistence flow | `ingestion_service.md` |
+| [x] | Claude | Notification Service | Java alert and notification event flow | `notification_service.md` |
 | [ ] | Claude | Realtime Gateway | Java WebFlux WSS gateway with Redis fanout | `websocket.md` |
 | [ ] | Claude | Analytics Service | TypeScript/Express chart API with Bigtable/BigQuery read paths | `analytics_service.md` |
 | [ ] | Claude | Audit Service | Java append-only audit consumer and query path | `audit_service.md` |

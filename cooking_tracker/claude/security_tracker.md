@@ -5,8 +5,8 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔
 
 ## Summary for Codex
 
-- **Current focus:** Core authn/authz implemented & tested in identity-access-service. Remaining for the workflow item: shared snapshot-consumer middleware in `common/` (for other services) + Identity gRPC fallback.
-- **Last completed (2026-06-04):** JWT (RS256, compact claims w/ authzVersion) · refresh rotation with family reuse-detection (replayed token kills family — TESTED) · jti revocation on logout (works BEFORE token expiry; monolith's blacklist was a verified no-op) · Redis authz snapshot build/version/invalidate (access change bumps version, old snapshot deleted — TESTED) · login rate limiting (429 — TESTED). Parity divergences are documented in code.
+- **Current focus:** Application-layer security DONE and proven across services (workflow ✅, snapshot ✅, token lifecycle ✅). Next security work: CI security gates (SAST/SCA/secrets/SBOM/container scan — lands with the CI skeleton), then firewall/mTLS evidence with Codex's cloud foundation.
+- **Last completed (2026-06-04):** Auth model consumed by ALL REST services (project, sensor, notification) — JwtVerifier public-key validation + fail-closed snapshot authz everywhere. PLUS the IoT payload-security chain: PayloadHmac (exact monolith HMAC-SHA256 canonical-JSON scheme) with Python↔Java cross-language test vectors; device_key never serialized over REST (in-cluster gRPC only); ingestion verifies signatures + timestamp skew + rejects unknown/inactive devices; alert engine never poisons the pipeline (swallowed-failure parity).
 - **Blockers / questions:** Istio mTLS/AuthorizationPolicy evidence depends on Codex's mesh setup (cloud foundation scope) — will coordinate.
 
 ## Items
@@ -27,3 +27,4 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔
 | 2026-06-04 | Tracker initialized. Specs read (`authn_authz.md`, `network_security.md`, `service_discovery.md`, `identity_and_access_service.md`). |
 | 2026-06-04 | Authn/authz core landed with identity service: snapshot ✅, token lifecycle ✅, workflow 🟨 (shared middleware + gRPC fallback pending). |
 | 2026-06-04 | Authn/Authz workflow item ✅ — designed hot path proven across two services (cross-service smoke). |
+| 2026-06-04 | Refresh: auth model consumed by all REST services; IoT HMAC chain (cross-language vectors, device-key handling, skew, reject discipline) live in sensor+ingestion. CI security gates next. |

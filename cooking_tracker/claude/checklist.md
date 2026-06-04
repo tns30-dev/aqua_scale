@@ -21,9 +21,9 @@ Source checklist: [main/checklist.md](../main/checklist.md)
 
 | Status | Item | Output | Reference Doc |
 |---|---|---|---|
-| [ ] | Authn/Authz workflow | JWT, Redis authz snapshot, refresh, revocation, ACL flow | [authn_authz.md](../main/authn_authz.md) |
-| [ ] | Identity authorization snapshot | Feature access and ACL stored in Redis after login | [identity_and_access_service.md](../main/identity_and_access_service.md), [redis.md](../main/redis.md) |
-| [ ] | Token lifecycle | Login, refresh rotation, logout, revocation, MFA optional state | [identity_and_access_service.md](../main/identity_and_access_service.md), [authn_authz.md](../main/authn_authz.md) |
+| [x] | Authn/Authz workflow | JWT, Redis authz snapshot, refresh, revocation, ACL flow | [authn_authz.md](../main/authn_authz.md) |
+| [x] | Identity authorization snapshot | Feature access and ACL stored in Redis after login | [identity_and_access_service.md](../main/identity_and_access_service.md), [redis.md](../main/redis.md) |
+| [x] | Token lifecycle | Login, refresh rotation, logout, revocation, MFA optional state | [identity_and_access_service.md](../main/identity_and_access_service.md), [authn_authz.md](../main/authn_authz.md) |
 | [ ] | Three-layer firewall model | Internet-to-web, web-to-app, app-to-app, app-to-data controls | [network_security.md](../main/network_security.md) |
 | [ ] | Service-to-service protection | Kubernetes service identity, Istio mTLS, AuthorizationPolicy | [service_discovery.md](../main/service_discovery.md), [network_security.md](../main/network_security.md) |
 | [ ] | Security evidence | SAST, SCA, secret scan, container scan, DAST reports | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
@@ -32,12 +32,12 @@ Source checklist: [main/checklist.md](../main/checklist.md)
 
 | Status | Service | Output | Reference Doc |
 |---|---|---|---|
-| [ ] | Identity and Access Service | Java service skeleton, auth contracts, Redis authz snapshot | [identity_and_access_service.md](../main/identity_and_access_service.md) |
-| [ ] | Project Service | Java service skeleton and project/profile/config contracts | [project_service.md](../main/project_service.md) |
+| [x] | Identity and Access Service | Java service skeleton, auth contracts, Redis authz snapshot | [identity_and_access_service.md](../main/identity_and_access_service.md) |
+| [x] | Project Service | Java service skeleton and project/profile/config contracts | [project_service.md](../main/project_service.md) |
 | [ ] | Pond Service | Java service skeleton and pond/cycle contracts | [pond_service.md](../main/pond_service.md) |
-| [ ] | Sensor Service | Java service skeleton and device/port mapping contracts | [sensor_service.md](../main/sensor_service.md) |
-| [ ] | Ingestion Service | Java Pub/Sub consumer, validation, Bigtable/persistence flow | [ingestion_service.md](../main/ingestion_service.md) |
-| [ ] | Notification Service | Java alert and notification event flow | [notification_service.md](../main/notification_service.md) |
+| [x] | Sensor Service | Java service skeleton and device/port mapping contracts | [sensor_service.md](../main/sensor_service.md) |
+| [x] | Ingestion Service | Java Pub/Sub consumer, validation, Bigtable/persistence flow | [ingestion_service.md](../main/ingestion_service.md) |
+| [x] | Notification Service | Java alert and notification event flow | [notification_service.md](../main/notification_service.md) |
 | [ ] | Realtime Gateway | Java WebFlux WSS gateway with Redis fanout | [websocket.md](../main/websocket.md) |
 | [ ] | Analytics Service | TypeScript/Express chart API with Bigtable/BigQuery read paths | [analytics_service.md](../main/analytics_service.md) |
 | [ ] | Audit Service | Java append-only audit consumer and query path | [audit_service.md](../main/audit_service.md) |
