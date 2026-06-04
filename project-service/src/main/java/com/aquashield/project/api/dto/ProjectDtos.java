@@ -164,4 +164,11 @@ public final class ProjectDtos {
       BigDecimal highDailyThreshold,
       Boolean manualEntryEnabled,
       String notes) {}
+
+  /** Overview summary card (camelCase, parity with frontend ProjectSummary type). */
+  public record ProjectSummaryDto(
+      int totalPonds,
+      long activeAlerts,
+      int averageQuality,
+      String forecast) {}
 }

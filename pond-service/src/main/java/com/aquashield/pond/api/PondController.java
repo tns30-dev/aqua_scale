@@ -13,6 +13,7 @@ import com.aquashield.pond.domain.Pond;
 import com.aquashield.pond.repo.Repos.PondTreatmentRepository;
 import com.aquashield.pond.repo.Repos.TreatmentRepository;
 import com.aquashield.pond.service.ComparisonService;
+import com.aquashield.pond.service.HistoricalService;
 import com.aquashield.pond.service.PondAppService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -45,13 +46,16 @@ public class PondController {
 
   private final PondAppService service;
   private final ComparisonService comparison;
+  private final HistoricalService historical;
   private final TreatmentRepository treatments;
   private final PondTreatmentRepository pondTreatments;
 
   public PondController(PondAppService service, ComparisonService comparison,
+                        HistoricalService historical,
                         TreatmentRepository treatments, PondTreatmentRepository pondTreatments) {
     this.service = service;
     this.comparison = comparison;
+    this.historical = historical;
     this.treatments = treatments;
     this.pondTreatments = pondTreatments;
   }
@@ -71,6 +75,24 @@ public class PondController {
                          @AuthenticationPrincipal SnapshotPrincipal principal) {
     Pond pond = service.requirePond(pondId);
     return service.getPond(pondId, hasAccess(principal, pond.getProjectId()));
+  }
+
+  /** Legacy historical time-series. The charts API (analytics-service) is preferred. */
+  @GetMapping({"/api/ponds/{pondId}/historical", "/api/ponds/{pondId}/historical/"})
+  public Map<String, Object> getHistorical(
+      @PathVariable UUID pondId,
+      @RequestParam(required = false) String start,
+      @RequestParam(required = false) String end,
+      @RequestParam(required = false) String parameters,
+      @AuthenticationPrincipal SnapshotPrincipal principal) {
+    Pond pond = service.requirePond(pondId);
+    requireMembership(principal, pond.getProjectId());
+    LocalDate startDate = (start != null && !start.isBlank()) ? LocalDate.parse(start)
+        : LocalDate.now().minusDays(30);
+    LocalDate endDate = (end != null && !end.isBlank()) ? LocalDate.parse(end) : LocalDate.now();
+    List<String> params = (parameters != null && !parameters.isBlank())
+        ? List.of(parameters.split(",")) : List.of();
+    return historical.getHistorical(pondId, startDate, endDate, params);
   }
 
   @PostMapping("/api/projects/{projectId}/ponds")

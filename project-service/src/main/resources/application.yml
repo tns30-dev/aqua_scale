@@ -61,6 +61,12 @@ aquashield:
     ingestion:
       target: ${INGESTION_GRPC_TARGET:localhost:9095}
       in-process-name: ${INGESTION_GRPC_INPROCESS:}
+    pond:
+      target: ${POND_GRPC_TARGET:localhost:9094}
+      in-process-name: ${POND_GRPC_INPROCESS:}
+    notification:
+      target: ${NOTIFICATION_GRPC_TARGET:localhost:9096}
+      in-process-name: ${NOTIFICATION_GRPC_INPROCESS:}
   # monolith TIME_ZONE (config/settings/base.py) — energy bucketing/labels are local time
   timezone: ${AQUASHIELD_TIMEZONE:Asia/Singapore}
   events:
