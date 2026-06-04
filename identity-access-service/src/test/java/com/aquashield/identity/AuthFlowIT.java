@@ -19,14 +19,18 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.PubSubEmulatorContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 /**
  * End-to-end auth flows against real Postgres + Redis (Testcontainers).
@@ -47,8 +51,13 @@ class AuthFlowIT {
   static final GenericContainer<?> redis =
       new GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
 
+  @Container
+  static final PubSubEmulatorContainer pubsub = new PubSubEmulatorContainer(
+      DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators"));
+
   static final String ADMIN_EMAIL = "admin@aquashield.local";
   static final String ADMIN_PASSWORD = "AdminBoot123!";
+  static final String GCP_PROJECT = "aquashield-test";
 
   @DynamicPropertySource
   static void props(DynamicPropertyRegistry registry) {
@@ -57,11 +66,56 @@ class AuthFlowIT {
     registry.add("spring.datasource.password", postgres::getPassword);
     registry.add("spring.data.redis.host", redis::getHost);
     registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
+    registry.add("spring.cloud.gcp.project-id", () -> GCP_PROJECT);
+    registry.add("spring.cloud.gcp.pubsub.emulator-host", pubsub::getEmulatorEndpoint);
     registry.add("BOOTSTRAP_ADMIN_EMAIL", () -> ADMIN_EMAIL);
     registry.add("BOOTSTRAP_ADMIN_PASSWORD", () -> ADMIN_PASSWORD);
     registry.add("grpc.server.port", () -> -1);              // no TCP gRPC in this IT
     registry.add("grpc.server.in-process-name", () -> "AuthFlowIT");
     registry.add("aquashield.auth.login-rate-limit", () -> 1000); // not under test here
+  }
+
+  @org.junit.jupiter.api.BeforeAll
+  static void createAuditTopic() throws Exception {
+    var channel = io.grpc.ManagedChannelBuilder.forTarget(pubsub.getEmulatorEndpoint())
+        .usePlaintext().build();
+    var provider = com.google.api.gax.rpc.FixedTransportChannelProvider.create(
+        com.google.api.gax.grpc.GrpcTransportChannel.create(channel));
+    try (var topics = com.google.cloud.pubsub.v1.TopicAdminClient.create(
+        com.google.cloud.pubsub.v1.TopicAdminSettings.newBuilder()
+            .setTransportChannelProvider(provider)
+            .setCredentialsProvider(com.google.api.gax.core.NoCredentialsProvider.create())
+            .build());
+         var subs = com.google.cloud.pubsub.v1.SubscriptionAdminClient.create(
+             com.google.cloud.pubsub.v1.SubscriptionAdminSettings.newBuilder()
+                 .setTransportChannelProvider(provider)
+                 .setCredentialsProvider(com.google.api.gax.core.NoCredentialsProvider.create())
+                 .build())) {
+      topics.createTopic(com.google.pubsub.v1.TopicName.of(GCP_PROJECT, "audit.event.recorded"));
+      subs.createSubscription(
+          com.google.pubsub.v1.ProjectSubscriptionName.of(GCP_PROJECT, "it.audit.sub"),
+          com.google.pubsub.v1.TopicName.of(GCP_PROJECT, "audit.event.recorded"),
+          com.google.pubsub.v1.PushConfig.getDefaultInstance(), 30);
+      auditSubscriberStub = com.google.cloud.pubsub.v1.stub.GrpcSubscriberStub.create(
+          com.google.cloud.pubsub.v1.stub.SubscriberStubSettings.newBuilder()
+              .setTransportChannelProvider(provider)
+              .setCredentialsProvider(com.google.api.gax.core.NoCredentialsProvider.create())
+              .build());
+    }
+    auditChannel = channel;
+  }
+
+  static com.google.cloud.pubsub.v1.stub.SubscriberStub auditSubscriberStub;
+  static io.grpc.ManagedChannel auditChannel;
+
+  @org.junit.jupiter.api.AfterAll
+  static void closeAuditStub() {
+    if (auditSubscriberStub != null) {
+      auditSubscriberStub.close();
+    }
+    if (auditChannel != null) {
+      auditChannel.shutdownNow();
+    }
   }
 
   @Autowired TestRestTemplate http;
@@ -277,5 +331,43 @@ class AuthFlowIT {
     assertThat(r.get("status").asInt()).isEqualTo(401);
     assertThat(r.at("/body/detail").asText())
         .isEqualTo("No active account found with the given credentials");
+  }
+
+  @Test
+  void t12_loginAttempts_emitSecurityAuditEvents() {
+    // one fresh success + one fresh failure (earlier tests also emitted — pull them all)
+    loginAdmin();
+    post("/api/auth/login", Map.of("email", ADMIN_EMAIL, "password", "wrong-pass"), null);
+
+    var seen = new java.util.ArrayList<JsonNode>();
+    await().atMost(java.time.Duration.ofSeconds(15)).untilAsserted(() -> {
+      var pull = auditSubscriberStub.pullCallable().call(
+          com.google.pubsub.v1.PullRequest.newBuilder()
+              .setSubscription("projects/" + GCP_PROJECT + "/subscriptions/it.audit.sub")
+              .setMaxMessages(50).build());
+      for (var received : pull.getReceivedMessagesList()) {
+        seen.add(json.readTree(received.getMessage().getData().toStringUtf8()));
+      }
+      List<String> types = seen.stream()
+          .map(envelope -> envelope.at("/payload/eventType").asText()).toList();
+      assertThat(types).contains("login.succeeded", "login.failed");
+    });
+
+    JsonNode failed = seen.stream()
+        .filter(e -> e.at("/payload/eventType").asText().equals("login.failed"))
+        .findFirst().orElseThrow();
+    // audit payload contract (main/audit_service.md): full field set, never credentials
+    assertThat(failed.get("eventType").asText()).isEqualTo("audit.event.recorded");
+    assertThat(failed.get("source").asText()).isEqualTo("identity-access-service");
+    assertThat(failed.at("/payload/category").asText()).isEqualTo("security");
+    assertThat(failed.at("/payload/action").asText()).isEqualTo("login");
+    assertThat(failed.at("/payload/outcome").asText()).isEqualTo("failure");
+    assertThat(failed.at("/payload/auditId").asText()).isNotBlank();
+    assertThat(failed.at("/payload/correlationId").asText()).isNotBlank();
+    assertThat(failed.at("/payload/metadata/email").asText()).isEqualTo(ADMIN_EMAIL);
+    assertThat(failed.at("/payload/metadata/reason").asText()).isEqualTo("invalid_credentials");
+    // known account + wrong password -> attributable actor
+    assertThat(failed.at("/payload/actorUserId").asText()).isNotBlank();
+    assertThat(failed.toString()).doesNotContain("wrong-pass"); // never credentials
   }
 }

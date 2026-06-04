@@ -6,6 +6,7 @@ import com.aquashield.identity.api.dto.AuthDtos.ProjectRef;
 import com.aquashield.identity.api.dto.AuthDtos.RefreshResponse;
 import com.aquashield.identity.api.dto.AuthDtos.SessionUser;
 import com.aquashield.identity.domain.User;
+import com.aquashield.identity.events.IdentityAuditPublisher;
 import com.aquashield.identity.repo.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -35,11 +36,12 @@ public class AuthService {
   private final TokenRevocationService revocations;
   private final LoginRateLimiter rateLimiter;
   private final RbacService rbac;
+  private final IdentityAuditPublisher audit;
 
   public AuthService(UserRepository users, PasswordEncoder passwordEncoder, TokenService tokens,
                      RefreshTokenService refreshTokens, AuthzSnapshotService snapshots,
                      TokenRevocationService revocations, LoginRateLimiter rateLimiter,
-                     RbacService rbac) {
+                     RbacService rbac, IdentityAuditPublisher audit) {
     this.users = users;
     this.passwordEncoder = passwordEncoder;
     this.tokens = tokens;
@@ -48,21 +50,27 @@ public class AuthService {
     this.revocations = revocations;
     this.rateLimiter = rateLimiter;
     this.rbac = rbac;
+    this.audit = audit;
   }
 
   @Transactional(readOnly = true)
   public LoginResponse login(String email, String password, String clientIp) {
     if (!rateLimiter.tryAcquire(email.toLowerCase()) || !rateLimiter.tryAcquire(clientIp)) {
+      audit.loginFailed(null, email, clientIp, "rate_limited");
       throw new RateLimitedException();
     }
     User user = users.findByEmailIgnoreCase(email).orElse(null);
     if (user == null || !user.isActive()
         || !passwordEncoder.matches(password, user.getPasswordHash())) {
+      // audit trail records the attempt; the HTTP response stays the generic 401
+      audit.loginFailed(user == null ? null : user.getUserId(), email, clientIp,
+          "invalid_credentials");
       throw new InvalidCredentialsException(); // same generic 401 for all three cases
     }
     var snapshot = snapshots.buildForLogin(user);
     var access = tokens.issueAccessToken(user.getUserId(), user.getRole(), snapshot.version());
     String refresh = refreshTokens.issue(user.getUserId());
+    audit.loginSucceeded(user.getUserId(), email, clientIp);
     return new LoginResponse(access.token(), refresh, sessionUser(user), projectRefs(user.getUserId()));
   }
 

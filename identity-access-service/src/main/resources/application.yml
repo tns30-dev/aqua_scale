@@ -25,6 +25,12 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6380}
 
+  cloud:
+    gcp:
+      project-id: ${PUBSUB_PROJECT_ID:aquashield-local}
+      pubsub:
+        emulator-host: ${PUBSUB_EMULATOR_HOST:localhost:8085}
+
 server:
   port: ${SERVER_PORT:8081}
 
@@ -56,3 +62,6 @@ aquashield:
     authz-snapshot-ttl: ${AUTHZ_SNAPSHOT_TTL:PT12H}
     login-rate-limit: ${LOGIN_RATE_LIMIT:10}          # attempts
     login-rate-window: ${LOGIN_RATE_WINDOW:PT15M}     # per window per user/IP
+  events:
+    enabled: ${EVENTS_ENABLED:true}
+    source: identity-access-service

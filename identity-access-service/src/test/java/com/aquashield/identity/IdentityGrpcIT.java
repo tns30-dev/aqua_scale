@@ -55,6 +55,7 @@ class IdentityGrpcIT {
     registry.add("BOOTSTRAP_ADMIN_EMAIL", () -> "admin@aquashield.local");
     registry.add("BOOTSTRAP_ADMIN_PASSWORD", () -> "AdminBoot123!");
     registry.add("aquashield.auth.login-rate-limit", () -> 1000);
+    registry.add("aquashield.events.enabled", () -> false); // no Pub/Sub in this IT
     registry.add("grpc.server.port", () -> -1);              // no TCP in tests
     registry.add("grpc.server.in-process-name", () -> IN_PROCESS);
   }
