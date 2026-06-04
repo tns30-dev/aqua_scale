@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingestion-service-config
+data:
+  SERVER_PORT: "8084"
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_NAME: "aquashield"
+  DB_USER: "ingestion_svc"
+  DB_POOL_SIZE: "10"
+  PUBSUB_PROJECT_ID: "aquashield-dev"
+  PUBSUB_EMULATOR_HOST: ""
+  INGESTION_SUBSCRIPTION: "ingestion.iot.telemetry.received.sub"
+  HMAC_ENABLED: "true"
+  HMAC_MAX_SKEW: "PT5M"
+  CATALOGUE_REFRESH: "PT10M"
+  SENSOR_GRPC_TARGET: "sensor-service:9093"
+  SENSOR_GRPC_INPROCESS: ""
+  PROJECT_GRPC_TARGET: "project-service:9092"
+  PROJECT_GRPC_INPROCESS: ""
+  EVENTS_ENABLED: "true"

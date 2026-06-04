@@ -7,7 +7,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary for Claude
 
 - Current focus: Root `k8s/` platform skeleton and Terraform GCP foundation scaffold are restored/validated.
-- Last completed: Sensor Service K8s workload manifests added and dev/staging overlays render successfully.
+- Last completed: Ingestion Service internal K8s workload manifests added and dev/staging overlays render successfully.
 - Blockers / questions: Real cloud provisioning still needs GCP project ID, region, domain/certificate decision, and repo URL for Argo CD.
 
 ## Items
@@ -28,6 +28,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Identity Access workload manifests | IN_PROGRESS | Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, and AuthorizationPolicy created; cloud apply not started. | `../../k8s/base/services/identity-access-service/`, `../../docs/evidence/k8s-identity-access/2026-06-04-identity-kustomize-validation.md` | 2026-06-04 |
 | Project Service workload manifests | IN_PROGRESS | Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, AuthorizationPolicy, REST route, and gRPC port created; cloud apply not started. | `../../k8s/base/services/project-service/`, `../../docs/evidence/k8s-project-service/2026-06-04-project-kustomize-validation.md` | 2026-06-04 |
 | Sensor Service workload manifests | IN_PROGRESS | Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, AuthorizationPolicy, REST routes, and gRPC port created; cloud apply not started. | `../../k8s/base/services/sensor-service/`, `../../docs/evidence/k8s-sensor-service/2026-06-04-sensor-kustomize-validation.md` | 2026-06-04 |
+| Ingestion Service workload manifests | IN_PROGRESS | Internal Pub/Sub worker Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, and actuator-only AuthorizationPolicy created; no public HTTPRoute by design; cloud apply not started. | `../../k8s/base/services/ingestion-service/`, `../../docs/evidence/k8s-ingestion-service/2026-06-04-ingestion-kustomize-validation.md` | 2026-06-04 |
 | Artifact Registry | IN_PROGRESS | Terraform module scaffold creates service image repositories; cloud apply not started. | `../../infra/modules/artifact-registry/`, `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
 | Terraform remote state | IN_PROGRESS | Bootstrap config and dev `gcs` backend example created; state bucket not applied yet. | `../../infra/bootstrap-state/`, `../../infra/environments/dev/backend.tf.example` | 2026-06-04 |
 
@@ -43,6 +44,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | `kubectl kustomize k8s/overlays/staging` after Project workload | PASS; evidence in `../../docs/evidence/k8s-project-service/2026-06-04-project-kustomize-validation.md` | 2026-06-04 |
 | `kubectl kustomize k8s/overlays/dev` after Sensor workload | PASS; evidence in `../../docs/evidence/k8s-sensor-service/2026-06-04-sensor-kustomize-validation.md` | 2026-06-04 |
 | `kubectl kustomize k8s/overlays/staging` after Sensor workload | PASS; evidence in `../../docs/evidence/k8s-sensor-service/2026-06-04-sensor-kustomize-validation.md` | 2026-06-04 |
+| `kubectl kustomize k8s/overlays/dev` after Ingestion workload | PASS; evidence in `../../docs/evidence/k8s-ingestion-service/2026-06-04-ingestion-kustomize-validation.md` | 2026-06-04 |
+| `kubectl kustomize k8s/overlays/staging` after Ingestion workload | PASS; evidence in `../../docs/evidence/k8s-ingestion-service/2026-06-04-ingestion-kustomize-validation.md` | 2026-06-04 |
 | `terraform fmt -check -recursive infra` | PASS; evidence in `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
 | `terraform -chdir=infra/bootstrap-state validate` | PASS; evidence in `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
 | `terraform -chdir=infra/environments/dev validate` | PASS; evidence in `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
@@ -51,6 +54,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 
 | Date | Update |
 |---|---|
+| 2026-06-04 | Added Ingestion Service K8s workload manifests as an internal Pub/Sub worker on port `8084`, with Sensor/Project gRPC targets, HPA/PDB, NetworkPolicy, and actuator-only Istio AuthorizationPolicy; dev/staging overlays validated. |
 | 2026-06-04 | Added Sensor Service K8s workload manifests, REST/gRPC ports, NetworkPolicy, Istio AuthorizationPolicy, and updated HTTPRoute to service port `8083`; dev/staging overlays validated. |
 | 2026-06-04 | Added Project Service K8s workload manifests, REST/gRPC ports, NetworkPolicy, Istio AuthorizationPolicy, and updated HTTPRoute to service port `8082`; dev/staging overlays validated. |
 | 2026-06-04 | Added Identity Access Service K8s workload manifests and updated API Gateway HTTPRoute to service port `8081`; dev/staging overlays validated. |

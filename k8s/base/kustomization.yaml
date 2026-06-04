@@ -6,6 +6,7 @@ resources:
   - services/identity-access-service
   - services/project-service
   - services/sensor-service
+  - services/ingestion-service
   - edge/gateway.yaml
   - edge/http-redirect.yaml
   - edge/http-route.yaml
