@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package aquashield.project.v1;
+
+option java_multiple_files = true;
+option java_package = "com.aquashield.api.project.v1";
+
+// Project Service — internal gRPC contract.
+// Spec: cooking_tracker/main/project_service.md (gRPC Contract Checklist).
+// Primary consumers: Notification (threshold lookups), Analytics (chart config),
+// Pond (project/profile context), API edge helpers.
+service ProjectService {
+
+  rpc GetProject (GetProjectRequest) returns (Project);
+
+  rpc GetProfileType (GetProfileTypeRequest) returns (ProfileType);
+
+  // Threshold/key-parameter lookup — Notification Service hot dependency.
+  rpc GetParameterSettings (GetParameterSettingsRequest) returns (GetParameterSettingsResponse);
+
+  rpc GetParameterCatalogue (GetParameterCatalogueRequest) returns (GetParameterCatalogueResponse);
+
+  // Existence/ownership helper (NOT user authorization — that is the Redis snapshot).
+  rpc ValidateProjectAccess (ValidateProjectAccessRequest) returns (ValidateProjectAccessResponse);
+}
+
+message GetProjectRequest {
+  string project_id = 1;
+}
+
+message Project {
+  string project_id = 1;
+  string name = 2;
+  string profile_type_id = 3;
+  string profile_type_code = 4;
+  string owner_user_id = 5;
+  string status = 6;
+}
+
+message GetProfileTypeRequest {
+  string profile_type_id = 1;
+}
+
+message ProfileType {
+  string profile_type_id = 1;
+  string code = 2;
+  string name = 3;
+  string stage_config_json = 4;     // JSON passthrough (shape owned by Project Service)
+  repeated string key_parameter_codes = 5;
+  repeated string key_growth_indicator_codes = 6;
+  string theme_json = 7;            // JSON passthrough
+}
+
+message GetParameterSettingsRequest {
+  string project_id = 1;
+  // optional filter; empty = all settings for the project
+  string parameter_code = 2;
+}
+
+message ParameterSetting {
+  string parameter_code = 1;
+  string parameter_name = 2;
+  string unit = 3;
+  double min_value = 4;
+  double max_value = 5;
+  bool has_min = 6;
+  bool has_max = 7;
+  bool key_parameter = 8;
+}
+
+message GetParameterSettingsResponse {
+  string project_id = 1;
+  repeated ParameterSetting settings = 2;
+}
+
+message GetParameterCatalogueRequest {}
+
+message ParameterTypeInfo {
+  string parameter_type_id = 1;
+  string code = 2;
+  string name = 3;
+  string unit = 4;
+}
+
+message GetParameterCatalogueResponse {
+  repeated ParameterTypeInfo parameters = 1;
+}
+
+message ValidateProjectAccessRequest {
+  string project_id = 1;
+}
+
+message ValidateProjectAccessResponse {
+  bool exists = 1;
+  string profile_type_code = 2;
+}

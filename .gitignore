@@ -48,3 +48,4 @@ device-certs/
 
 # scratch
 temp.txt
+local/dev-keys/

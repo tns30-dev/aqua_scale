@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: project-service
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:aquashield}
+    username: ${DB_USER:project_svc}
+    password: ${DB_PASSWORD:project_local}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate          # Flyway owns the schema
+    properties:
+      hibernate.default_schema: project
+    open-in-view: false
+
+  flyway:
+    schemas: project
+    default-schema: project
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}
+
+  cloud:
+    gcp:
+      project-id: ${PUBSUB_PROJECT_ID:aquashield-local}
+      pubsub:
+        emulator-host: ${PUBSUB_EMULATOR_HOST:localhost:8085}
+
+server:
+  port: ${SERVER_PORT:8082}
+
+grpc:
+  server:
+    port: ${GRPC_PORT:9092}   # internal-only; NetworkPolicy + mesh mTLS in-cluster
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+aquashield:
+  jwt:
+    issuer: ${JWT_ISSUER:aquashield-local}
+    audience: ${JWT_AUDIENCE:aquashield-api}
+    # Identity's PUBLIC key only — this service can verify but never mint tokens.
+    public-key-pem: ${JWT_PUBLIC_KEY_PEM:}
+  cache:
+    catalogue-ttl: ${CACHE_CATALOGUE_TTL:PT1H}
+    settings-ttl: ${CACHE_SETTINGS_TTL:PT15M}
+  events:
+    enabled: ${EVENTS_ENABLED:true}
+    source: project-service

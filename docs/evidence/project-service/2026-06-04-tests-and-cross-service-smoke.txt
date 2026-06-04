@@ -1,0 +1,46 @@
+=== Project Service — evidence (2026-06-04) ===
+
+Built parity-spec-first (agent analysis of module_project with file:line citations).
+
+mvn clean verify (full reactor): 49 tests green
+  identity-access-service: 32 (13 RBAC oracles, 6 validator, 11 AuthFlowIT, 1 rate-limit, 1 gRPC IT)
+  project-service: 17
+    ProfileTypeStagesTest 5/5  (stage_config dual-shape, stage-by-day, cycle length oracles)
+    ThresholdSettingTest  3/3  (inclusive bounds, NULL-side skip, parameter_code alias oracle)
+    ProjectApiIT          9/9:
+      t01 no token -> 401
+      t02 VALID JWT but missing Redis snapshot -> 401 (FAIL-CLOSED — the designed model)
+      t03 /api/profile-types parity: flat array, snake_case, ordered by code,
+          camelCase keys INSIDE stage_config, theme passthrough, Redis catalogue cache
+      t04 admin create -> member sees via snapshot ACL -> outsider 404 {"detail":"Not found."}
+      t05 /api/projects/all: member 403, admin 200 camelCase flat
+      t06 parameter-settings PUT upsert -> Redis settings cache invalidated ->
+          project.settings.updated event on Pub/Sub emulator (canonical envelope asserted)
+      t07 energy settings MERGE upsert (tariff-only PUT preserves currency=EUR; exists flag)
+      t08 energy dashboard: bad groupBy 400; zero-data parity shape (totals 0, currency symbol)
+      t09 gRPC: GetParameterSettings keyed by parameter_code w/ has_min/has_max flags,
+          ValidateProjectAccess, GetProject->GetProfileType (stage_config passthrough)
+
+=== CROSS-SERVICE SMOKE (identity:8081 + project:8082, compose stack, shared RSA keys) ===
+1) admin login at IDENTITY ok
+2) PROJECT accepted identity token (cross-service JWT + Redis snapshot); shrimp profile resolved
+3) admin created project: e23e81db-33a1-4fb8-a5e0-c5cf612302ba
+4) member onboarded at IDENTITY with grant: farmer@aquashield.local
+5) member login -> snapshot with project ACL
+6) member sees at PROJECT via snapshot: ['Smoke Farm']
+7) member set thresholds: ph 6.5 - 9.0
+8) admin (non-member) detail -> 404 (parity: filtered queryset semantics; admins use /all)
+9) event on bus: project.settings.updated
+
+This is the first true service-to-service flow: Identity mints RS256 JWT + builds the
+Redis authz snapshot; Project verifies the JWT with the PUBLIC key only and authorizes
+purely from the snapshot — zero Identity calls on the hot path (main/authn_authz.md).
+
+Engineering notes (report material):
+- Maven scope mediation bug found by the smoke (not the ITs): a direct test-scoped
+  jjwt-impl declaration overrode common's transitive runtime scope and stripped the JWT
+  parser from the boot jar -> fixed to runtime scope. Lesson: integration tests share the
+  test classpath; only a packaged-jar smoke catches packaging bugs.
+- pubsub-bootstrap.sh made idempotent (409-tolerant) + project.* topics added.
+  NOTE for Codex: project.created/updated/settings.updated need adding to
+  main/pub_sub_contract_docs.md catalogue.

@@ -23,24 +23,38 @@ alert.resolved:realtime,audit
 notification.requested:dispatcher
 notification.sent:audit
 audit.event.recorded:audit
+project.created:audit
+project.updated:audit
+project.settings.updated:notification,audit
 "
 
+# idempotent: 409 (already exists) is fine on re-runs
 create_topic() {
-  curl -fsS -X PUT "${BASE}/topics/$1" -o /dev/null && echo "  topic: $1"
+  local status
+  status=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "${BASE}/topics/$1")
+  case "${status}" in
+    200) echo "  topic: $1" ;;
+    409) echo "  topic: $1 (exists)" ;;
+    *)   echo "  topic: $1 FAILED (${status})" >&2; return 1 ;;
+  esac
 }
 
 # create_sub <sub-name> <topic> [dlq-topic]
 create_sub() {
   local sub="$1" topic="$2" dlq="${3:-}"
-  local body
+  local body status
   if [ -n "${dlq}" ]; then
     body="{\"topic\":\"projects/${PROJECT}/topics/${topic}\",\"ackDeadlineSeconds\":30,\"deadLetterPolicy\":{\"deadLetterTopic\":\"projects/${PROJECT}/topics/${dlq}\",\"maxDeliveryAttempts\":5}}"
   else
     body="{\"topic\":\"projects/${PROJECT}/topics/${topic}\",\"ackDeadlineSeconds\":30}"
   fi
-  curl -fsS -X PUT "${BASE}/subscriptions/${sub}" \
-    -H "Content-Type: application/json" -d "${body}" -o /dev/null \
-    && echo "  sub:   ${sub}${dlq:+ (DLQ: ${dlq})}"
+  status=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "${BASE}/subscriptions/${sub}" \
+    -H "Content-Type: application/json" -d "${body}")
+  case "${status}" in
+    200) echo "  sub:   ${sub}${dlq:+ (DLQ: ${dlq})}" ;;
+    409) echo "  sub:   ${sub} (exists)" ;;
+    *)   echo "  sub:   ${sub} FAILED (${status})" >&2; return 1 ;;
+  esac
 }
 
 echo "Bootstrapping Pub/Sub catalogue on ${HOST} (project: ${PROJECT})"
