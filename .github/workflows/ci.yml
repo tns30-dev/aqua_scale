@@ -42,6 +42,7 @@ jobs:
             notification-service: ['notification-service/**']
             realtime-gateway: ['realtime-gateway/**']
             pond-service: ['pond-service/**']
+            audit-service: ['audit-service/**']
             # analytics is TS but consumes the shared-api protos — proto changes fan out
             analytics:
               - 'analytics-service/**'
@@ -52,7 +53,7 @@ jobs:
           SHARED: ${{ steps.filter.outputs.shared }}
           CHANGES: ${{ toJSON(steps.filter.outputs) }}
         run: |
-          SERVICES=(identity-access-service project-service sensor-service ingestion-service notification-service realtime-gateway pond-service)
+          SERVICES=(identity-access-service project-service sensor-service ingestion-service notification-service realtime-gateway pond-service audit-service)
           SELECTED=()
           for s in "${SERVICES[@]}"; do
             flag=$(echo "$CHANGES" | jq -r --arg k "$s" '.[$k] // "false"')
