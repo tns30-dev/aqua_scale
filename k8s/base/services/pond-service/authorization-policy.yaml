@@ -1,0 +1,30 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: pond-service-allow-http-grpc
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pond-service
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            ports:
+              - "8089"
+            paths:
+              - /api/ponds
+              - /api/ponds/*
+              - /api/cycles
+              - /api/cycles/*
+              - /api/treatments
+              - /api/treatments/*
+              - /api/pond-treatments
+              - /api/pond-treatments/*
+              - /api/projects/*
+              - /actuator/health
+              - /actuator/health/*
+    - to:
+        - operation:
+            ports:
+              - "9094"

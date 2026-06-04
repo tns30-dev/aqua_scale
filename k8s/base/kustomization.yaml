@@ -5,6 +5,7 @@ resources:
   - service-accounts.yaml
   - services/identity-access-service
   - services/project-service
+  - services/pond-service
   - services/sensor-service
   - services/ingestion-service
   - services/notification-service

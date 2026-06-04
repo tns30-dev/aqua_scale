@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pond-service-config
+data:
+  SERVER_PORT: "8089"
+  GRPC_PORT: "9094"
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_NAME: "aquashield"
+  DB_USER: "pond_svc"
+  DB_POOL_SIZE: "10"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  PUBSUB_PROJECT_ID: "aquashield-dev"
+  PUBSUB_EMULATOR_HOST: ""
+  JWT_ISSUER: "aquashield"
+  JWT_AUDIENCE: "aquashield-api"
+  CACHE_POND_LIST_TTL: "PT5M"
+  PROJECT_GRPC_TARGET: "project-service:9092"
+  PROJECT_GRPC_INPROCESS: ""
+  EVENTS_ENABLED: "true"

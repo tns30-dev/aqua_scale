@@ -30,6 +30,16 @@ spec:
           port: 8083
     - matches:
         - path:
+            type: RegularExpression
+            value: ^/api/projects/[^/]+/ponds(/.*)?$
+        - path:
+            type: RegularExpression
+            value: ^/api/projects/[^/]+/pond-comparison(/.*)?$
+      backendRefs:
+        - name: pond-service
+          port: 8089
+    - matches:
+        - path:
             type: PathPrefix
             value: /api/projects
         - path:
@@ -48,9 +58,18 @@ spec:
         - path:
             type: PathPrefix
             value: /api/ponds
+        - path:
+            type: PathPrefix
+            value: /api/cycles
+        - path:
+            type: PathPrefix
+            value: /api/treatments
+        - path:
+            type: PathPrefix
+            value: /api/pond-treatments
       backendRefs:
         - name: pond-service
-          port: 8080
+          port: 8089
     - matches:
         - path:
             type: PathPrefix

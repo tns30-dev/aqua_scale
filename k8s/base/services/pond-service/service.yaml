@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pond-service
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: pond-service
+  ports:
+    - name: http
+      port: 8089
+      targetPort: http
+    - name: grpc
+      port: 9094
+      targetPort: grpc
