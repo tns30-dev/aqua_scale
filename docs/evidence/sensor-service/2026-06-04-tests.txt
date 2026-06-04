@@ -1,0 +1,37 @@
+=== Sensor Service — evidence (2026-06-04) ===
+
+Built parity-spec-first (agent analysis of module_sensor — DB DDL authoritative over
+Django models: device_code varchar(64), iot status default 'offline', the binding
+(device,port) ANY-status partial unique index).
+
+mvn clean verify (full reactor): 63 tests green
+  common: 6  — PayloadHmacTest: CROSS-LANGUAGE HMAC PARITY — expected canonical string
+               and signature generated with the monolith's exact Python scheme
+               (json.dumps separators=(",",":") sort_keys=True + HMAC-SHA256 hex);
+               Java verifies Python-signed payloads byte-for-byte. + tamper/missing-key/
+               missing-sig fail-closed + key-order independence.
+  identity-access-service: 32
+  project-service: 17
+  sensor-service: 8 — SensorApiIT:
+    t01 401 baseline; member 403 on registry writes
+    t02 sensor type create + ">=1 parameter" rule (oracle 17)
+    t03 device register: status defaults 'offline' (DB parity), device_key NEVER
+        serialized over REST (has_device_key flag only), duplicate code 400
+    t04 mapping rules: "Port is required when an IoT device is assigned." (oracle 18);
+        (device,port) clash rejected ANY status (oracle 19, the binding DB index)
+    t05 member reads mappings via snapshot ACL; outsider 404
+    t06 gRPC ResolveDevice: happy; unknown -> NOT_FOUND with EXACT monolith message
+        "Unknown or Inactive IoT device - 'X'."; inactive INDISTINGUISHABLE (oracles 1-3)
+    t07 gRPC ResolveDevicePort: active-only visibility (oracle 5), parameter_type_ids
+        returned, unknown port found=false, Redis device-map cache + invalidation on
+        mapping status change (sensor:device-map:{code})
+    t08 gRPC GetDeviceValidationMetadata returns HMAC device_key (in-cluster channel);
+        UpdateDeviceStatus with enum validation
+
+Design notes:
+- parameter catalogue stays with Project Service: ResolveDevicePort returns
+  parameter_type_ids; Ingestion resolves codes via Project.GetParameterCatalogue
+  (cacheable — mirrors the monolith's lru_cache, but WITH invalidation).
+- sensor_messages/sensor_readings + seq dedup belong to INGESTION (parity §2.5) — not here.
+- PayloadHmac in common = the shared signer/verifier for Ingestion, the Lambda bridge
+  reference, and the device simulator.

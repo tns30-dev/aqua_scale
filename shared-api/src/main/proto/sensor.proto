@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package aquashield.sensor.v1;
+
+option java_multiple_files = true;
+option java_package = "com.aquashield.api.sensor.v1";
+
+// Sensor Service — internal gRPC contract.
+// Spec: cooking_tracker/main/sensor_service.md (gRPC Contract Checklist).
+// HOT PATH consumer: Ingestion Service (ResolveDevicePort + GetDeviceValidationMetadata
+// on every telemetry message — responses are Redis-cached by the caller per redis.md
+// `sensor:device-map:{deviceId}`).
+service SensorService {
+
+  // Device lookup by device_code (the identifier devices put in MQTT payloads).
+  rpc ResolveDevice (ResolveDeviceRequest) returns (Device);
+
+  // Map device + port -> project/pond/projectSensor + measured parameter codes.
+  rpc ResolveDevicePort (ResolveDevicePortRequest) returns (DevicePortMapping);
+
+  // HMAC key + status metadata for application-level payload integrity checks.
+  rpc GetDeviceValidationMetadata (GetDeviceValidationMetadataRequest) returns (DeviceValidationMetadata);
+
+  rpc GetProjectSensor (GetProjectSensorRequest) returns (ProjectSensor);
+
+  rpc UpdateDeviceStatus (UpdateDeviceStatusRequest) returns (Device);
+}
+
+message ResolveDeviceRequest {
+  string device_code = 1;
+}
+
+message Device {
+  string device_id = 1;
+  string device_code = 2;
+  string name = 3;
+  string status = 4;          // active | inactive | maintenance
+  string project_id = 5;      // empty if unassigned
+}
+
+message ResolveDevicePortRequest {
+  string device_code = 1;
+  string port = 2;
+}
+
+message DevicePortMapping {
+  bool found = 1;
+  string project_sensor_id = 2;
+  string project_id = 3;
+  string pond_id = 4;
+  string sensor_type_id = 5;
+  string sensor_type_name = 6;
+  // ParameterType ids (catalogue owned by Project Service): Ingestion resolves codes
+  // via Project.GetParameterCatalogue (cacheable, mirrors the monolith's lru_cache).
+  repeated string parameter_type_ids = 7;
+  bool active = 8;
+}
+
+message GetDeviceValidationMetadataRequest {
+  string device_code = 1;
+}
+
+message DeviceValidationMetadata {
+  bool known = 1;
+  string device_id = 2;
+  string status = 3;
+  bool active = 4;
+  // HMAC secret for application-level signature verification (in-cluster only;
+  // mesh mTLS + NetworkPolicy protect this channel).
+  string device_key = 5;
+}
+
+message GetProjectSensorRequest {
+  string project_sensor_id = 1;
+}
+
+message ProjectSensor {
+  string project_sensor_id = 1;
+  string project_id = 2;
+  string pond_id = 3;
+  string device_id = 4;
+  string sensor_type_id = 5;
+  string port = 6;
+  bool active = 7;
+}
+
+message UpdateDeviceStatusRequest {
+  string device_code = 1;
+  string status = 2;
+}

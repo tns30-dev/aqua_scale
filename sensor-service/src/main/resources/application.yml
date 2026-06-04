@@ -1,0 +1,61 @@
+spring:
+  application:
+    name: sensor-service
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:aquashield}
+    username: ${DB_USER:sensor_svc}
+    password: ${DB_PASSWORD:sensor_local}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.default_schema: sensor
+    open-in-view: false
+
+  flyway:
+    schemas: sensor
+    default-schema: sensor
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}
+
+  cloud:
+    gcp:
+      project-id: ${PUBSUB_PROJECT_ID:aquashield-local}
+      pubsub:
+        emulator-host: ${PUBSUB_EMULATOR_HOST:localhost:8085}
+
+server:
+  port: ${SERVER_PORT:8083}
+
+grpc:
+  server:
+    port: ${GRPC_PORT:9093}   # ResolveDevicePort = Ingestion's hot dependency
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+aquashield:
+  jwt:
+    issuer: ${JWT_ISSUER:aquashield-local}
+    audience: ${JWT_AUDIENCE:aquashield-api}
+    public-key-pem: ${JWT_PUBLIC_KEY_PEM:}
+  cache:
+    device-map-ttl: ${CACHE_DEVICE_MAP_TTL:PT10M}
+    catalogue-ttl: ${CACHE_CATALOGUE_TTL:PT1H}
+  events:
+    enabled: ${EVENTS_ENABLED:true}
+    source: sensor-service

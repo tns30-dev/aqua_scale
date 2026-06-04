@@ -29,9 +29,8 @@
     <module>shared-api</module>
     <module>identity-access-service</module>
     <module>project-service</module>
-    <!-- <module>project-service</module> -->
+    <module>sensor-service</module>
     <!-- <module>pond-service</module> -->
-    <!-- <module>sensor-service</module> -->
     <!-- <module>ingestion-service</module> -->
     <!-- <module>notification-service</module> -->
     <!-- <module>realtime-gateway</module> -->
