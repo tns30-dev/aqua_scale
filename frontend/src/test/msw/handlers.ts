@@ -40,6 +40,13 @@ export const handlers = [
 
   http.get("*/api/auth/me", () => HttpResponse.json(mockMeResponse)),
 
+  // --- Realtime Gateway ---
+  http.post("*/ws/token", () =>
+    HttpResponse.json({
+      token: "test-ws-token",
+    }),
+  ),
+
   // --- Access Definitions (Phase 4 endpoint renames) ---
   http.get("*/api/feature-access", () => HttpResponse.json(mockFeatures)),
   http.get("*/api/action-controls", () => HttpResponse.json(mockActionControls)),
@@ -161,6 +168,20 @@ export const handlers = [
       role: mockUsers[0].role,
     });
   }),
+
+  // --- Alerts / Notification Service ---
+  http.get("*/api/alerts", () =>
+    HttpResponse.json({
+      alerts: [],
+    }),
+  ),
+
+  http.post("*/api/alerts/:alertId/acknowledge", ({ params }) =>
+    HttpResponse.json({
+      message: "Alert acknowledged",
+      alertId: params.alertId as string,
+    }),
+  ),
 
   // Reference: admin sentinel is exported separately so tests can opt into it.
   // (Not a handler — re-exported for convenience via the data module.)

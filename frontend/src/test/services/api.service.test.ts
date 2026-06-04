@@ -163,6 +163,43 @@ describe("apiService — admin profile endpoint", () => {
   });
 });
 
+describe("apiService — notification and realtime endpoints", () => {
+  it("getAlerts hits the Java Notification Service slashless endpoint", async () => {
+    let observedUrl = "";
+    server.use(
+      http.get("*/api/alerts", ({ request }) => {
+        observedUrl = request.url;
+        return HttpResponse.json({ alerts: [] });
+      }),
+    );
+
+    const result = await apiService.getAlerts("proj-1");
+
+    expect(result).toEqual({ alerts: [] });
+    expect(observedUrl).toContain("/api/alerts?projectId=proj-1");
+  });
+
+  it("acknowledgeAlert hits POST /api/alerts/<id>/acknowledge without Django trailing slash", async () => {
+    let observedPath = "";
+    server.use(
+      http.post("*/api/alerts/:alertId/acknowledge", ({ request }) => {
+        observedPath = new URL(request.url).pathname;
+        return HttpResponse.json({ message: "Alert acknowledged" });
+      }),
+    );
+
+    await apiService.acknowledgeAlert("alert-1", "user-1");
+
+    expect(observedPath).toBe("/api/alerts/alert-1/acknowledge");
+  });
+
+  it("mintRealtimeToken calls the Realtime Gateway token mint endpoint", async () => {
+    const result = await apiService.mintRealtimeToken();
+
+    expect(result.token).toBe("test-ws-token");
+  });
+});
+
 describe("apiService — bearer auth interceptor", () => {
   it("attaches Authorization header on POST when an access token exists", async () => {
     setAuthTokens("test-access-token", "test-refresh-token");

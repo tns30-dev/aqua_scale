@@ -467,16 +467,19 @@ class ApiService {
   }
 
   async getAlerts(projectId: string): Promise<{ alerts: Alert[] }> {
-    const response = await this.api.get<{ alerts: Alert[] }>('/api/alerts/', {
+    const response = await this.api.get<{ alerts: Alert[] }>('/api/alerts', {
       params: { projectId },
     });
     return response.data;
   }
 
-  async acknowledgeAlert(alertId: string, acknowledgedBy: string): Promise<void> {
-    await this.api.post(`/api/alerts/${alertId}/acknowledge/`, {
-      acknowledgedBy,
-    });
+  async acknowledgeAlert(alertId: string, _acknowledgedBy?: string): Promise<void> {
+    await this.api.post(`/api/alerts/${alertId}/acknowledge`);
+  }
+
+  async mintRealtimeToken(): Promise<{ token: string }> {
+    const response = await this.api.post<{ token: string }>('/ws/token');
+    return response.data;
   }
 
   // Projects

@@ -1,16 +1,44 @@
 /**
- * Native WebSocket service for Django backend
- * Replaces Socket.IO implementation with native WebSocket
+ * Realtime Gateway WebSocket client.
+ *
+ * The cloud-native backend exposes one authenticated `/ws` endpoint. The
+ * browser first mints a short-lived token through `POST /ws/token`, opens the
+ * gateway socket, and sends `{ type: "AUTH", token }` as the first frame.
+ *
+ * Public deployments must use WSS. `ws://localhost` remains valid only for
+ * local development.
  */
 
 import { config } from '../config/env';
+import { apiService } from './api.service';
 import type { SensorParameters, SensorReading } from '../types';
 
 type ReadingCallback = (data: SensorReading) => void;
 type ErrorCallback = (error: Error) => void;
 type Status = 'connecting' | 'connected' | 'disconnected';
 type StatusCallback = (status: Status) => void;
-type MessageType = 'sensor_reading' | 'readings' | 'alert_notification' | 'project_update' | 'connection' | 'pong' | 'error';
+type ProjectCallback = (data: RealtimeFrame) => void;
+
+type LegacyMessageType =
+  | 'sensor_reading'
+  | 'readings'
+  | 'alert_notification'
+  | 'project_update'
+  | 'connection'
+  | 'pong'
+  | 'error';
+
+type GatewayMessageType =
+  | 'AUTH_OK'
+  | 'AUTH_FAILED'
+  | 'PONG'
+  | 'ERROR'
+  | 'sensor.reading'
+  | 'alert'
+  | 'alert_resolved';
+
+type MessageType = LegacyMessageType | GatewayMessageType;
+
 type LatestReading = { timestamp?: string } & Partial<SensorParameters> & Record<string, unknown>;
 type WebSocketUpdate = Record<string, unknown>;
 
@@ -18,27 +46,54 @@ interface WebSocketMessage {
   type: MessageType;
   data?: { alerts?: SensorReading['alerts'] } & WebSocketUpdate;
   message?: string;
+  reason?: string;
   pond_id?: string;
+  project_id?: string;
+  measured_at?: string;
   sensor_type?: string;
   value?: number;
   unit?: string;
   timestamp?: string;
   readings?: Partial<SensorParameters>;
   latest_readings?: LatestReading[];
+  values?: Partial<SensorParameters>;
+  alert?: {
+    parameter?: string;
+    severity?: string;
+    current_value?: number;
+    threshold?: number;
+    message?: string;
+    [key: string]: unknown;
+  };
+  parameter?: string;
 }
 
-interface WebSocketConnection {
-  socket: WebSocket;
-  reconnectAttempts: number;
-  reconnectTimer?: number;
-  pingInterval?: number;
+type RealtimeFrame = WebSocketMessage;
+
+interface PondSubscription {
+  onReading: ReadingCallback;
+  onError?: ErrorCallback;
+  onStatus?: StatusCallback;
+}
+
+interface ProjectSubscription {
+  onUpdate: ProjectCallback;
+  onError?: ErrorCallback;
 }
 
 class WebSocketService {
-  private connections: Map<string, WebSocketConnection> = new Map();
+  private socket: WebSocket | null = null;
+  private pondSubscriptions: Map<string, PondSubscription> = new Map();
+  private projectSubscriptions: Map<string, ProjectSubscription> = new Map();
   private maxReconnectAttempts = 5;
-  private reconnectDelay = 3000; // 3 seconds
-  private pingInterval = 30000; // 30 seconds
+  private reconnectAttempts = 0;
+  private reconnectDelay = 3000;
+  private pingIntervalMs = 30000;
+  private reconnectTimer?: number;
+  private pingInterval?: number;
+  private manuallyClosed = false;
+  private authenticated = false;
+  private opening = false;
 
   private mapLatestReading(latestReading: LatestReading): SensorReading {
     const { timestamp: _timestamp, ...parameters } = latestReading;
@@ -50,287 +105,292 @@ class WebSocketService {
     };
   }
 
-  /**
-   * Connect to pond's real-time data stream
-   */
   connectToPond(
     pondId: string,
     onReading: ReadingCallback,
     onError?: ErrorCallback,
     onStatus?: StatusCallback
   ): () => void {
-    const connectionId = `pond_${pondId}`;
-    
-    // Close existing connection if any
-    if (this.connections.has(connectionId)) {
-      console.warn(`Already connected to pond ${pondId}, reconnecting...`);
-      this.disconnect(connectionId);
-    }
-
-    // Authentication via HttpOnly `access_token` cookie — browser sends it
-    // automatically on same-site WebSocket upgrades. No token in URL.
-    const url = `${config.wsBaseUrl}/ws/ponds/${pondId}`;
-    
-    if (onStatus) onStatus('connecting');
-    
-    try {
-      const socket = new WebSocket(url);
-      const connection: WebSocketConnection = {
-        socket,
-        reconnectAttempts: 0,
-      };
-      
-      socket.onopen = () => {
-        connection.reconnectAttempts = 0;
-        if (onStatus) onStatus('connected');
-        
-        // Start ping to keep connection alive
-        connection.pingInterval = window.setInterval(() => {
-          if (socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: 'ping' }));
-          }
-        }, this.pingInterval);
-      };
-      
-      socket.onmessage = (event) => {
-        try {
-          const message: WebSocketMessage = JSON.parse(event.data);
-          
-          // Handle different message types
-          switch (message.type) {
-            case 'sensor_reading': {
-              const reading: SensorReading = {
-                type: 'reading',
-                timestamp: message.timestamp || new Date().toISOString(),
-                parameters: message.readings || {},
-                alerts: message.data?.alerts || [],
-              };
-              onReading(reading);
-              break;
-            }
-
-            case 'readings':
-                if (message.latest_readings && message.latest_readings.length > 0) {
-                    onReading(this.mapLatestReading(message.latest_readings[0]));
-                }
-                break;
-              
-            case 'connection':
-                if (message.latest_readings && message.latest_readings.length > 0) {
-                    onReading(this.mapLatestReading(message.latest_readings[0]));
-                }
-                break;
-              
-            case 'pong':
-              // Keep-alive response, no action needed
-              break;
-              
-            case 'error':
-              console.error(`[WebSocket] Server error: ${message.message}`);
-              if (onError) onError(new Error(message.message || 'Unknown error'));
-              break;
-              
-            default:
-              // Try to parse as reading anyway
-              if (message.pond_id || message.readings) {
-                const reading: SensorReading = {
-                  type: 'reading',
-                  timestamp: message.timestamp || new Date().toISOString(),
-                  parameters: message.readings || {},
-                  alerts: [],
-                };
-                onReading(reading);
-              }
-          }
-        } catch (error) {
-          console.error('[WebSocket] Failed to parse message:', error);
-        }
-      };
-      
-      socket.onerror = (error) => {
-        console.error(`[WebSocket] Connection error (pond ${pondId}):`, error);
-        if (onError) onError(new Error('WebSocket connection error'));
-        if (onStatus) onStatus('disconnected');
-      };
-      
-      socket.onclose = () => {
-        if (onStatus) onStatus('disconnected');
-        
-        // Clear ping interval
-        if (connection.pingInterval) {
-          clearInterval(connection.pingInterval);
-        }
-        
-        // Attempt reconnection
-        if (connection.reconnectAttempts < this.maxReconnectAttempts) {
-          connection.reconnectTimer = window.setTimeout(() => {
-            connection.reconnectAttempts++;
-            this.connectToPond(pondId, onReading, onError, onStatus);
-          }, this.reconnectDelay);
-        } else {
-          console.error(`[WebSocket] Max reconnection attempts reached for pond ${pondId}`);
-          if (onError) onError(new Error('Connection lost. Please refresh the page.'));
-        }
-      };
-      
-      this.connections.set(connectionId, connection);
-      
-    } catch (error) {
-      console.error('[WebSocket] Failed to create connection:', error);
-      if (onError) onError(error as Error);
-      if (onStatus) onStatus('disconnected');
-    }
-    
+    this.pondSubscriptions.set(pondId, { onReading, onError, onStatus });
+    onStatus?.(this.authenticated ? 'connected' : 'connecting');
+    void this.ensureGatewayConnection();
     return () => this.disconnectFromPond(pondId);
   }
 
   disconnectFromPond(pondId: string): void {
-    this.disconnect(`pond_${pondId}`);
+    this.pondSubscriptions.delete(pondId);
+    this.closeIfUnused();
   }
 
-  /**
-   * Check if a connection exists
-   */
   isConnected(connectionId: string): boolean {
-    return this.connections.has(connectionId);
+    if (connectionId.startsWith('pond_')) {
+      return this.pondSubscriptions.has(connectionId.slice('pond_'.length));
+    }
+    if (connectionId.startsWith('project_')) {
+      return this.projectSubscriptions.has(connectionId.slice('project_'.length));
+    }
+    return this.authenticated && this.socket?.readyState === WebSocket.OPEN;
   }
 
-  /**
-   * Connect to project-level updates
-   */
   connectToProject(
     projectId: string,
-    onUpdate: (data: WebSocketUpdate | WebSocketMessage) => void,
+    onUpdate: ProjectCallback,
     onError?: ErrorCallback
   ): () => void {
-    const connectionId = `project_${projectId}`;
-    
-    // Close existing connection if any
-    if (this.connections.has(connectionId)) {
-      console.warn(`Already connected to project ${projectId}, reconnecting...`);
-      this.disconnect(connectionId);
-    }
-
-    // Authentication via HttpOnly `access_token` cookie — see comment in
-    // connectToPond.
-    const url = `${config.wsBaseUrl}/ws/projects`;
-
-    try {
-      const socket = new WebSocket(url);
-      const connection: WebSocketConnection = {
-        socket,
-        reconnectAttempts: 0,
-      };
-      
-      socket.onopen = () => {
-        connection.reconnectAttempts = 0;
-        
-        // Start ping to keep connection alive
-        connection.pingInterval = window.setInterval(() => {
-          if (socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: 'ping' }));
-          }
-        }, this.pingInterval);
-      };
-      
-      socket.onmessage = (event) => {
-        try {
-          const message: WebSocketMessage = JSON.parse(event.data);
-          
-          switch (message.type) {
-            case 'project_update':
-            case 'alert_notification':
-              onUpdate(message.data || message);
-              break;
-              
-            case 'connection':
-              break;
-              
-            case 'pong':
-              // Keep-alive response
-              break;
-              
-            case 'error':
-              console.error(`[WebSocket] Server error: ${message.message}`);
-              if (onError) onError(new Error(message.message || 'Unknown error'));
-              break;
-              
-            default:
-              // Pass through any update
-              onUpdate(message.data || message);
-          }
-        } catch (error) {
-          console.error('[WebSocket] Failed to parse message:', error);
-        }
-      };
-      
-      socket.onerror = (error) => {
-        console.error(`[WebSocket] Connection error (project ${projectId}):`, error);
-        if (onError) onError(new Error('WebSocket connection error'));
-      };
-      
-      socket.onclose = () => {
-        // Clear ping interval
-        if (connection.pingInterval) {
-          clearInterval(connection.pingInterval);
-        }
-        
-        // Attempt reconnection
-        if (connection.reconnectAttempts < this.maxReconnectAttempts) {
-          connection.reconnectTimer = window.setTimeout(() => {
-            connection.reconnectAttempts++;
-            this.connectToProject(projectId, onUpdate, onError);
-          }, this.reconnectDelay);
-        } else {
-          console.error(`[WebSocket] Max reconnection attempts reached for project ${projectId}`);
-          if (onError) onError(new Error('Connection lost. Please refresh the page.'));
-        }
-      };
-      
-      this.connections.set(connectionId, connection);
-      
-    } catch (error) {
-      console.error('[WebSocket] Failed to create connection:', error);
-      if (onError) onError(error as Error);
-    }
-    
+    this.projectSubscriptions.set(projectId, { onUpdate, onError });
+    void this.ensureGatewayConnection();
     return () => this.disconnectFromProject(projectId);
   }
 
   disconnectFromProject(projectId: string): void {
-    this.disconnect(`project_${projectId}`);
+    this.projectSubscriptions.delete(projectId);
+    this.closeIfUnused();
   }
 
-  /**
-   * Disconnect a specific connection
-   */
-  private disconnect(connectionId: string): void {
-    const connection = this.connections.get(connectionId);
-    if (!connection) return;
-    
-    // Clear timers
-    if (connection.reconnectTimer) {
-      clearTimeout(connection.reconnectTimer);
-    }
-    if (connection.pingInterval) {
-      clearInterval(connection.pingInterval);
-    }
-    
-    // Close socket
-    if (connection.socket.readyState === WebSocket.OPEN || 
-        connection.socket.readyState === WebSocket.CONNECTING) {
-      connection.socket.close();
-    }
-    
-    this.connections.delete(connectionId);
-  }
-
-  /**
-   * Disconnect all sockets (call on logout)
-   */
   disconnectAll(): void {
-    const connectionIds = Array.from(this.connections.keys());
-    connectionIds.forEach(id => this.disconnect(id));
+    this.pondSubscriptions.clear();
+    this.projectSubscriptions.clear();
+    this.manuallyClosed = true;
+    this.authenticated = false;
+    this.opening = false;
+    this.clearTimers();
+
+    if (
+      this.socket &&
+      (this.socket.readyState === WebSocket.OPEN ||
+        this.socket.readyState === WebSocket.CONNECTING)
+    ) {
+      this.socket.close();
+    }
+    this.socket = null;
+  }
+
+  private async ensureGatewayConnection(): Promise<void> {
+    if (this.opening) return;
+    if (
+      this.socket &&
+      (this.socket.readyState === WebSocket.OPEN ||
+        this.socket.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
+    if (!this.hasSubscriptions()) return;
+
+    this.opening = true;
+    this.manuallyClosed = false;
+    this.notifyStatus('connecting');
+
+    try {
+      const { token } = await apiService.mintRealtimeToken();
+      const socket = new WebSocket(this.gatewayUrl());
+      this.socket = socket;
+
+      socket.onopen = () => {
+        socket.send(JSON.stringify({ type: 'AUTH', token }));
+      };
+
+      socket.onmessage = (event) => {
+        this.handleMessage(event.data);
+      };
+
+      socket.onerror = () => {
+        this.notifyError(new Error('WebSocket connection error'));
+      };
+
+      socket.onclose = () => {
+        this.handleClose();
+      };
+    } catch (error) {
+      this.opening = false;
+      this.authenticated = false;
+      this.notifyStatus('disconnected');
+      this.notifyError(error instanceof Error ? error : new Error('WebSocket connection failed'));
+      this.scheduleReconnect();
+    }
+  }
+
+  private handleMessage(raw: string): void {
+    let message: WebSocketMessage;
+    try {
+      message = JSON.parse(raw) as WebSocketMessage;
+    } catch (error) {
+      console.error('[WebSocket] Failed to parse message:', error);
+      return;
+    }
+
+    switch (message.type) {
+      case 'AUTH_OK':
+        this.opening = false;
+        this.authenticated = true;
+        this.reconnectAttempts = 0;
+        this.notifyStatus('connected');
+        this.startHeartbeat();
+        break;
+
+      case 'AUTH_FAILED':
+      case 'ERROR':
+      case 'error':
+        this.notifyError(new Error(message.reason || message.message || 'Realtime gateway error'));
+        break;
+
+      case 'PONG':
+      case 'pong':
+        break;
+
+      case 'sensor.reading':
+        this.dispatchGatewayReading(message);
+        break;
+
+      case 'alert':
+      case 'alert_resolved':
+        this.dispatchProjectFrame(message);
+        break;
+
+      default:
+        this.dispatchLegacyMessage(message);
+    }
+  }
+
+  private dispatchGatewayReading(message: WebSocketMessage): void {
+    if (!message.pond_id) return;
+    const subscription = this.pondSubscriptions.get(message.pond_id);
+    if (!subscription) return;
+
+    subscription.onReading({
+      type: 'reading',
+      timestamp: message.measured_at || message.timestamp || new Date().toISOString(),
+      parameters: (message.values || {}) as SensorParameters,
+      alerts: [],
+    });
+  }
+
+  private dispatchLegacyMessage(message: WebSocketMessage): void {
+    const pondId = message.pond_id;
+    if (!pondId) {
+      this.dispatchProjectFrame(message);
+      return;
+    }
+    const subscription = this.pondSubscriptions.get(pondId);
+    if (!subscription) return;
+
+    switch (message.type) {
+      case 'sensor_reading':
+        subscription.onReading({
+          type: 'reading',
+          timestamp: message.timestamp || new Date().toISOString(),
+          parameters: message.readings || {},
+          alerts: message.data?.alerts || [],
+        });
+        break;
+
+      case 'readings':
+      case 'connection':
+        if (message.latest_readings && message.latest_readings.length > 0) {
+          subscription.onReading(this.mapLatestReading(message.latest_readings[0]));
+        }
+        break;
+
+      default:
+        if (message.readings) {
+          subscription.onReading({
+            type: 'reading',
+            timestamp: message.timestamp || new Date().toISOString(),
+            parameters: message.readings,
+            alerts: [],
+          });
+        }
+    }
+  }
+
+  private dispatchProjectFrame(message: WebSocketMessage): void {
+    const projectId = message.project_id;
+    if (projectId) {
+      this.projectSubscriptions.get(projectId)?.onUpdate(message);
+      return;
+    }
+
+    for (const subscription of this.projectSubscriptions.values()) {
+      subscription.onUpdate(message);
+    }
+  }
+
+  private handleClose(): void {
+    this.opening = false;
+    this.authenticated = false;
+    this.clearTimers();
+    this.socket = null;
+    this.notifyStatus('disconnected');
+
+    if (!this.manuallyClosed && this.hasSubscriptions()) {
+      this.scheduleReconnect();
+    }
+  }
+
+  private scheduleReconnect(): void {
+    if (this.manuallyClosed || !this.hasSubscriptions()) return;
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      this.notifyError(new Error('Connection lost. Please refresh the page.'));
+      return;
+    }
+
+    const delay = this.reconnectDelay * Math.max(1, this.reconnectAttempts + 1);
+    this.reconnectTimer = window.setTimeout(() => {
+      this.reconnectAttempts++;
+      void this.ensureGatewayConnection();
+    }, delay);
+  }
+
+  private startHeartbeat(): void {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+    }
+
+    this.pingInterval = window.setInterval(() => {
+      if (this.socket?.readyState === WebSocket.OPEN) {
+        this.socket.send(JSON.stringify({ type: 'PING' }));
+      }
+    }, this.pingIntervalMs);
+  }
+
+  private notifyStatus(status: Status): void {
+    for (const subscription of this.pondSubscriptions.values()) {
+      subscription.onStatus?.(status);
+    }
+  }
+
+  private notifyError(error: Error): void {
+    for (const subscription of this.pondSubscriptions.values()) {
+      subscription.onError?.(error);
+    }
+    for (const subscription of this.projectSubscriptions.values()) {
+      subscription.onError?.(error);
+    }
+  }
+
+  private closeIfUnused(): void {
+    if (!this.hasSubscriptions()) {
+      this.disconnectAll();
+    }
+  }
+
+  private hasSubscriptions(): boolean {
+    return this.pondSubscriptions.size > 0 || this.projectSubscriptions.size > 0;
+  }
+
+  private clearTimers(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = undefined;
+    }
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = undefined;
+    }
+  }
+
+  private gatewayUrl(): string {
+    const base = config.wsBaseUrl.replace(/\/+$/, '').replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
+    return base.endsWith('/ws') ? base : `${base}/ws`;
   }
 }
 
