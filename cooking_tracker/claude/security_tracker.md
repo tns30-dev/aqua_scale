@@ -1,15 +1,27 @@
-# Security Tracker — Claude
+# Security Tracker - Claude Historical
 
-Last updated: 2026-06-04
+Last updated: 2026-06-05
 Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔ blocked
 
 ## Summary for Codex
 
+- **Ownership status:** Historical only. Active ownership for all Security rows moved to [Codex security tracker](../codex/security_tracker.md) on 2026-06-05.
 - **Current focus:** Application-layer security DONE incl. the WebSocket model (one-time WS tokens, ws:jti replay rejection, fail-closed snapshot at mint, origin allow-list, auth timeout, project-scoped delivery — all IT-tested in realtime-gateway). Next: CI security gates (SAST/SCA/secrets/SBOM/container scan — lands with the CI skeleton), then firewall/mTLS evidence with Codex's cloud foundation.
 - **Last completed (2026-06-04):** SECURITY AUDIT TRAIL is live: identity publishes login.succeeded/login.failed (reason codes invalid_credentials/rate_limited; attributable actor on known-account failures; NEVER credential material — IT-asserted) → audit-service persists to a DB-trigger-enforced append-only table (UPDATE/DELETE raise even for the owner — IT-proven) with an admin-only review API incl. `/api/audit/security`. The generic-401 parity is preserved at the HTTP layer while the audit trail records the real reason — no information leakage to clients, full visibility for admins. Previous: TS auth port in analytics; auth model in all Java REST services; IoT PayloadHmac chain.
 - **Blockers / questions:** Istio mTLS/AuthorizationPolicy evidence depends on Codex's mesh setup (cloud foundation scope) — will coordinate.
 
-## Items
+## Transferred To Codex
+
+| Item | New tracker | Notes | Updated |
+|---|---|---|---|
+| Authn/Authz workflow | [Codex security tracker](../codex/security_tracker.md) | Implemented and tested; Codex owns final evidence. | 2026-06-05 |
+| Identity authorization snapshot | [Codex security tracker](../codex/security_tracker.md) | Implemented and tested; Codex owns final evidence. | 2026-06-05 |
+| Token lifecycle | [Codex security tracker](../codex/security_tracker.md) | Implemented and tested; Codex owns final evidence. | 2026-06-05 |
+| Three-layer firewall model | [Codex security tracker](../codex/security_tracker.md) | Cloud proof pending. | 2026-06-05 |
+| Service-to-service protection | [Codex security tracker](../codex/security_tracker.md) | K8s/Istio manifests exist; live mesh proof pending. | 2026-06-05 |
+| Security evidence | [Codex security tracker](../codex/security_tracker.md) | CI evidence exists; DAST and cloud screenshots pending. | 2026-06-05 |
+
+## Historical Items
 
 | Item | Status | Progress notes | Evidence | Updated |
 |---|---|---|---|---|
@@ -33,3 +45,4 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done (evidence linked) · ⛔
 | 2026-06-04 | Auth model crosses the language boundary: TS port (jose + ioredis) in analytics-service, fail-closed semantics pinned by vitest; npm audit gate + Trivy image scan added for the Node lane. Chart endpoint enforces snapshot project scope (out-of-scope → 404 parity envelope). |
 | 2026-06-04 | Security audit trail live end-to-end: identity login.succeeded/failed audit payloads → audit-service append-only store (DB trigger immutability) → admin-only `/api/audit/security` review. Client-facing generic 401 unchanged; reasons live only in the trail. Follow-up: richer audit payloads from project/pond/sensor/notification writes (their business events already derive into the trail). |
 | 2026-06-04 | xsvc-readings ship — no new security surface: readings flow over the existing in-cluster gRPC seam (mesh mTLS target); consumers stay fail-soft (readings errors → empty payloads, never 5xx/leaks); membership checks on comparison/energy endpoints unchanged. |
+| 2026-06-05 | Ownership handover: all Security rows moved to Codex security tracker. |
