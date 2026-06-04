@@ -37,6 +37,7 @@
 | Status | Owner | Item | Output | Reference Doc |
 |---|---|---|---|---|
 | [ ] | Codex | Firebase Hosting | React SPA hosted as static frontend | `frontend_deployment.md`, `cdn.md` |
+| [ ] | Codex | Frontend integration | React/Vite SPA integrated with REST API edge and WSS realtime gateway | `frontend.md`, `api_contract_docs.md`, `websocket.md` |
 | [ ] | Codex | CDN | Firebase Hosting CDN for frontend; Cloud CDN only if additional backend static assets are used | `cdn.md` |
 | [ ] | Codex | GCP API edge | External HTTPS Load Balancer, Gateway/Ingress, managed TLS | `api_gateway.md`, `physical_arch_docs.md` |
 | [ ] | Codex | Cloud Armor | WAF and rate-limit policy for REST and WebSocket token endpoints | `api_gateway.md`, `network_security.md` |

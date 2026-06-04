@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: ingestion-service
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:aquashield}
+    username: ${DB_USER:ingestion_svc}
+    password: ${DB_PASSWORD:ingestion_local}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.default_schema: ingestion
+    open-in-view: false
+
+  flyway:
+    schemas: ingestion
+    default-schema: ingestion
+
+  cloud:
+    gcp:
+      project-id: ${PUBSUB_PROJECT_ID:aquashield-local}
+      pubsub:
+        emulator-host: ${PUBSUB_EMULATOR_HOST:localhost:8085}
+
+server:
+  port: ${SERVER_PORT:8084}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+aquashield:
+  ingestion:
+    subscription: ${INGESTION_SUBSCRIPTION:ingestion.iot.telemetry.received.sub}
+    hmac-enabled: ${HMAC_ENABLED:true}
+    max-skew: ${HMAC_MAX_SKEW:PT5M}
+    catalogue-refresh: ${CATALOGUE_REFRESH:PT10M}
+  grpc:
+    sensor:
+      target: ${SENSOR_GRPC_TARGET:localhost:9093}
+      in-process-name: ${SENSOR_GRPC_INPROCESS:}
+    project:
+      target: ${PROJECT_GRPC_TARGET:localhost:9092}
+      in-process-name: ${PROJECT_GRPC_INPROCESS:}
+  events:
+    enabled: ${EVENTS_ENABLED:true}
+    source: ingestion-service
