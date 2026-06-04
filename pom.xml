@@ -35,7 +35,7 @@
     <module>notification-service</module>
     <module>realtime-gateway</module>
     <module>pond-service</module>
-    <!-- <module>audit-service</module> -->
+    <module>audit-service</module>
   </modules>
 
   <build>

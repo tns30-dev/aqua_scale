@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: audit-service
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:aquashield}
+    username: ${DB_USER:audit_svc}
+    password: ${DB_PASSWORD:audit_local}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.default_schema: audit
+    open-in-view: false
+
+  flyway:
+    schemas: audit
+    default-schema: audit
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}
+
+  cloud:
+    gcp:
+      project-id: ${PUBSUB_PROJECT_ID:aquashield-local}
+      pubsub:
+        emulator-host: ${PUBSUB_EMULATOR_HOST:localhost:8085}
+
+server:
+  port: ${SERVER_PORT:8092}   # 8090=analytics, 8091 reserved; 8085/8086 are emulators
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+aquashield:
+  jwt:
+    issuer: ${JWT_ISSUER:aquashield-local}
+    audience: ${JWT_AUDIENCE:aquashield-api}
+    public-key-pem: ${JWT_PUBLIC_KEY_PEM:}
+  audit:
+    audit-subscription: ${AUDIT_SUBSCRIPTION:audit.audit.event.recorded.sub}
+    # the business-event stream this service derives audit records from
+    # (catalogue: scripts/pubsub-bootstrap.sh — every "audit" subscriber entry)
+    business-subscriptions: ${BUSINESS_SUBSCRIPTIONS:audit.sensor.message.validated.sub,audit.sensor.message.rejected.sub,audit.reading.ingested.sub,audit.reading.quarantined.sub,audit.threshold.violated.sub,audit.alert.created.sub,audit.alert.resolved.sub,audit.notification.sent.sub,audit.project.created.sub,audit.project.updated.sub,audit.project.settings.updated.sub,audit.device.registered.sub,audit.device.status.changed.sub,audit.project.sensor.assigned.sub,audit.project.sensor.updated.sub}
