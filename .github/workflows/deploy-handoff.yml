@@ -1,0 +1,227 @@
+name: deploy-handoff
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      services:
+        description: Comma-separated services to push. Defaults to identity-access-service.
+        required: false
+        default: identity-access-service
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: deploy-handoff-main
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT_ID: aerobic-guide-498413-u6
+  GAR_LOCATION: asia-southeast1
+  GAR_HOST: asia-southeast1-docker.pkg.dev
+  GCP_WORKLOAD_IDENTITY_PROVIDER: projects/294489509399/locations/global/workloadIdentityPools/github-actions/providers/github-actions
+  GCP_SERVICE_ACCOUNT: aquashield-github-deployer@aerobic-guide-498413-u6.iam.gserviceaccount.com
+
+jobs:
+  detect-changes:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      any: ${{ steps.select.outputs.any }}
+      services: ${{ steps.select.outputs.services }}
+      deploy-sha: ${{ steps.select.outputs.deploy-sha }}
+      short-sha: ${{ steps.select.outputs.short-sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+
+      - id: select
+        name: Select services for deploy handoff
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_SERVICES: ${{ inputs.services }}
+        run: |
+          set -euo pipefail
+
+          ALL_SERVICES=(
+            identity-access-service
+            project-service
+            pond-service
+            sensor-service
+            ingestion-service
+            notification-service
+            realtime-gateway
+            analytics-service
+            audit-service
+          )
+
+          select_manual_services() {
+            local raw="${INPUT_SERVICES:-identity-access-service}"
+            local requested=()
+            IFS=',' read -ra parts <<< "$raw"
+            for item in "${parts[@]}"; do
+              item="$(echo "$item" | xargs)"
+              [ -n "$item" ] && requested+=("$item")
+            done
+
+            local selected=()
+            for service in "${ALL_SERVICES[@]}"; do
+              for item in "${requested[@]}"; do
+                if [ "$service" = "$item" ]; then
+                  selected+=("$service")
+                fi
+              done
+            done
+            printf '%s\n' "${selected[@]}"
+          }
+
+          select_changed_services() {
+            local changed
+            if git rev-parse HEAD^ >/dev/null 2>&1; then
+              changed="$(git diff --name-only HEAD^ HEAD)"
+            else
+              changed="$(git show --pretty='' --name-only HEAD)"
+            fi
+
+            if echo "$changed" | grep -Eq '^(common/|shared-api/|pom.xml$)'; then
+              printf '%s\n' "${ALL_SERVICES[@]}"
+              return
+            fi
+
+            for service in "${ALL_SERVICES[@]}"; do
+              if echo "$changed" | grep -Eq "^${service}/"; then
+                echo "$service"
+              fi
+            done
+          }
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            mapfile -t selected < <(select_manual_services)
+          else
+            mapfile -t selected < <(select_changed_services)
+          fi
+
+          if [ "${#selected[@]}" -eq 0 ]; then
+            echo "any=false" >> "$GITHUB_OUTPUT"
+            echo "services=[]" >> "$GITHUB_OUTPUT"
+          else
+            json="$(printf '%s\n' "${selected[@]}" | jq -R . | jq -s -c .)"
+            echo "any=true" >> "$GITHUB_OUTPUT"
+            echo "services=$json" >> "$GITHUB_OUTPUT"
+          fi
+
+          deploy_sha="$(git rev-parse HEAD)"
+          short_sha="$(git rev-parse --short=12 HEAD)"
+          echo "deploy-sha=$deploy_sha" >> "$GITHUB_OUTPUT"
+          echo "short-sha=$short_sha" >> "$GITHUB_OUTPUT"
+          echo "Selected services: ${selected[*]:-none}"
+
+  build-push:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.detect-changes.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.detect-changes.outputs.deploy-sha }}
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GAR_HOST }}
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Build image
+        env:
+          SERVICE: ${{ matrix.service }}
+          DEPLOY_SHA: ${{ needs.detect-changes.outputs.deploy-sha }}
+          SHORT_SHA: ${{ needs.detect-changes.outputs.short-sha }}
+        run: |
+          set -euo pipefail
+          image="${GAR_HOST}/${GCP_PROJECT_ID}/${SERVICE}/${SERVICE}"
+          docker build -f "${SERVICE}/Dockerfile" \
+            -t "${image}:${DEPLOY_SHA}" \
+            -t "${image}:${SHORT_SHA}" \
+            .
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.GAR_HOST }}/${{ env.GCP_PROJECT_ID }}/${{ matrix.service }}/${{ matrix.service }}:${{ needs.detect-changes.outputs.deploy-sha }}
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Push image
+        env:
+          SERVICE: ${{ matrix.service }}
+          DEPLOY_SHA: ${{ needs.detect-changes.outputs.deploy-sha }}
+          SHORT_SHA: ${{ needs.detect-changes.outputs.short-sha }}
+        run: |
+          set -euo pipefail
+          image="${GAR_HOST}/${GCP_PROJECT_ID}/${SERVICE}/${SERVICE}"
+          docker push "${image}:${DEPLOY_SHA}"
+          docker push "${image}:${SHORT_SHA}"
+          echo "- ${SERVICE}: ${image}:${DEPLOY_SHA}" >> "$GITHUB_STEP_SUMMARY"
+
+  gitops-update:
+    needs: [detect-changes, build-push]
+    if: needs.detect-changes.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: imranismail/setup-kustomize@v2
+        with:
+          kustomize-version: 5.4.3
+
+      - name: Update dev Kustomize image tags
+        env:
+          SERVICES: ${{ needs.detect-changes.outputs.services }}
+          SHORT_SHA: ${{ needs.detect-changes.outputs.short-sha }}
+        run: |
+          set -euo pipefail
+          git pull --ff-only origin main
+          cd k8s/overlays/dev
+          for service in $(echo "$SERVICES" | jq -r '.[]'); do
+            image="${GAR_HOST}/${GCP_PROJECT_ID}/${service}/${service}"
+            kustomize edit set image "${service}=${image}:${SHORT_SHA}"
+          done
+          kustomize build .
+
+      - name: Commit GitOps handoff
+        env:
+          SHORT_SHA: ${{ needs.detect-changes.outputs.short-sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add k8s/overlays/dev/kustomization.yaml
+          if git diff --cached --quiet; then
+            echo "No GitOps changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(gitops): update dev images to ${SHORT_SHA} [skip ci]"
+          git push origin HEAD:main

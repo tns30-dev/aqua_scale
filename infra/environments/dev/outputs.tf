@@ -18,6 +18,16 @@ output "artifact_repositories" {
   value       = module.artifact_registry.repository_names
 }
 
+output "github_deployer_service_account" {
+  description = "Service account that GitHub Actions impersonates through Workload Identity Federation."
+  value       = module.github_oidc.service_account_email
+}
+
+output "github_workload_identity_provider" {
+  description = "Workload Identity provider resource name for google-github-actions/auth."
+  value       = module.github_oidc.provider_name
+}
+
 output "cloud_armor_policy_name" {
   description = "Cloud Armor policy for the API edge."
   value       = module.security.cloud_armor_policy_name

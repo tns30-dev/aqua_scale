@@ -36,6 +36,7 @@ frontend copy/
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
+infra/environments/*/backend.tf
 
 # IDE / OS
 .idea/

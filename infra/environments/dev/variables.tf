@@ -56,3 +56,9 @@ variable "max_node_count" {
   type        = number
   default     = 3
 }
+
+variable "github_repository" {
+  description = "GitHub repository allowed to impersonate the CI deployer through Workload Identity Federation."
+  type        = string
+  default     = "tns30-dev/aqua_scale"
+}

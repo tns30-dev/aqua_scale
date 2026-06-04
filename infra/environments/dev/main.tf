@@ -16,8 +16,10 @@ locals {
     "cloudresourcemanager.googleapis.com",
     "compute.googleapis.com",
     "container.googleapis.com",
+    "iam.googleapis.com",
     "iamcredentials.googleapis.com",
-    "servicenetworking.googleapis.com"
+    "servicenetworking.googleapis.com",
+    "sts.googleapis.com"
   ])
 }
 
@@ -56,6 +58,20 @@ module "artifact_registry" {
   repositories = local.service_repositories
 
   depends_on = [google_project_service.required]
+}
+
+module "github_oidc" {
+  source = "../../modules/github-oidc"
+
+  project_id                   = var.project_id
+  github_repository            = var.github_repository
+  artifact_registry_location   = var.region
+  artifact_registry_repository = local.service_repositories
+
+  depends_on = [
+    google_project_service.required,
+    module.artifact_registry
+  ]
 }
 
 module "gke" {

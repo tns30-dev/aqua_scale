@@ -33,8 +33,8 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [ ] | Kubernetes NetworkPolicy | Pod-to-pod traffic controls | [network_security.md](../main/network_security.md), [gke.md](../main/gke.md) |
 | [ ] | Istio service mesh | mTLS, AuthorizationPolicy, service identity controls | [service_discovery.md](../main/service_discovery.md), [network_security.md](../main/network_security.md) |
 | [ ] | Namespaces | Environment namespaces created | [gke.md](../main/gke.md) |
-| [ ] | Artifact Registry | Container repositories created | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
-| [ ] | Terraform remote state | Google Cloud Storage bucket stores Terraform state | [terraform.md](../main/terraform.md) |
+| [x] | Artifact Registry | Container repositories created | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
+| [x] | Terraform remote state | Google Cloud Storage bucket stores Terraform state | [terraform.md](../main/terraform.md) |
 
 ## Edge And Frontend
 

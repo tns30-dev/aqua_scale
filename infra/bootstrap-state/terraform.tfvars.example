@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars locally before applying the one-time state bucket.
+# Do not commit real terraform.tfvars files.
+
+project_id      = "REPLACE_WITH_GCP_PROJECT_ID"
+region          = "asia-southeast1"
+bucket_location = "ASIA-SOUTHEAST1"
+
+# GCS bucket names are globally unique. Use a project-specific suffix.
+bucket_name = "aquashield-REPLACE_WITH_GCP_PROJECT_ID-tfstate"

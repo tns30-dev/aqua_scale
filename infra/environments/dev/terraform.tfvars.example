@@ -1,0 +1,16 @@
+# Copy to terraform.tfvars locally before planning/applying dev.
+# Do not commit real terraform.tfvars files.
+
+project_id           = "REPLACE_WITH_GCP_PROJECT_ID"
+region               = "asia-southeast1"
+gke_cluster_location = "asia-southeast1-a"
+github_repository    = "tns30-dev/aqua_scale"
+
+# Cost-controlled demo defaults. Adjust only after checking overlap with existing networks.
+gke_subnet_cidr         = "10.10.0.0/20"
+pod_secondary_cidr      = "10.20.0.0/16"
+service_secondary_cidr  = "10.30.0.0/20"
+master_ipv4_cidr_block  = "172.16.0.0/28"
+node_machine_type       = "e2-standard-2"
+min_node_count          = 1
+max_node_count          = 3
