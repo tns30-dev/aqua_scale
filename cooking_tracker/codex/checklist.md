@@ -40,9 +40,9 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 
 | Status | Item | Output | Reference Doc |
 |---|---|---|---|
-| [x] | Firebase Hosting | React/Vite SPA deployed to Firebase Hosting default site `https://aerobic-guide-498413-u6.web.app`; `www.aquashield.live` host ownership is active and waits on Firebase managed certificate activation | [frontend_deployment.md](../main/frontend_deployment.md), [cdn.md](../main/cdn.md) |
+| [x] | Firebase Hosting | React/Vite SPA deployed to Firebase Hosting default site and custom domain `https://www.aquashield.live`; bundle points at the live API/WSS edge | [frontend_deployment.md](../main/frontend_deployment.md), [cdn.md](../main/cdn.md) |
 | [x] | Frontend integration | React/Vite SPA production bundle points at public REST/WSS edge `https://api.aquashield.live` / `wss://api.aquashield.live` and is deployed on Firebase Hosting | [frontend.md](../main/frontend.md), [api_contract_docs.md](../main/api_contract_docs.md), [websocket.md](../main/websocket.md) |
-| [x] | CDN | Firebase Hosting CDN serves the deployed frontend; custom frontend domain ownership is active and certificate activation is pending | [cdn.md](../main/cdn.md) |
+| [x] | CDN | Firebase Hosting CDN serves the deployed frontend over `https://www.aquashield.live` | [cdn.md](../main/cdn.md) |
 | [x] | GCP API edge | `https://api.aquashield.live` is live on GKE Gateway with static IP `8.232.154.25`, active Google-managed cert, healthy backend, Argo `Synced/Healthy`, and public business-flow smoke evidence | [api_gateway.md](../main/api_gateway.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
 | [ ] | Cloud Armor | Design documented; runtime evidence out of current scope | [api_gateway.md](../main/api_gateway.md), [network_security.md](../main/network_security.md) |
 | [x] | WSS realtime endpoint | Public edge routes `/ws` to `realtime-gateway`; business smoke proved realtime token minting through `https://api.aquashield.live` and the frontend should use `wss://api.aquashield.live` | [websocket.md](../main/websocket.md) |
@@ -84,4 +84,4 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [x] | Smoke tests | Managed-backed business flow passed internally, through AWS IoT/Lambda, and through public `https://api.aquashield.live` across identity, project, pond, sensor, ingestion, notification, realtime, analytics, and audit surfaces | [cd.md](../main/cd.md) |
 | [ ] | DAST | OWASP ZAP or equivalent scan after deployment | [cd.md](../main/cd.md) |
 | [ ] | JMeter load and stress tests | Evidence from dedicated `performance-test` branch or manual dispatch | [ci.md](../main/ci.md) |
-| [ ] | Demo evidence | Managed runtime rollout, direct Pub/Sub business smoke, AWS IoT/Lambda live smoke, public HTTPS edge live smoke, Firebase Hosting live deploy, custom-domain DNS proof, and CI/SAST recovery evidence recorded; DAST and performance evidence remain | All docs |
+| [ ] | Demo evidence | Managed runtime rollout, direct Pub/Sub business smoke, AWS IoT/Lambda live smoke, public HTTPS edge live smoke, Firebase Hosting custom-domain live deploy, and CI/SAST recovery evidence recorded; DAST and performance evidence remain | All docs |

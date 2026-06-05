@@ -9,7 +9,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 - Ownership: Codex owns managed data services, event infrastructure, AWS IoT ingress, the Lambda bridge, and Terraform-managed infrastructure.
 - Current state: Local equivalents are heavily exercised through Docker Compose, Flyway, Redis, Pub/Sub emulator, and Bigtable emulator. GCP remote state, Artifact Registry, GitHub OIDC/WIF, VPC/NAT/firewall, GKE, Istio, Argo CD, all-service image backfill, managed Cloud SQL, Memorystore, Pub/Sub, Bigtable, BigQuery, the live public-edge managed runtime, the live AWS IoT/Lambda bridge, `https://api.aquashield.live`, and the Firebase-hosted frontend are proven through Terraform/business-flow/deploy evidence.
 - Current test: Local service integration tests, Pub/Sub emulator flows, Redis key evidence, Terraform validation/apply, managed resource verification, Cloud SQL bootstrap logs, Argo CD public-edge sync, all-service readiness checks, signed telemetry through real Pub/Sub, AWS bridge unit tests/build, event schema validation, Terraform-managed AWS apply, x.509 MQTT publish, Lambda logs, WIF IAM proof, AWS-to-GCP business-flow smoke, public HTTPS business-flow smoke, public API cert/backend checks, and Firebase frontend deploy checks.
-- Next test: Wait for `www.aquashield.live` certificate activation, then DAST/performance evidence.
+- Next test: DAST/performance evidence.
 - Inputs ready from user: GCP account/project/region, AWS profile `aquashield`, domain `aquashield.live`, and public API endpoint `https://api.aquashield.live` are ready.
 
 ## Items

@@ -7,9 +7,9 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns GCP foundation, GKE, service mesh, Kubernetes manifests, Artifact Registry, and Terraform remote state.
-- Current state: Terraform remote state bucket, nine Artifact Registry Docker repositories, GitHub OIDC/WIF deploy identity, VPC/subnet/secondary ranges, Cloud NAT, firewall rules, private service access, private-node GKE, Istio, Argo CD, managed Cloud SQL/Memorystore/Pub/Sub/Bigtable/BigQuery, the managed-backed nine-service runtime, AWS IoT/Lambda bridge, public HTTPS API edge, and Firebase Hosting default frontend site are live. `api.aquashield.live` resolves to static IP `8.232.154.25`, the API Google-managed certificate is active, GKE Gateway backend is healthy, `www.aquashield.live` DNS points to Firebase Hosting, and Cloud Armor stays in the architecture design but is out of runtime evidence scope for this implementation.
-- Current test: `terraform fmt`, Terraform validation, GKE node readiness, network/NAT/firewall verification, private service access verification, managed GCP resource checks, Gateway API availability, Istio control-plane readiness, Argo CD sync/health, managed dev runtime pod readiness, managed business-flow smoke, AWS bridge Terraform apply, AWS IoT MQTT smoke, Lambda logs, WIF proof, public edge server-side dry run, DNS/cert/backend health checks, public HTTPS business-flow smoke, Firebase Hosting deploy proof, and frontend custom-domain DNS checks.
-- Next test: Wait for `www.aquashield.live` certificate activation, then DAST/performance evidence.
+- Current state: Terraform remote state bucket, nine Artifact Registry Docker repositories, GitHub OIDC/WIF deploy identity, VPC/subnet/secondary ranges, Cloud NAT, firewall rules, private service access, private-node GKE, Istio, Argo CD, managed Cloud SQL/Memorystore/Pub/Sub/Bigtable/BigQuery, the managed-backed nine-service runtime, AWS IoT/Lambda bridge, public HTTPS API edge, and Firebase Hosting frontend are live. `api.aquashield.live` resolves to static IP `8.232.154.25`, the API Google-managed certificate is active, GKE Gateway backend is healthy, `www.aquashield.live` serves the frontend through Firebase Hosting, and Cloud Armor stays in the architecture design but is out of runtime evidence scope for this implementation.
+- Current test: `terraform fmt`, Terraform validation, GKE node readiness, network/NAT/firewall verification, private service access verification, managed GCP resource checks, Gateway API availability, Istio control-plane readiness, Argo CD sync/health, managed dev runtime pod readiness, managed business-flow smoke, AWS bridge Terraform apply, AWS IoT MQTT smoke, Lambda logs, WIF proof, public edge server-side dry run, DNS/cert/backend health checks, public HTTPS business-flow smoke, Firebase Hosting deploy proof, and frontend custom-domain HTTPS checks.
+- Next test: DAST/performance evidence.
 - Inputs ready from user: GCP account, project, region, zone, GKE, Istio, Argo CD, AWS profile, domain `aquashield.live`, and public API endpoint `https://api.aquashield.live` are selected.
 
 ## Items
@@ -71,7 +71,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Public edge static IP apply | PASS; Terraform applied `google_compute_global_address` `aquashield-dev-api-edge`, output `8.232.154.25`, with `1 added, 0 changed, 0 destroyed`. | 2026-06-05 |
 | Public edge live apply | PASS; DNS `api.aquashield.live` resolves to `8.232.154.25`, managed certificate is `ACTIVE`, Gateway is programmed, backend health is `HEALTHY`, and Argo reports `Synced/Healthy` at `960e98f`. | 2026-06-05 |
 | Public edge business smoke | PASS; full public HTTPS smoke produced `energyTotalKwh=3.1`, `activeAlerts=1`, `comparisonMetricCount=4`, `realtimeTokenMinted=true`, and `auditSecurityRows=6`. | 2026-06-05 |
-| Firebase Hosting deploy | PASS; default Hosting URL serves the SPA, `/login` rewrites to `index.html`, and `www.aquashield.live` host ownership is active while Firebase certificate activation is pending. | 2026-06-05 |
+| Firebase Hosting deploy | PASS; default Hosting URL and `https://www.aquashield.live` serve the SPA, and `/login` rewrites to `index.html`. | 2026-06-05 |
 
 ## Log
 
@@ -97,4 +97,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Added public API edge manifest overlay with GKE Gateway/HTTPRoute/HealthCheckPolicy and recorded server-side dry-run evidence. Live apply is pending explicit approval or TLS/domain input. |
 | 2026-06-05 | Switched public edge to HTTPS, added `api-edge-proxy`, and reserved global static IP `8.232.154.25` through Terraform; at that point live Gateway was waiting on real domain/DNS/managed certificate. |
 | 2026-06-05 | Configured `api.aquashield.live`, created the Google-managed certificate, synced `dev-managed-public` through Argo, fixed public-edge mesh/proxy runtime issues, and proved the public HTTPS business flow. |
-| 2026-06-05 | Deployed the frontend to Firebase Hosting in project `aerobic-guide-498413-u6` and configured `www.aquashield.live` DNS for Firebase custom-domain activation. |
+| 2026-06-05 | Deployed the frontend to Firebase Hosting in project `aerobic-guide-498413-u6` and activated `https://www.aquashield.live` for the public frontend. |

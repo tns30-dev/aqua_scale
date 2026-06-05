@@ -160,8 +160,30 @@ Firebase status after DNS propagation:
 ```text
 hostState: HOST_ACTIVE
 ownershipState: OWNERSHIP_ACTIVE
-cert.state: CERT_VALIDATING
+cert.state: CERT_PROPAGATING
 requiredDnsUpdates.discovered matches requiredDnsUpdates.desired
 ```
 
-Interpretation: Namecheap DNS is correct and public, and Firebase Hosting has accepted host ownership for `www.aquashield.live`. The default Firebase Hosting URL is already live; the custom domain is waiting only on Firebase managed certificate issuance before HTTPS browser use is clean.
+Custom domain HTTPS checks:
+
+```text
+curl -I https://www.aquashield.live
+
+HTTP/2 200
+content-type: text/html; charset=utf-8
+strict-transport-security: max-age=31556926
+
+curl https://www.aquashield.live
+
+HTTP 200 body contains:
+<title>AquaShield</title>
+<script type="module" crossorigin src="/assets/index-CLPvtwfA.js"></script>
+
+curl https://www.aquashield.live/login
+
+HTTP 200 body contains:
+<title>AquaShield</title>
+<script type="module" crossorigin src="/assets/index-CLPvtwfA.js"></script>
+```
+
+Interpretation: Namecheap DNS is correct and public, Firebase Hosting has accepted host ownership for `www.aquashield.live`, and browser-valid HTTPS serves the AquaShield SPA. Firebase's API still reports the certificate as `CERT_PROPAGATING`, which is the expected provider-side rollout state after the domain is already reachable.

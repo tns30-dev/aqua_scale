@@ -8,8 +8,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 
 - Ownership: Codex owns architecture, contracts, diagrams, and cross-service integration documentation.
 - Current state: The main architecture and contract docs are already consolidated. Shared API artifacts exist under `shared-api/`, the CI/CD path proves all nine deployable service images can be handed to GitOps, the GKE/network runtime foundation exists in GCP, Argo CD has a healthy managed-backed public-edge dev rollout, the managed business smoke proves the core telemetry business flow, the AWS IoT/Lambda bridge is live and smoked through GCP Pub/Sub, the public HTTPS edge is live at `https://api.aquashield.live`, and Firebase Hosting serves the frontend default site with live API/WSS endpoints.
-- Current test: Validate docs against implemented service contracts, generated proto files, JSON event schemas, Kustomize/Gateway/proxy routing, deploy-handoff evidence, live GKE foundation evidence, managed GCP resource evidence, Argo CD public-edge evidence, managed business-flow smoke evidence, AWS IoT/Lambda live smoke evidence, Firebase Hosting live deploy evidence, custom-domain DNS evidence, public HTTPS edge evidence, and CI/SAST recovery evidence.
-- Next test: Re-check frontend deployment docs after `www.aquashield.live` certificate activation.
+- Current test: Validate docs against implemented service contracts, generated proto files, JSON event schemas, Kustomize/Gateway/proxy routing, deploy-handoff evidence, live GKE foundation evidence, managed GCP resource evidence, Argo CD public-edge evidence, managed business-flow smoke evidence, AWS IoT/Lambda live smoke evidence, Firebase Hosting live deploy evidence, custom-domain HTTPS evidence, public HTTPS edge evidence, and CI/SAST recovery evidence.
+- Next test: DAST/performance evidence.
 
 ## Items
 
@@ -38,7 +38,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Managed business-flow alignment | PASS; telemetry path from signed device payload through Pub/Sub, ingestion, alerting, realtime token minting, analytics JSON, and audit is evidenced on the managed runtime. | 2026-06-05 |
 | AWS IoT bridge contract alignment | PASS; `iot.telemetry.received` schema matches the live ingestion payload, and the Lambda bridge preserves signed payloads while wrapping the canonical envelope. Live x.509 MQTT delivery through AWS IoT, Lambda, GCP WIF, and Pub/Sub is evidenced. | 2026-06-05 |
 | Public edge contract alignment | PASS; Gateway/HTTPRoute uses supported `/api` and `/ws` prefix routing to `api-edge-proxy`, while the proxy preserves implemented service path ownership and nested route exceptions. `https://api.aquashield.live` is live and the public smoke proved identity, project, pond, sensor, ingestion, notification, analytics, realtime, and audit paths. | 2026-06-05 |
-| Frontend deployment alignment | PASS; Firebase Hosting default site serves the production SPA with live `https://api.aquashield.live` and `wss://api.aquashield.live` endpoints. `www.aquashield.live` host ownership is active and waits on Firebase certificate activation. | 2026-06-05 |
+| Frontend deployment alignment | PASS; Firebase Hosting serves the production SPA through `https://www.aquashield.live` with live `https://api.aquashield.live` and `wss://api.aquashield.live` endpoints. | 2026-06-05 |
 
 ## Log
 
