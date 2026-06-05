@@ -137,14 +137,22 @@ The all-service image backfill also succeeded:
 Run: https://github.com/tns30-dev/aqua_scale/actions/runs/26971844902
 Image tags: 783c78a16381, 783c78a16381c7ce2056d0aae7b67d29395b1481
 Services: analytics-service, audit-service, identity-access-service, ingestion-service, notification-service, pond-service, project-service, realtime-gateway, sensor-service
-GitOps commit: a0d64a4
+Current reachable GitOps commit: c6724db
 ```
 
-The original full dev plan at `/tmp/aquashield-dev-foundation.tfplan` is now stale because the registry and WIF resources have already been applied. A fresh post-WIF dev foundation plan succeeds and is saved locally at `/tmp/aquashield-dev-foundation-after-wif.tfplan`. It proposes 9 resources: VPC/subnet/NAT/firewall, Cloud Armor policy, and a single-zone private-node GKE cluster/node pool.
+Current `main` verification after repository metadata cleanup also passed:
+
+```text
+CI run: https://github.com/tns30-dev/aqua_scale/actions/runs/26989856501
+Deploy-handoff run: https://github.com/tns30-dev/aqua_scale/actions/runs/26989888972
+Head commit: 8d3b299
+```
+
+The original full dev plan at `/tmp/aquashield-dev-foundation.tfplan` is now stale because the registry and WIF resources have already been applied. A fresh runtime foundation plan succeeds and is saved locally at `/tmp/aquashield-dev-foundation-runtime.tfplan`. It proposes 9 resources: VPC/subnet/NAT/firewall, Cloud Armor policy, and a single-zone private-node GKE cluster/node pool.
 
 Do not apply the remaining dev foundation until the GKE/network cost is accepted.
 
 ```bash
 GOOGLE_OAUTH_ACCESS_TOKEN="$(gcloud auth print-access-token --account=aquashieldnus@gmail.com)" \
-  terraform -chdir=infra/environments/dev apply /tmp/aquashield-dev-foundation-after-wif.tfplan
+  terraform -chdir=infra/environments/dev apply /tmp/aquashield-dev-foundation-runtime.tfplan
 ```

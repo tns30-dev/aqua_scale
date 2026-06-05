@@ -214,7 +214,7 @@ f2c55fb chore(gitops): update dev images to 88db1611e9a4 [skip ci]
 All-service workflow-generated commit:
 
 ```text
-a0d64a4 chore(gitops): update dev images to 783c78a16381 [skip ci]
+c6724db chore(gitops): update dev images to 783c78a16381 [skip ci]
 ```
 
 Dev overlay now points all nine services to Artifact Registry images with tag `783c78a16381`:
@@ -255,6 +255,14 @@ Validation:
 ```text
 kubectl kustomize k8s/overlays/dev
 PASS
+```
+
+Current `main` verification after repository metadata cleanup:
+
+```text
+CI run: https://github.com/tns30-dev/aqua_scale/actions/runs/26989856501
+Deploy-handoff run: https://github.com/tns30-dev/aqua_scale/actions/runs/26989888972
+Head commit: 8d3b299dbc2c419fc5d55782029e48e84924595c
 ```
 
 ## Next Test

@@ -7,8 +7,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns GCP foundation, GKE, service mesh, Kubernetes manifests, Artifact Registry, and Terraform remote state.
-- Current state: Terraform remote state bucket, nine Artifact Registry Docker repositories, GitHub OIDC/WIF deploy identity, and all nine service images are ready in billed project `aerobic-guide-498413-u6`; dev Terraform backend is initialized against GCS. The remaining dev foundation plan is saved locally and now contains only network, Cloud Armor, and GKE resources.
-- Current test: `terraform fmt/validate`, `kubectl kustomize`, bootstrap-state apply, Artifact Registry targeted apply, GitHub OIDC/WIF targeted apply, all-service image backfill, and post-WIF dev foundation plan.
+- Current state: Terraform remote state bucket, nine Artifact Registry Docker repositories, GitHub OIDC/WIF deploy identity, and all nine service images are ready in billed project `aerobic-guide-498413-u6`; dev Terraform backend is initialized against GCS. A fresh runtime foundation plan is saved at `/tmp/aquashield-dev-foundation-runtime.tfplan` and contains only network, Cloud Armor, and GKE resources.
+- Current test: `terraform fmt/validate`, `kubectl kustomize`, bootstrap-state apply, Artifact Registry targeted apply, GitHub OIDC/WIF targeted apply, all-service image backfill, and fresh runtime foundation plan.
 - Next test: Apply the reviewed network/GKE/Cloud Armor foundation plan, then verify VPC, subnet, NAT, firewall, Cloud Armor policy, GKE cluster, and workload image pull path.
 - Inputs ready from user: GCP account, project, region, and zone are selected. Still need domain/certificate choice, GitHub repo URL for Argo CD, and final acceptance before creating the GKE runtime.
 
@@ -48,6 +48,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | GitHub OIDC/WIF targeted apply | PASS; IAM/STS APIs, WIF provider, deployer service account, and Artifact Registry writer bindings created. | 2026-06-05 |
 | Post-WIF dev foundation plan | PASS; remaining plan is still `9 to add, 0 to change, 0 to destroy`. | 2026-06-05 |
 | All-service deploy handoff | PASS; all nine service images were built, scanned, pushed, and written into the dev Kustomize overlay. | 2026-06-05 |
+| Fresh runtime foundation plan | PASS; `/tmp/aquashield-dev-foundation-runtime.tfplan` proposes `9 to add, 0 to change, 0 to destroy` in `aerobic-guide-498413-u6`. | 2026-06-05 |
 
 ## Log
 
@@ -61,3 +62,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Applied the Artifact Registry slice through Terraform. Six project APIs and nine Docker repositories are now in remote state. The remaining foundation plan is network, Cloud Armor, and GKE only (`9 add`). |
 | 2026-06-05 | Applied the GitHub OIDC/WIF deploy identity slice through Terraform. GitHub Actions can impersonate the deployer service account from `tns30-dev/aqua_scale` on `main` and push to the nine service repositories. |
 | 2026-06-05 | Completed all-service image backfill. Artifact Registry and dev Kustomize are ready for GKE/Argo CD rollout once the runtime foundation is applied. |
+| 2026-06-05 | Aligned local `gcloud` project to `aerobic-guide-498413-u6` and regenerated the runtime foundation plan at `/tmp/aquashield-dev-foundation-runtime.tfplan`; remaining plan is `9 add`. |
