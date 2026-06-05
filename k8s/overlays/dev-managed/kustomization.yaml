@@ -26,9 +26,16 @@ patches:
       kind: ConfigMap
       labelSelector: app.kubernetes.io/component in (audit,identity,ingestion,notification,pond,project,realtime,sensor)
     patch: |-
-      - op: replace
+      - op: remove
         path: /data/PUBSUB_EMULATOR_HOST
-        value: ""
+  - target:
+      kind: Deployment
+      labelSelector: app.kubernetes.io/part-of=aquashield
+    patch: |-
+      - op: add
+        path: /spec/template/metadata/annotations
+        value:
+          aquashield.dev/managed-runtime-revision: "2026-06-05-real-pubsub"
 
 replacements:
   - source:
