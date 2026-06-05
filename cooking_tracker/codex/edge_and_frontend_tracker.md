@@ -7,9 +7,9 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED, DESIGN_ONLY
 ## Summary
 
 - Ownership: Codex owns frontend deployment, CDN, public API edge, Cloud Armor, WSS endpoint, and frontend-to-service integration.
-- Current state: Local gateway route rehearsal and frontend Java-service wiring are in progress. Dev Kustomize points all nine backend services to Artifact Registry images, GKE Gateway API classes are available, and Argo CD has a healthy managed-backed full dev rollout. Public Gateway/LB/WSS and Firebase Hosting are not deployed.
-- Current test: Frontend tests/build, Kustomize render for Gateway/HTTPRoute manifests, all-service image substitution, GKE GatewayClass discovery, Argo CD managed runtime sync, and internal service readiness.
-- Next test: Provision Gateway/LB/WSS edge after choosing a domain/TLS approach. Firebase preview/staging remains separate.
+- Current state: Local gateway route rehearsal and frontend Java-service wiring are in progress. Dev-managed Kustomize points backend services to Artifact Registry images, GKE Gateway API classes are available, Argo CD has a healthy managed-backed rollout, and the internal business smoke passed. Public Gateway/LB/WSS and Firebase Hosting are not deployed.
+- Current test: Frontend tests/build, Kustomize render for Gateway/HTTPRoute manifests, all-service image substitution, GKE GatewayClass discovery, Argo CD managed runtime sync, internal service readiness, and managed business smoke prerequisite.
+- Next test: After AWS IoT/Lambda bridge evidence, provision Gateway/LB/WSS edge and Firebase preview/staging.
 
 ## Items
 
@@ -30,9 +30,10 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED, DESIGN_ONLY
 | `kubectl kustomize k8s/overlays/dev` | PASS in K8s evidence. | 2026-06-04 |
 | `kubectl kustomize k8s/overlays/staging` | PASS in K8s evidence. | 2026-06-04 |
 | Tracker ownership rewrite | PASS; edge/frontend is Codex-owned. | 2026-06-05 |
-| Dev overlay image substitution | PASS; all nine service images resolve to Artifact Registry tag `783c78a16381`. | 2026-06-05 |
+| Dev-managed image substitution | PASS; analytics resolves to Artifact Registry tag `783c78a16381`, and the eight Java services resolve to tag `bef15c6`. | 2026-06-05 |
 | GKE Gateway API availability | PASS; GKE GatewayClasses are present and accepted. | 2026-06-05 |
 | Istio and Argo runtime prerequisite | PASS; Istio and Argo CD are installed, and the managed-backed nine-service dev runtime is `Synced/Healthy`. | 2026-06-05 |
+| Managed business smoke prerequisite | PASS; internal API flows passed through service port-forwards before public edge rollout. | 2026-06-05 |
 | Public edge rollout | PENDING; no public Gateway/LB/TLS endpoint has been provisioned yet. | 2026-06-05 |
 
 ## Log
@@ -45,3 +46,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED, DESIGN_ONLY
 | 2026-06-05 | Rephrased tracker for Codex-only non-service ownership. |
 | 2026-06-05 | All-service Artifact Registry backfill updated the dev overlay; edge deployment is now waiting on GKE/Gateway/LB runtime resources. |
 | 2026-06-05 | GKE runtime foundation is live, Gateway API is available, and Argo CD managed-runtime sync is healthy. Public edge rollout is now gated by domain/TLS, not by missing Istio/Argo or data-runtime prerequisites. |
+| 2026-06-05 | Managed-backed business smoke passed internally; public edge/Firebase work now follows the AWS IoT/Lambda bridge slice. |

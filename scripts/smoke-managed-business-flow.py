@@ -272,7 +272,7 @@ def run() -> dict[str, Any]:
         token=token,
         body={
             "name": f"Managed Smoke Multiprobe {suffix}",
-            "model_number": "MSM-1",
+            "model_number": f"MSM-{suffix}",
             "parameter_ids": parameter_ids,
             "manufacturer": "AquaShield",
         },
@@ -370,7 +370,7 @@ def run() -> dict[str, Any]:
                 "port": "A1",
                 "readings": [
                     {"parameter": "temperature", "value": 27.8},
-                    {"parameter": "ph", "value": 7.4},
+                    {"parameter": "ph", "value": 9.2},
                     {"parameter": "dissolved_oxygen", "value": 6.2},
                     {"parameter": "ammonium", "value": 0.22},
                     {"parameter": "turbidity", "value": 10.7},

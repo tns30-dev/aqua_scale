@@ -7,10 +7,10 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns managed data services, event infrastructure, AWS IoT ingress, the Lambda bridge, and Terraform-managed infrastructure.
-- Current state: Local equivalents are heavily exercised through Docker Compose, Flyway, Redis, Pub/Sub emulator, and Bigtable emulator. GCP remote state, Artifact Registry, GitHub OIDC/WIF, VPC/NAT/firewall, GKE, Istio, Argo CD, all-service image backfill, managed Cloud SQL, Memorystore, Pub/Sub, Bigtable, BigQuery, and the live `dev-managed` nine-service runtime are now proven.
-- Current test: Local service integration tests, Pub/Sub emulator flows, Redis key evidence, Terraform validation/apply, managed resource verification, Cloud SQL bootstrap logs, Argo CD managed-runtime sync, and all-service readiness checks.
-- Next test: Run business-flow smoke through the managed-backed runtime, then start AWS IoT Core and Lambda bridge implementation/evidence.
-- Inputs ready from user: GCP account, project, region, and AWS account exist. Still need AWS account/region confirmation and whether AWS IoT/Lambda should be Terraform-managed or manually evidenced.
+- Current state: Local equivalents are heavily exercised through Docker Compose, Flyway, Redis, Pub/Sub emulator, and Bigtable emulator. GCP remote state, Artifact Registry, GitHub OIDC/WIF, VPC/NAT/firewall, GKE, Istio, Argo CD, all-service image backfill, managed Cloud SQL, Memorystore, Pub/Sub, Bigtable, BigQuery, and the live `dev-managed` nine-service runtime are proven by a business-flow smoke.
+- Current test: Local service integration tests, Pub/Sub emulator flows, Redis key evidence, Terraform validation/apply, managed resource verification, Cloud SQL bootstrap logs, Argo CD managed-runtime sync, all-service readiness checks, and signed telemetry through real Pub/Sub.
+- Next test: Implement and evidence AWS IoT Core plus the Lambda bridge into Google Pub/Sub, then move to public API edge/Firebase.
+- Inputs ready from user: GCP account, project, region, and AWS account exist. Need AWS CLI/account/region verification before applying AWS IoT/Lambda resources.
 
 ## Items
 
@@ -22,7 +22,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Cloud Bigtable | DONE | Bigtable instance `aquashield-dev-telemetry` and table `telemetry_readings` are live. Application repository seam still uses Postgres demo store until native Bigtable write/read wiring is implemented. | `../../infra/modules/managed-data/`, `../../docs/evidence/terraform-foundation/2026-06-05-managed-data-apply.md`, `../../docs/evidence/ingestion-service/` | 2026-06-05 |
 | BigQuery | DONE | BigQuery dataset `aquashield_dev_analytics` and partitioned `readings`/`alerts` tables are live. Analytics code read path remains a future wiring slice. | `../../infra/modules/managed-data/`, `../../docs/evidence/terraform-foundation/2026-06-05-managed-data-apply.md` | 2026-06-05 |
 | Cloud Storage | TODO | Reports/exports/artifacts/cold archive bucket plan pending. | `../main/polyglot_persistence.md` | 2026-06-05 |
-| Google Pub/Sub | DONE | Real topic/subscription/DLQ catalogue is live with 36 topics and 45 subscriptions. The `dev-managed` overlay removes `PUBSUB_EMULATOR_HOST` so workloads use ADC/Workload Identity against Google Pub/Sub. | `../../infra/modules/managed-data/`, `../../scripts/pubsub-bootstrap.sh`, `../../k8s/overlays/dev-managed/`, `../../docs/evidence/terraform-foundation/2026-06-05-managed-data-apply.md`, `../../docs/evidence/gitops/2026-06-05-argocd-dev-managed-rollout.md` | 2026-06-05 |
+| Google Pub/Sub | DONE | Real topic/subscription/DLQ catalogue is live with 36 topics and 45 subscriptions. Java services now remove baked Spring emulator config, managed pods use Workload Identity credentials, and the smoke published signed telemetry into `iot.telemetry.received`. | `../../infra/modules/managed-data/`, `../../scripts/pubsub-bootstrap.sh`, `../../k8s/overlays/dev-managed/`, `../../docs/evidence/terraform-foundation/2026-06-05-managed-data-apply.md`, `../../docs/evidence/gitops/2026-06-05-managed-business-flow-smoke.md` | 2026-06-05 |
 | AWS IoT Core | TODO | Specs define MQTT ingress, device identity, certs, policies, and IoT rules. No AWS resources or Terraform module yet. | `../main/iot.md`, `../main/network_security.md` | 2026-06-05 |
 | AWS Lambda bridge | TODO | TypeScript bridge must normalize IoT telemetry into `iot.telemetry.received` and publish to Google Pub/Sub through WIF with publisher-only IAM. No Lambda project yet. | `../main/iot.md`, `../main/pub_sub_contract_docs.md`, `../main/physical_arch_docs.md` | 2026-06-05 |
 | Terraform-managed infrastructure | DONE | GCS remote state, dev backend, Artifact Registry, GitHub OIDC/WIF, VPC, NAT, firewall, GKE, private service access, Cloud SQL, Memorystore, Pub/Sub, Bigtable, BigQuery, runtime service accounts, and Workload Identity IAM are managed in remote state. Cloud Armor remains design-only; AWS IoT/Lambda modules are separate future slices. | `../../infra/bootstrap-state/`, `../../infra/environments/dev/backend.tf.example`, `../../infra/modules/managed-data/`, `../../docs/CLOUD_FOUNDATION_SLICE_1.md`, `../../docs/evidence/terraform-foundation/2026-06-05-cloud-foundation-slice-1-readiness.md`, `../../docs/evidence/terraform-foundation/2026-06-05-artifact-registry-apply.md`, `../../docs/evidence/terraform-foundation/2026-06-05-github-oidc-deploy-handoff.md`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md`, `../../docs/evidence/terraform-foundation/2026-06-05-managed-data-apply.md` | 2026-06-05 |
@@ -43,6 +43,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Terraform managed-data validation | PASS; backend-free temporary validation succeeds after adding the managed data module and `random` provider lock entries. | 2026-06-05 |
 | Terraform managed-data apply | PASS; Cloud SQL, Memorystore, Pub/Sub, Bigtable, BigQuery, runtime service accounts, IAM, and private service access are live. | 2026-06-05 |
 | Managed runtime Argo rollout | PASS; `aquashield-dev` targets `k8s/overlays/dev-managed`, reports `Synced/Healthy`, and all nine service pods are `2/2 Running`. | 2026-06-05 |
+| Managed telemetry business flow | PASS; signed telemetry published to real Pub/Sub produced persisted energy read-model data, an active threshold alert, pond comparison metrics, realtime token minting, and audit rows. | 2026-06-05 |
 
 ## Log
 
@@ -61,3 +62,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Added Terraform-managed Cloud SQL, Memorystore, Pub/Sub, Bigtable, BigQuery code plus `k8s/overlays/dev-managed`; this became the live managed cutover later the same day. |
 | 2026-06-05 | Applied managed Cloud SQL, Memorystore, Pub/Sub, Bigtable, BigQuery, runtime service accounts, IAM, and private service access through Terraform remote state. |
 | 2026-06-05 | Cut Argo CD over to `k8s/overlays/dev-managed`; all nine service pods are healthy on managed Cloud SQL, Memorystore, and real Pub/Sub. |
+| 2026-06-05 | Passed the managed-backed business smoke with signed telemetry through real Pub/Sub into ingestion, notification, analytics/realtime/audit read surfaces. |

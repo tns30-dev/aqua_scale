@@ -8,8 +8,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 
 - Ownership: Codex owns GCP foundation, GKE, service mesh, Kubernetes manifests, Artifact Registry, and Terraform remote state.
 - Current state: Terraform remote state bucket, nine Artifact Registry Docker repositories, GitHub OIDC/WIF deploy identity, VPC/subnet/secondary ranges, Cloud NAT, firewall rules, private service access, private-node GKE, Istio, Argo CD, managed Cloud SQL/Memorystore/Pub/Sub/Bigtable/BigQuery, and the managed-backed nine-service `dev-managed` runtime are live in project `aerobic-guide-498413-u6`. Cloud Armor stays in the architecture design but is out of runtime evidence scope for this implementation.
-- Current test: `terraform fmt`, GKE node readiness, network/NAT/firewall verification, private service access verification, managed GCP resource checks, Gateway API availability, Istio control-plane readiness, Argo CD sync/health, and managed dev runtime pod readiness.
-- Next test: Run business-flow smoke against the managed-backed runtime, then proceed to public Gateway/LB/TLS and AWS IoT/Lambda slices.
+- Current test: `terraform fmt`, GKE node readiness, network/NAT/firewall verification, private service access verification, managed GCP resource checks, Gateway API availability, Istio control-plane readiness, Argo CD sync/health, managed dev runtime pod readiness, and managed business-flow smoke.
+- Next test: AWS IoT/Lambda bridge first, then public Gateway/LB/TLS and Firebase Hosting.
 - Inputs ready from user: GCP account, project, region, zone, GKE, Istio, and Argo CD are selected. Still need domain/certificate choice for public edge evidence and data-runtime cost ceiling.
 
 ## Items
@@ -27,7 +27,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Kubernetes NetworkPolicy | DONE | Default-deny ingress, app-internal allow, GCLB health-check allow, and per-service policies are live in the full dev namespace. | `../../k8s/base/network/`, `../../k8s/base/services/`, `../../k8s/overlays/dev-full/`, `../../docs/evidence/gitops/2026-06-05-argocd-dev-full-rollout.md` | 2026-06-05 |
 | Istio service mesh | DONE | Istio `1.30.1` control plane, CNI, sidecar injection, strict mTLS, and AuthorizationPolicy are live and proven on the full dev runtime. | `../../k8s/base/mesh/`, `../../k8s/base/services/`, `../../k8s/overlays/dev-full/`, `../../docs/evidence/gitops/2026-06-05-argocd-dev-full-rollout.md` | 2026-06-05 |
 | Namespaces | DONE | `aquashield-dev` is live with `istio-injection=enabled`; staging remains manifest-only. | `../../k8s/overlays/dev/namespace.yaml`, `../../k8s/overlays/dev-smoke/namespace.yaml`, `../../k8s/overlays/staging/namespace.yaml` | 2026-06-05 |
-| Service workload manifests | DONE | All nine implemented services have Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, and AuthorizationPolicy manifests; `dev-managed` is live and healthy on Artifact Registry tag `783c78a16381` with managed GCP runtime endpoints. | `../../k8s/base/services/`, `../../k8s/overlays/dev-full/`, `../../k8s/overlays/dev-managed/`, `../../docs/evidence/k8s-*/`, `../../docs/evidence/gitops/2026-06-05-argocd-dev-managed-rollout.md`, `../../docs/evidence/terraform-foundation/2026-06-05-managed-data-apply.md` | 2026-06-05 |
+| Service workload manifests | DONE | All nine implemented services have Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, and AuthorizationPolicy manifests; `dev-managed` is live and healthy with analytics at `783c78a16381` and eight Java services at `bef15c6`. | `../../k8s/base/services/`, `../../k8s/overlays/dev-full/`, `../../k8s/overlays/dev-managed/`, `../../docs/evidence/k8s-*/`, `../../docs/evidence/gitops/2026-06-05-managed-business-flow-smoke.md`, `../../docs/evidence/terraform-foundation/2026-06-05-managed-data-apply.md` | 2026-06-05 |
 | Artifact Registry | DONE | Nine per-service Docker repositories were created in `asia-southeast1` through Terraform state. CI image push remains tracked separately under CI/CD. | `../../infra/modules/artifact-registry/`, `../../docs/evidence/terraform-foundation/2026-06-05-artifact-registry-apply.md` | 2026-06-05 |
 | Terraform remote state | DONE | State bucket created in project `aerobic-guide-498413-u6`; dev backend initialized against GCS. | `../../infra/bootstrap-state/`, `../../infra/environments/dev/backend.tf.example`, `../../docs/CLOUD_FOUNDATION_SLICE_1.md`, `../../docs/evidence/terraform-foundation/2026-06-05-cloud-foundation-slice-1-readiness.md` | 2026-06-05 |
 | GitHub OIDC/WIF deploy identity | DONE | GitHub Actions provider, deployer service account, and per-repository Artifact Registry writer IAM bindings are managed in Terraform state. | `../../infra/modules/github-oidc/`, `../../docs/evidence/terraform-foundation/2026-06-05-github-oidc-deploy-handoff.md` | 2026-06-05 |
@@ -59,6 +59,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Managed GCP overlay render | PASS; `kubectl kustomize k8s/overlays/dev-managed` renders with emulator resources pruned, Workload Identity annotations added, and Cloud SQL/Memorystore placeholders ready for Terraform outputs. | 2026-06-05 |
 | Managed data Terraform apply | PASS; private service access, Cloud SQL, Memorystore, Pub/Sub, Bigtable, BigQuery, runtime service accounts, and IAM bindings are live. | 2026-06-05 |
 | Managed dev runtime rollout | PASS; Argo CD reports `Synced/Healthy` on `k8s/overlays/dev-managed`, and all nine services are ready. | 2026-06-05 |
+| Managed business-flow smoke | PASS; Argo CD revision `a057b0b86f03834213b543d10e9b1fa0785eeda3` passed the signed telemetry business flow on managed GCP dependencies. | 2026-06-05 |
 
 ## Log
 
@@ -78,3 +79,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Promoted the live GitOps application to `k8s/overlays/dev-full`; all nine services are ready on in-cluster dev dependencies and Argo reports `Synced/Healthy`. |
 | 2026-06-05 | Added private service access support, managed data/messaging Terraform code, and `k8s/overlays/dev-managed` for the Cloud SQL/Memorystore/Pub/Sub/Bigtable/BigQuery cutover path. |
 | 2026-06-05 | Applied the managed GCP data/messaging slice and cut the live Argo CD Application to `k8s/overlays/dev-managed`; all nine services are healthy on managed runtime dependencies. |
+| 2026-06-05 | Rebuilt Java services for real Pub/Sub credentials, rolled GitOps commit `a057b0b`, and recorded managed business-flow smoke evidence. |

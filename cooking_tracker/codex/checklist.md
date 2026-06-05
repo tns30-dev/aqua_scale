@@ -81,7 +81,7 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [x] | Artifact Registry push | All nine implemented service images pushed with Git-SHA tags | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
 | [x] | GitOps manifest update | Dev Kustomize image tags updated for all nine services | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
 | [x] | Argo CD rollout | Argo CD sync and health evidence for the managed-backed nine-service dev runtime | [cd.md](../main/cd.md) |
-| [x] | Smoke tests | All nine services reported readiness in the live full dev runtime; service-to-service business curl remains follow-up | [cd.md](../main/cd.md) |
+| [x] | Smoke tests | Managed-backed business flow passed across identity, project, pond, sensor, ingestion, notification, realtime, analytics, and audit surfaces | [cd.md](../main/cd.md) |
 | [ ] | DAST | OWASP ZAP or equivalent scan after deployment | [cd.md](../main/cd.md) |
 | [ ] | JMeter load and stress tests | Evidence from dedicated `performance-test` branch or manual dispatch | [ci.md](../main/ci.md) |
-| [ ] | Demo evidence | Screenshots, logs, videos, cloud console proof | All docs |
+| [ ] | Demo evidence | Managed runtime rollout and business-flow smoke evidence recorded; public edge, AWS bridge, DAST, and performance evidence remain | All docs |
