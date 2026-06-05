@@ -1,5 +1,7 @@
 # Public API Edge and Firebase Readiness - 2026-06-05
 
+Update: this was the initial readiness note before the HTTPS path was selected. The current public edge evidence is `2026-06-05-public-edge-https-ip-reservation.md`; temporary HTTP exposure is no longer the selected path, and the current overlay no longer matches the historical HTTP-only snippets below.
+
 ## Scope
 
 Prepared public API edge and Firebase Hosting readiness without exposing the API publicly.
@@ -102,16 +104,10 @@ Live Firebase deploy is pending Firebase project/service-account configuration a
 
 ## Next Evidence
 
-Choose one:
+Current path:
 
-1. Temporary HTTP evidence:
-   - Explicitly approve HTTP-only public Gateway.
-   - Apply the Argo Application manifest targeting `dev-managed-public`.
-   - Wait for Gateway address and backend health.
-   - Smoke `http://<gateway-ip>/api/auth/login`.
-
-2. HTTPS evidence:
-   - Provide a domain and DNS control.
-   - Add managed certificate/TLS config.
-   - Deploy `dev-managed-public` with HTTPS listener.
-   - Configure Firebase `VITE_API_BASE_URL` and `VITE_WS_BASE_URL`.
+- Use the reserved static IP from `2026-06-05-public-edge-https-ip-reservation.md`.
+- Provide the real API domain and create the DNS `A` record.
+- Create the managed certificate/TLS config.
+- Deploy `dev-managed-public` with the HTTPS listener and HTTP redirect.
+- Configure Firebase `VITE_API_BASE_URL` and `VITE_WS_BASE_URL`.

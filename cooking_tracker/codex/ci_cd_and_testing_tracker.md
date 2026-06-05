@@ -7,10 +7,10 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns CI/CD, GitOps handoff, Argo CD rollout proof, post-deploy smoke tests, DAST, JMeter, and demo evidence.
-- Current state: Path-aware CI is proven and already builds/tests/scans/containerizes changed services. `deploy-handoff.yml` pushed all nine implemented service images to Artifact Registry. The live `aquashield-dev` Argo CD Application targets `k8s/overlays/dev-managed`, eight Java services are rebuilt at tag `bef15c6`, analytics remains at `783c78a16381`, the managed-backed business smoke passed, and the live AWS IoT/Lambda bridge smoke passed.
-- Current test: GitHub Actions CI evidence, Terraform WIF apply, all-service deploy-handoff run, Artifact Registry tag verification, local Kustomize render, GKE runtime foundation verification, Istio/Argo CD install, managed Argo sync, all-service readiness checks, managed business-flow smoke, AWS bridge unit/build/package checks, AWS live Terraform apply, x.509 MQTT smoke, CloudWatch delivery logs, and public edge/Firebase readiness checks.
-- Next test: Public API edge live smoke after explicit HTTP approval or domain/TLS; then DAST/performance evidence.
-- Inputs ready from user: GCP account, project, region, repositories, WIF provider, deployer service account, GKE cluster, Istio, Argo CD, and AWS profile `aquashield` are ready. Public edge live rollout needs explicit HTTP approval or a domain/TLS choice.
+- Current state: Path-aware CI is proven and already builds/tests/scans/containerizes changed services. `deploy-handoff.yml` pushed all nine implemented service images to Artifact Registry. The live `aquashield-dev` Argo CD Application targets `k8s/overlays/dev-managed`, eight Java services are rebuilt at tag `bef15c6`, analytics remains at `783c78a16381`, the managed-backed business smoke passed, the live AWS IoT/Lambda bridge smoke passed, and the HTTPS public edge has a reserved static IP.
+- Current test: GitHub Actions CI evidence, Terraform WIF apply, all-service deploy-handoff run, Artifact Registry tag verification, local Kustomize render, GKE runtime foundation verification, Istio/Argo CD install, managed Argo sync, all-service readiness checks, managed business-flow smoke, AWS bridge unit/build/package checks, AWS live Terraform apply, x.509 MQTT smoke, CloudWatch delivery logs, public edge/Firebase readiness checks, and public API static-IP apply.
+- Next test: Public API edge live smoke after real domain, DNS, managed certificate, and Argo public overlay sync; then DAST/performance evidence.
+- Inputs ready from user: GCP account, project, region, repositories, WIF provider, deployer service account, GKE cluster, Istio, Argo CD, AWS profile `aquashield`, and public API static IP `8.232.154.25` are ready. Public edge live rollout needs the real API domain and DNS record.
 
 ## Items
 
@@ -23,7 +23,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Smoke tests | DONE | Managed business-flow smoke passed via direct Pub/Sub and again via AWS IoT MQTT/x.509 through Lambda/WIF into Pub/Sub: login/audit, project/pond setup, sensor mapping, energy read model, active threshold alert, pond comparison, analytics JSON, realtime token, and audit rows. | `../../scripts/smoke-managed-business-flow.py`, `../../docs/evidence/gitops/2026-06-05-managed-business-flow-smoke.md`, `../../docs/evidence/aws-iot-bridge/2026-06-05-live-deploy-and-smoke.md` | 2026-06-05 |
 | DAST | TODO | Requires deployed dev/staging API endpoint. Plan is OWASP ZAP baseline after Argo CD health and smoke pass. | `../main/cd.md` | 2026-06-05 |
 | JMeter load and stress tests | TODO | `perf.yml` lane exists; concrete plans/evidence are pending. Should run only on `performance-test` branch or manual dispatch. | `../../.github/workflows/perf.yml`, `../main/ci.md` | 2026-06-05 |
-| Demo evidence | IN_PROGRESS | Managed runtime smoke, AWS IoT/Lambda live smoke, and public edge/Firebase readiness evidence are recorded. Public edge live rollout, DAST, and performance evidence remain. | `../../docs/evidence/` | 2026-06-05 |
+| Demo evidence | IN_PROGRESS | Managed runtime smoke, AWS IoT/Lambda live smoke, public edge/Firebase readiness, and HTTPS static-IP reservation evidence are recorded. Public edge live rollout, DAST, and performance evidence remain. | `../../docs/evidence/` | 2026-06-05 |
 
 ## Validation
 
@@ -52,7 +52,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | AWS bridge code readiness | PASS; Lambda unit tests/build/package, production dependency audit, event schema validation, and Terraform validation passed. | 2026-06-05 |
 | AWS bridge live smoke | PASS; x.509 MQTT publish through IoT Core and Lambda produced two Pub/Sub message IDs and the managed business-flow outputs for `aq-dev-simulator-01`. | 2026-06-05 |
 | Public edge/Firebase readiness | PASS; Gateway overlay render/server dry run, frontend lint, frontend tests, and production build passed. | 2026-06-05 |
-| Public edge live smoke | BLOCKED; HTTP-only public exposure needs explicit approval, or HTTPS requires domain/TLS configuration. | 2026-06-05 |
+| Public edge static IP | PASS; Terraform reserved global IP `8.232.154.25` for `aquashield-dev-api-edge` with `1 added, 0 changed, 0 destroyed`. | 2026-06-05 |
+| Public edge live smoke | PENDING; HTTPS rollout requires real API domain, DNS `A` record to `8.232.154.25`, managed certificate provisioning, and Argo public overlay sync. | 2026-06-05 |
 
 ## Log
 
@@ -74,4 +75,5 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Rebuilt the eight Java services at tag `bef15c6` after removing baked Pub/Sub emulator configuration, rolled them through Argo CD at commit `a057b0b`, and passed the managed business-flow smoke. |
 | 2026-06-05 | Added AWS IoT/Lambda bridge code and Terraform readiness evidence. |
 | 2026-06-05 | Applied AWS IoT/Lambda bridge resources and passed the live AWS IoT MQTT business-flow smoke through managed GCP Pub/Sub and GKE services. |
-| 2026-06-05 | Added public edge/Firebase readiness evidence. Live public edge apply is pending explicit HTTP approval or domain/TLS input. |
+| 2026-06-05 | Added initial public edge/Firebase readiness evidence; superseded the temporary HTTP branch with the HTTPS static-IP path. |
+| 2026-06-05 | Selected HTTPS public edge path, added the proxy-backed Gateway overlay, and reserved global static IP `8.232.154.25`; live smoke waits on domain/DNS/managed cert. |

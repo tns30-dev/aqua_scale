@@ -33,6 +33,26 @@ output "cloud_armor_policy_name" {
   value       = var.enable_cloud_armor ? module.security[0].cloud_armor_policy_name : null
 }
 
+output "api_edge_address_name" {
+  description = "Global static IP address name for the public API Gateway."
+  value       = var.enable_public_api_edge ? module.api_edge[0].address_name : null
+}
+
+output "api_edge_address" {
+  description = "Global static IPv4 address for the public API Gateway."
+  value       = var.enable_public_api_edge ? module.api_edge[0].address : null
+}
+
+output "api_edge_certificate_name" {
+  description = "Google-managed SSL certificate name for the public API Gateway."
+  value       = var.enable_public_api_edge ? module.api_edge[0].certificate_name : null
+}
+
+output "api_edge_certificate_domains" {
+  description = "Domains requested for the public API Gateway certificate."
+  value       = var.enable_public_api_edge ? module.api_edge[0].certificate_domains : []
+}
+
 output "cloud_sql_connection_name" {
   description = "Cloud SQL instance connection name for Cloud SQL Auth Proxy."
   value       = module.managed_data.cloud_sql_connection_name

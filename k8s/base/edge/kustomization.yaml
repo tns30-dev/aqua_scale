@@ -3,4 +3,5 @@ kind: Kustomization
 
 resources:
   - gateway.yaml
+  - http-redirect.yaml
   - http-route.yaml

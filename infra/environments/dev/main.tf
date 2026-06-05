@@ -150,6 +150,18 @@ module "security" {
   cloud_armor_policy_name = "aquashield-dev-api-edge"
 }
 
+module "api_edge" {
+  source = "../../modules/api-edge"
+  count  = var.enable_public_api_edge ? 1 : 0
+
+  project_id       = var.project_id
+  address_name     = var.api_edge_address_name
+  certificate_name = var.api_edge_certificate_name
+  api_domain       = var.api_domain
+
+  depends_on = [google_project_service.required]
+}
+
 module "aws_iot_bridge" {
   source = "../../modules/aws-iot-bridge"
   count  = var.enable_aws_iot_bridge ? 1 : 0

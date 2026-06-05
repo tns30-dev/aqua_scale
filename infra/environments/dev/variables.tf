@@ -135,6 +135,30 @@ variable "enable_aws_iot_bridge" {
   default     = false
 }
 
+variable "enable_public_api_edge" {
+  description = "Reserve the public API Gateway IP and, when api_domain is set, create its Google-managed SSL certificate."
+  type        = bool
+  default     = false
+}
+
+variable "api_domain" {
+  description = "Public API hostname for the HTTPS Gateway, for example api.example.com. Leave empty to reserve the IP before DNS is ready."
+  type        = string
+  default     = ""
+}
+
+variable "api_edge_address_name" {
+  description = "Global static IP address name used by the public API Gateway."
+  type        = string
+  default     = "aquashield-dev-api-edge"
+}
+
+variable "api_edge_certificate_name" {
+  description = "Google-managed SSL certificate name used by the public API Gateway."
+  type        = string
+  default     = "aquashield-dev-api-edge"
+}
+
 variable "aws_region" {
   description = "AWS region for IoT Core and Lambda bridge resources."
   type        = string

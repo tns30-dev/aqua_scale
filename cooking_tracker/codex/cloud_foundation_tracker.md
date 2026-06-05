@@ -7,10 +7,10 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns GCP foundation, GKE, service mesh, Kubernetes manifests, Artifact Registry, and Terraform remote state.
-- Current state: Terraform remote state bucket, nine Artifact Registry Docker repositories, GitHub OIDC/WIF deploy identity, VPC/subnet/secondary ranges, Cloud NAT, firewall rules, private service access, private-node GKE, Istio, Argo CD, managed Cloud SQL/Memorystore/Pub/Sub/Bigtable/BigQuery, the managed-backed nine-service `dev-managed` runtime, and the AWS IoT/Lambda bridge are live. Public edge manifests are ready but not applied live. Cloud Armor stays in the architecture design but is out of runtime evidence scope for this implementation.
-- Current test: `terraform fmt`, GKE node readiness, network/NAT/firewall verification, private service access verification, managed GCP resource checks, Gateway API availability, Istio control-plane readiness, Argo CD sync/health, managed dev runtime pod readiness, managed business-flow smoke, AWS bridge Terraform apply, AWS IoT MQTT smoke, Lambda logs, WIF proof, and public edge server-side dry run.
-- Next test: Apply public Gateway only after explicit HTTP approval or domain/TLS choice.
-- Inputs ready from user: GCP account, project, region, zone, GKE, Istio, Argo CD, and AWS profile are selected. Still need domain/certificate choice or explicit HTTP approval for public edge evidence.
+- Current state: Terraform remote state bucket, nine Artifact Registry Docker repositories, GitHub OIDC/WIF deploy identity, VPC/subnet/secondary ranges, Cloud NAT, firewall rules, private service access, private-node GKE, Istio, Argo CD, managed Cloud SQL/Memorystore/Pub/Sub/Bigtable/BigQuery, the managed-backed nine-service `dev-managed` runtime, the AWS IoT/Lambda bridge, and public API global static IP `8.232.154.25` are live. Public Gateway/LB/TLS is not applied live until DNS and the managed certificate are ready. Cloud Armor stays in the architecture design but is out of runtime evidence scope for this implementation.
+- Current test: `terraform fmt`, Terraform validation, GKE node readiness, network/NAT/firewall verification, private service access verification, managed GCP resource checks, Gateway API availability, Istio control-plane readiness, Argo CD sync/health, managed dev runtime pod readiness, managed business-flow smoke, AWS bridge Terraform apply, AWS IoT MQTT smoke, Lambda logs, WIF proof, public edge server-side dry run, and public API static IP apply.
+- Next test: Select real API hostname, add DNS `A` record to `8.232.154.25`, create the managed certificate, then apply/sync the public Gateway.
+- Inputs ready from user: GCP account, project, region, zone, GKE, Istio, Argo CD, and AWS profile are selected. Still need the real API domain and DNS access for public HTTPS edge evidence.
 
 ## Items
 
@@ -32,7 +32,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Terraform remote state | DONE | State bucket created in project `aerobic-guide-498413-u6`; dev backend initialized against GCS. | `../../infra/bootstrap-state/`, `../../infra/environments/dev/backend.tf.example`, `../../docs/CLOUD_FOUNDATION_SLICE_1.md`, `../../docs/evidence/terraform-foundation/2026-06-05-cloud-foundation-slice-1-readiness.md` | 2026-06-05 |
 | GitHub OIDC/WIF deploy identity | DONE | GitHub Actions provider, deployer service account, and per-repository Artifact Registry writer IAM bindings are managed in Terraform state. | `../../infra/modules/github-oidc/`, `../../docs/evidence/terraform-foundation/2026-06-05-github-oidc-deploy-handoff.md` | 2026-06-05 |
 | AWS IoT/Lambda bridge Terraform | DONE | Module and dev root wiring are live behind local `enable_aws_iot_bridge=true`; Terraform created IoT thing/cert/policy/rule, Lambda/log role, GCP WIF provider/service account, and Pub/Sub publisher IAM. | `../../infra/modules/aws-iot-bridge/`, `../../docs/evidence/aws-iot-bridge/2026-06-05-code-readiness.md`, `../../docs/evidence/aws-iot-bridge/2026-06-05-live-deploy-and-smoke.md` | 2026-06-05 |
-| Public API edge manifests | IN_PROGRESS | `dev-managed-public` overlay adds GKE Gateway, HTTPRoute, and HealthCheckPolicy resources. Render and server-side dry run pass, but live HTTP exposure needs explicit approval or TLS/domain input. | `../../k8s/overlays/dev-managed-public/`, `../../docs/evidence/public-edge/2026-06-05-public-edge-firebase-readiness.md` | 2026-06-05 |
+| Public API edge manifests | IN_PROGRESS | `dev-managed-public` overlay now uses the HTTPS path: GKE Gateway named address, HTTP redirect, pre-shared managed-cert name, `/api` and `/ws` routes to `api-edge-proxy`, and proxy health check. Render and server-side dry run pass. | `../../k8s/base/services/api-edge-proxy/`, `../../k8s/overlays/dev-managed-public/`, `../../docs/evidence/public-edge/2026-06-05-public-edge-https-ip-reservation.md` | 2026-06-05 |
+| Public API static IP | DONE | Terraform created global static IP `8.232.154.25` as `aquashield-dev-api-edge` in `aerobic-guide-498413-u6`; no Gateway/LB was applied yet. | `../../infra/modules/api-edge/`, `../../docs/evidence/public-edge/2026-06-05-public-edge-https-ip-reservation.md` | 2026-06-05 |
 
 ## Validation
 
@@ -67,7 +68,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | AWS bridge Terraform apply | PASS; Terraform applied 16 bridge resources with 0 changes and 0 destroys. | 2026-06-05 |
 | AWS IoT MQTT smoke | PASS; certificate-authenticated MQTT publish through AWS IoT/Lambda reached managed GCP Pub/Sub and produced the expected business read models. | 2026-06-05 |
 | Public edge server dry run | PASS; `kubectl apply --dry-run=server -k k8s/overlays/dev-managed-public` passed against the live GKE API server. | 2026-06-05 |
-| Public edge live apply | BLOCKED; HTTP-only exposure needs explicit approval, or HTTPS requires domain/TLS input. | 2026-06-05 |
+| Public edge static IP apply | PASS; Terraform applied `google_compute_global_address` `aquashield-dev-api-edge`, output `8.232.154.25`, with `1 added, 0 changed, 0 destroyed`. | 2026-06-05 |
+| Public edge live apply | PENDING; HTTPS rollout now requires a real API domain, DNS `A` record to `8.232.154.25`, managed certificate provisioning, and Argo sync. | 2026-06-05 |
 
 ## Log
 
@@ -91,3 +93,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Added AWS IoT/Lambda bridge Terraform with GCP WIF and Pub/Sub publisher-only IAM. Validation passed. |
 | 2026-06-05 | Applied AWS IoT/Lambda bridge Terraform and proved x.509 MQTT delivery through AWS IoT, Lambda, GCP WIF, Pub/Sub, and the managed GKE business flow. |
 | 2026-06-05 | Added public API edge manifest overlay with GKE Gateway/HTTPRoute/HealthCheckPolicy and recorded server-side dry-run evidence. Live apply is pending explicit approval or TLS/domain input. |
+| 2026-06-05 | Switched public edge to HTTPS, added `api-edge-proxy`, and reserved global static IP `8.232.154.25` through Terraform. Live Gateway waits on real domain/DNS/managed certificate. |

@@ -18,6 +18,13 @@ max_node_count          = 2
 # Set true only after the project has non-zero Cloud Armor quota.
 enable_cloud_armor = false
 
+# Public API HTTPS edge. Enable to reserve a global static IP; set api_domain
+# after DNS ownership is ready so Google can provision the managed certificate.
+enable_public_api_edge = false
+api_domain             = ""
+api_edge_address_name     = "aquashield-dev-api-edge"
+api_edge_certificate_name = "aquashield-dev-api-edge"
+
 # Managed GCP data/messaging slice. Defaults stay off so a fresh plan does not
 # accidentally create paid data services. Turn these on in local terraform.tfvars
 # when capturing managed-service evidence.

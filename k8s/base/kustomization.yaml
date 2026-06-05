@@ -12,9 +12,7 @@ resources:
   - services/realtime-gateway
   - services/analytics-service
   - services/audit-service
-  - edge/gateway.yaml
-  - edge/http-redirect.yaml
-  - edge/http-route.yaml
+  - edge
   - mesh/peer-authentication.yaml
   - mesh/default-deny-authorization-policy.yaml
   - network/default-deny-ingress.yaml
