@@ -5,13 +5,9 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 data:
-  # Replace these two values from Terraform outputs before switching Argo CD to
-  # this overlay:
-  #   terraform output -raw cloud_sql_private_ip_address
-  #   terraform output -raw memorystore_host
-  CLOUD_SQL_PRIVATE_IP: "REPLACE_WITH_TERRAFORM_OUTPUT_cloud_sql_private_ip_address"
-  MEMORYSTORE_REDIS_HOST: "REPLACE_WITH_TERRAFORM_OUTPUT_memorystore_host"
-  REDIS_URL: "redis://REPLACE_WITH_TERRAFORM_OUTPUT_memorystore_host:6379"
+  CLOUD_SQL_PRIVATE_IP: "10.128.1.3"
+  MEMORYSTORE_REDIS_HOST: "10.128.0.3"
+  REDIS_URL: "redis://10.128.0.3:6379"
 
   CLOUD_SQL_DATABASE_NAME: "aquashield"
   MEMORYSTORE_REDIS_PORT: "6379"

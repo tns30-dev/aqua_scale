@@ -144,6 +144,7 @@ resource "google_sql_database_instance" "postgres" {
 
   settings {
     tier              = var.cloud_sql_tier
+    edition           = "ENTERPRISE"
     availability_type = "ZONAL"
     disk_size         = var.cloud_sql_disk_gb
     disk_type         = "PD_SSD"
