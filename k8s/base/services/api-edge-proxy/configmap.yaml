@@ -31,20 +31,20 @@ data:
         '' $scheme;
       }
 
-      upstream identity { server identity-access-service:8081; }
-      upstream project { server project-service:8082; }
-      upstream sensor { server sensor-service:8083; }
-      upstream notification { server notification-service:8087; }
-      upstream realtime { server realtime-gateway:8088; }
-      upstream pond { server pond-service:8089; }
-      upstream analytics { server analytics-service:8090; }
-      upstream audit { server audit-service:8092; }
+      upstream identity-access-service { server identity-access-service:8081; }
+      upstream project-service { server project-service:8082; }
+      upstream sensor-service { server sensor-service:8083; }
+      upstream notification-service { server notification-service:8087; }
+      upstream realtime-gateway { server realtime-gateway:8088; }
+      upstream pond-service { server pond-service:8089; }
+      upstream analytics-service { server analytics-service:8090; }
+      upstream audit-service { server audit-service:8092; }
 
       server {
         listen 8080;
         server_tokens off;
 
-        proxy_set_header Host $host;
+        proxy_set_header Host $proxy_host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $forwarded_proto;
@@ -55,37 +55,37 @@ data:
           return 200 '{"status":"UP"}';
         }
 
-        location ~ ^/api/projects/[^/]+/charts(/.*)?$ { proxy_pass http://analytics; }
-        location ~ ^/api/projects/[^/]+/pond-comparison { proxy_pass http://pond; }
-        location ~ ^/api/projects/[^/]+/ponds { proxy_pass http://pond; }
-        location ~ ^/api/projects/[^/]+/sensors { proxy_pass http://sensor; }
+        location ~ ^/api/projects/[^/]+/charts(/.*)?$ { proxy_pass http://analytics-service; }
+        location ~ ^/api/projects/[^/]+/pond-comparison { proxy_pass http://pond-service; }
+        location ~ ^/api/projects/[^/]+/ponds { proxy_pass http://pond-service; }
+        location ~ ^/api/projects/[^/]+/sensors { proxy_pass http://sensor-service; }
 
-        location /api/auth/ { proxy_pass http://identity; }
-        location /api/users { proxy_pass http://identity; }
-        location /api/feature-access { proxy_pass http://identity; }
-        location /api/action-controls { proxy_pass http://identity; }
+        location /api/auth/ { proxy_pass http://identity-access-service; }
+        location /api/users { proxy_pass http://identity-access-service; }
+        location /api/feature-access { proxy_pass http://identity-access-service; }
+        location /api/action-controls { proxy_pass http://identity-access-service; }
 
-        location /api/profile-types { proxy_pass http://project; }
-        location /api/parameter-types { proxy_pass http://project; }
-        location /api/growth-indicators { proxy_pass http://project; }
-        location /api/projects { proxy_pass http://project; }
+        location /api/profile-types { proxy_pass http://project-service; }
+        location /api/parameter-types { proxy_pass http://project-service; }
+        location /api/growth-indicators { proxy_pass http://project-service; }
+        location /api/projects { proxy_pass http://project-service; }
 
-        location /api/ponds { proxy_pass http://pond; }
-        location /api/cycles { proxy_pass http://pond; }
-        location /api/treatments { proxy_pass http://pond; }
-        location /api/pond-treatments { proxy_pass http://pond; }
+        location /api/ponds { proxy_pass http://pond-service; }
+        location /api/cycles { proxy_pass http://pond-service; }
+        location /api/treatments { proxy_pass http://pond-service; }
+        location /api/pond-treatments { proxy_pass http://pond-service; }
 
-        location /api/iot-devices { proxy_pass http://sensor; }
-        location /api/sensor-types { proxy_pass http://sensor; }
-        location /api/project-sensors { proxy_pass http://sensor; }
+        location /api/iot-devices { proxy_pass http://sensor-service; }
+        location /api/sensor-types { proxy_pass http://sensor-service; }
+        location /api/project-sensors { proxy_pass http://sensor-service; }
 
-        location /api/alerts { proxy_pass http://notification; }
-        location /api/analytics { proxy_pass http://analytics; }
-        location /api/audit { proxy_pass http://audit; }
+        location /api/alerts { proxy_pass http://notification-service; }
+        location /api/analytics { proxy_pass http://analytics-service; }
+        location /api/audit { proxy_pass http://audit-service; }
 
-        location /ws/token { proxy_pass http://realtime; }
+        location /ws/token { proxy_pass http://realtime-gateway; }
         location /ws {
-          proxy_pass http://realtime;
+          proxy_pass http://realtime-gateway;
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection $connection_upgrade;
