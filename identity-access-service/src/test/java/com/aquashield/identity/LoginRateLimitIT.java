@@ -45,6 +45,8 @@ class LoginRateLimitIT {
     registry.add("spring.data.redis.host", redis::getHost);
     registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
     registry.add("aquashield.events.enabled", () -> false); // no Pub/Sub in this IT
+    registry.add("spring.cloud.gcp.project-id", () -> "aquashield-test");
+    registry.add("spring.cloud.gcp.pubsub.emulator-host", () -> "localhost:1"); // unused
     registry.add("grpc.server.port", () -> -1);              // no TCP gRPC in this IT
     registry.add("grpc.server.in-process-name", () -> "LoginRateLimitIT");
     registry.add("aquashield.auth.login-rate-limit", () -> 5);
