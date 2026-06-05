@@ -42,6 +42,10 @@ resource "google_container_node_pool" "primary" {
   cluster    = google_container_cluster.this.name
   node_count = var.min_node_count
 
+  lifecycle {
+    ignore_changes = [node_count]
+  }
+
   autoscaling {
     min_node_count = var.min_node_count
     max_node_count = var.max_node_count

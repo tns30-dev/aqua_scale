@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: aquashield-dev
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: aquashield
+    app.kubernetes.io/environment: dev
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/tns30-dev/aqua_scale.git
+    targetRevision: main
+    path: k8s/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: aquashield-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true

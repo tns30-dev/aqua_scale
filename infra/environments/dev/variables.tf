@@ -54,7 +54,7 @@ variable "min_node_count" {
 variable "max_node_count" {
   description = "Maximum autoscaled nodes per zone."
   type        = number
-  default     = 3
+  default     = 2
 }
 
 variable "enable_cloud_armor" {

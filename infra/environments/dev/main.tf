@@ -23,6 +23,10 @@ locals {
   ])
 }
 
+data "google_project" "current" {
+  project_id = var.project_id
+}
+
 resource "google_project_service" "required" {
   for_each = local.required_apis
 
@@ -72,6 +76,14 @@ module "github_oidc" {
     google_project_service.required,
     module.artifact_registry
   ]
+}
+
+resource "google_project_iam_member" "gke_node_artifact_registry_reader" {
+  project = var.project_id
+  role    = "roles/artifactregistry.reader"
+  member  = "serviceAccount:${data.google_project.current.number}-compute@developer.gserviceaccount.com"
+
+  depends_on = [google_project_service.required]
 }
 
 module "gke" {

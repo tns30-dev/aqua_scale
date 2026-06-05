@@ -13,7 +13,7 @@ service_secondary_cidr  = "10.30.0.0/20"
 master_ipv4_cidr_block  = "172.16.0.0/28"
 node_machine_type       = "e2-standard-2"
 min_node_count          = 1
-max_node_count          = 3
+max_node_count          = 2
 
 # Set true only after the project has non-zero Cloud Armor quota.
 enable_cloud_armor = false
