@@ -1,14 +1,14 @@
-name: deploy-handoff
+name: Container Release and Argo CD Handoff
 
 on:
   workflow_run:
-    workflows: [ci]
+    workflows: ["Backend Service CI - Build, Test & Security"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
     inputs:
       services:
-        description: Comma-separated services to push. Defaults to identity-access-service.
+        description: Comma-separated services to release, or all. Defaults to Identity and Access Service.
         required: false
         default: identity-access-service
 
@@ -29,6 +29,7 @@ env:
 
 jobs:
   detect-changes:
+    name: Select Services for Release
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     outputs:
@@ -43,12 +44,34 @@ jobs:
           fetch-depth: 0
 
       - id: select
-        name: Select services for deploy handoff
+        name: Select services for release
         env:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_SERVICES: ${{ inputs.services }}
         run: |
           set -euo pipefail
+
+          service_label() {
+            case "$1" in
+              identity-access-service) echo "Identity and Access Service" ;;
+              project-service) echo "Project Service" ;;
+              pond-service) echo "Pond Service" ;;
+              sensor-service) echo "Sensor Service" ;;
+              ingestion-service) echo "Ingestion Service" ;;
+              notification-service) echo "Notification Service" ;;
+              realtime-gateway) echo "Realtime Gateway" ;;
+              analytics-service) echo "Analytics Service" ;;
+              audit-service) echo "Audit Service" ;;
+              *) echo "$1" ;;
+            esac
+          }
+
+          service_json() {
+            jq -n \
+              --arg id "$1" \
+              --arg name "$(service_label "$1")" \
+              '{id: $id, name: $name}'
+          }
 
           ALL_SERVICES=(
             identity-access-service
@@ -64,6 +87,11 @@ jobs:
 
           select_manual_services() {
             local raw="${INPUT_SERVICES:-identity-access-service}"
+            if [ "$raw" = "all" ] || [ "$raw" = "all-services" ]; then
+              printf '%s\n' "${ALL_SERVICES[@]}"
+              return
+            fi
+
             local requested=()
             IFS=',' read -ra parts <<< "$raw"
             for item in "${parts[@]}"; do
@@ -112,18 +140,30 @@ jobs:
             echo "any=false" >> "$GITHUB_OUTPUT"
             echo "services=[]" >> "$GITHUB_OUTPUT"
           else
-            json="$(printf '%s\n' "${selected[@]}" | jq -R . | jq -s -c .)"
+            json="$(for service in "${selected[@]}"; do service_json "$service"; done | jq -s -c .)"
             echo "any=true" >> "$GITHUB_OUTPUT"
             echo "services=$json" >> "$GITHUB_OUTPUT"
+          fi
+
+          labels=()
+          for service in "${selected[@]}"; do
+            labels+=("$(service_label "$service")")
+          done
+          if [ "${#labels[@]}" -eq 0 ]; then
+            label_text="none"
+          else
+            printf -v label_text "%s, " "${labels[@]}"
+            label_text="${label_text%, }"
           fi
 
           deploy_sha="$(git rev-parse HEAD)"
           short_sha="$(git rev-parse --short=12 HEAD)"
           echo "deploy-sha=$deploy_sha" >> "$GITHUB_OUTPUT"
           echo "short-sha=$short_sha" >> "$GITHUB_OUTPUT"
-          echo "Selected services: ${selected[*]:-none}"
+          echo "Selected services: $label_text"
 
   build-push:
+    name: Build, Scan & Push Image - ${{ matrix.service.name }}
     needs: detect-changes
     if: needs.detect-changes.outputs.any == 'true'
     runs-on: ubuntu-latest
@@ -151,7 +191,7 @@ jobs:
 
       - name: Build image
         env:
-          SERVICE: ${{ matrix.service }}
+          SERVICE: ${{ matrix.service.id }}
           DEPLOY_SHA: ${{ needs.detect-changes.outputs.deploy-sha }}
           SHORT_SHA: ${{ needs.detect-changes.outputs.short-sha }}
         run: |
@@ -166,14 +206,15 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
-          image-ref: ${{ env.GAR_HOST }}/${{ env.GCP_PROJECT_ID }}/${{ matrix.service }}/${{ matrix.service }}:${{ needs.detect-changes.outputs.deploy-sha }}
+          image-ref: ${{ env.GAR_HOST }}/${{ env.GCP_PROJECT_ID }}/${{ matrix.service.id }}/${{ matrix.service.id }}:${{ needs.detect-changes.outputs.deploy-sha }}
           severity: CRITICAL
           exit-code: '1'
           ignore-unfixed: true
 
       - name: Push image
         env:
-          SERVICE: ${{ matrix.service }}
+          SERVICE: ${{ matrix.service.id }}
+          SERVICE_NAME: ${{ matrix.service.name }}
           DEPLOY_SHA: ${{ needs.detect-changes.outputs.deploy-sha }}
           SHORT_SHA: ${{ needs.detect-changes.outputs.short-sha }}
         run: |
@@ -181,9 +222,10 @@ jobs:
           image="${GAR_HOST}/${GCP_PROJECT_ID}/${SERVICE}/${SERVICE}"
           docker push "${image}:${DEPLOY_SHA}"
           docker push "${image}:${SHORT_SHA}"
-          echo "- ${SERVICE}: ${image}:${DEPLOY_SHA}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ${SERVICE_NAME}: ${image}:${DEPLOY_SHA}" >> "$GITHUB_STEP_SUMMARY"
 
   gitops-update:
+    name: Update Kubernetes Manifests for Argo CD
     needs: [detect-changes, build-push]
     if: needs.detect-changes.outputs.any == 'true'
     runs-on: ubuntu-latest
@@ -197,7 +239,7 @@ jobs:
         with:
           kustomize-version: 5.4.3
 
-      - name: Update dev Kustomize image tags
+      - name: Update Kubernetes image tags
         env:
           SERVICES: ${{ needs.detect-changes.outputs.services }}
           SHORT_SHA: ${{ needs.detect-changes.outputs.short-sha }}
@@ -205,13 +247,13 @@ jobs:
           set -euo pipefail
           git pull --ff-only origin main
           cd k8s/overlays/dev
-          for service in $(echo "$SERVICES" | jq -r '.[]'); do
+          for service in $(echo "$SERVICES" | jq -r '.[].id'); do
             image="${GAR_HOST}/${GCP_PROJECT_ID}/${service}/${service}"
             kustomize edit set image "${service}=${image}:${SHORT_SHA}"
           done
           kustomize build .
 
-      - name: Commit GitOps handoff
+      - name: Commit Argo CD manifest update
         env:
           SHORT_SHA: ${{ needs.detect-changes.outputs.short-sha }}
         run: |

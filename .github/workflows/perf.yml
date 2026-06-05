@@ -2,7 +2,7 @@
 # slow, resource-hungry, and must target a DEPLOYED environment, never CI containers.
 # Triggers: the dedicated performance-test branch, or manual dispatch with a target URL.
 
-name: perf
+name: Performance Test Evidence - JMeter
 
 on:
   push:
@@ -24,10 +24,11 @@ permissions:
 
 jobs:
   jmeter:
+    name: JMeter Load Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check test plans exist
+      - name: Check JMeter test plans
         id: plans
         run: |
           if ls jmeter/*.jmx >/dev/null 2>&1; then
@@ -36,7 +37,7 @@ jobs:
             echo "found=false" >> "$GITHUB_OUTPUT"
             echo "::warning::No JMeter plans in jmeter/ yet — lane is wired, plans pending (tracked)."
           fi
-      - name: Run JMeter
+      - name: Run JMeter load test
         if: steps.plans.outputs.found == 'true'
         run: |
           sudo apt-get update -q && sudo apt-get install -yq jmeter
@@ -49,10 +50,10 @@ jobs:
               -Jduration="${{ inputs.duration || '120' }}" \
               -l "results/${name}.jtl" -e -o "results/${name}-report"
           done
-      - name: Upload performance evidence
+      - name: Publish performance evidence
         if: steps.plans.outputs.found == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: jmeter-results
+          name: Performance Evidence - JMeter Report
           path: results/
           retention-days: 30
