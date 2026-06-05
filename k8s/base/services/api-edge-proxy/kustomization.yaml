@@ -10,6 +10,7 @@ resources:
   - pdb.yaml
   - network-policy.yaml
   - authorization-policy.yaml
+  - peer-authentication.yaml
 
 labels:
   - pairs:

@@ -1,0 +1,10 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: api-edge-proxy-permissive-ingress
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api-edge-proxy
+  mtls:
+    mode: PERMISSIVE
