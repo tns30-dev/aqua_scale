@@ -32,16 +32,16 @@ Created resources:
 - GKE cluster: `aquashield-dev-gke`
 - GKE node pool: `aquashield-dev-primary`
 
-Cloud Armor result:
+Cloud Armor scope decision:
 
 ```text
-BLOCKED
+DESIGN_ONLY
 SECURITY_POLICIES quota: 0
 SECURITY_POLICY_RULES quota: 0
 SECURITY_POLICY_CEVAL_RULES quota: 0
 ```
 
-The failed Cloud Armor security-policy state entry was removed because GCP deleted the rejected policy. Dev Terraform now gates the security module with `enable_cloud_armor = false`; enable it only after quota is granted.
+Cloud Armor stays in the architecture/design docs, but runtime evidence is not required for this implementation. The failed security-policy state entry was removed because GCP deleted the rejected policy, and dev Terraform gates the security module with `enable_cloud_armor = false`.
 
 Final Terraform verification:
 

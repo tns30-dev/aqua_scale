@@ -44,7 +44,7 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [ ] | Frontend integration | React/Vite SPA integrated with REST API edge and WSS realtime gateway | [frontend.md](../main/frontend.md), [api_contract_docs.md](../main/api_contract_docs.md), [websocket.md](../main/websocket.md) |
 | [ ] | CDN | Firebase Hosting CDN for frontend; Cloud CDN only if additional backend static assets are used | [cdn.md](../main/cdn.md) |
 | [ ] | GCP API edge | External HTTPS Load Balancer, Gateway/Ingress, managed TLS | [api_gateway.md](../main/api_gateway.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
-| [ ] | Cloud Armor | WAF and rate-limit policy pending non-zero project quota | [api_gateway.md](../main/api_gateway.md), [network_security.md](../main/network_security.md) |
+| [ ] | Cloud Armor | Design documented; runtime evidence out of current scope | [api_gateway.md](../main/api_gateway.md), [network_security.md](../main/network_security.md) |
 | [ ] | WSS realtime endpoint | `wss://api.aquashield.example.com/ws` public WebSocket endpoint | [websocket.md](../main/websocket.md) |
 
 ## Data And Messaging

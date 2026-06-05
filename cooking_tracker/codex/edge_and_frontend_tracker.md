@@ -2,7 +2,7 @@
 
 Last updated: 2026-06-05
 
-Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
+Status legend: TODO, IN_PROGRESS, DONE, BLOCKED, DESIGN_ONLY
 
 ## Summary
 
@@ -19,7 +19,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Frontend integration | IN_PROGRESS | Identity, notification, realtime, analytics, pond/cycle/treatment/comparison adapters are wired to Java service contracts. Some local e2e gaps remain unowned by services: feature-access/action-controls, project summary, legacy pond historical. | `../../frontend/src/services/api.service.ts`, `../../frontend/src/test/services/api.service.test.ts`, `../../docs/evidence/frontend-analytics/2026-06-04-analytics-wiring.md` | 2026-06-04 |
 | CDN | TODO | Firebase Hosting CDN remains selected for frontend. Cloud CDN only applies if backend static assets are later introduced. | `../main/cdn.md` | 2026-06-05 |
 | GCP API edge | IN_PROGRESS | Gateway API and HTTPRoute skeleton route `/api/**` and `/ws` to implemented services; GKE GatewayClasses are live. Cloud LB is not provisioned yet because app sync is gated by Istio CRDs. | `../../k8s/base/edge/`, `../../k8s/overlays/dev/kustomization.yaml`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md` | 2026-06-05 |
-| Cloud Armor | BLOCKED | Project has zero Cloud Armor policy/rule quota; dev Terraform disables the policy until quota is granted. | `../../infra/modules/security/`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md`, `../main/api_gateway.md`, `../main/network_security.md` | 2026-06-05 |
+| Cloud Armor | DESIGN_ONLY | WAF/rate-limit control remains in architecture docs, but runtime implementation/evidence is out of current scope. Dev Terraform keeps the policy disabled. | `../../infra/modules/security/`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md`, `../main/api_gateway.md`, `../main/network_security.md` | 2026-06-05 |
 | WSS realtime endpoint | IN_PROGRESS | `/ws` route points to `realtime-gateway:8088`; public endpoint target remains `wss://api.aquashield.example.com/ws`. | `../../k8s/base/edge/http-route.yaml`, `../../docs/evidence/k8s-realtime-gateway/2026-06-04-realtime-gateway-kustomize-validation.md` | 2026-06-04 |
 
 ## Validation

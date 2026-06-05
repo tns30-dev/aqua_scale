@@ -7,10 +7,10 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns GCP foundation, GKE, service mesh, Kubernetes manifests, Artifact Registry, and Terraform remote state.
-- Current state: Terraform remote state bucket, nine Artifact Registry Docker repositories, GitHub OIDC/WIF deploy identity, VPC/subnet/secondary ranges, Cloud NAT, firewall rules, and a private-node GKE cluster are live in billed project `aerobic-guide-498413-u6`. Cloud Armor is disabled in dev because the project quota for security policies and rules is zero.
+- Current state: Terraform remote state bucket, nine Artifact Registry Docker repositories, GitHub OIDC/WIF deploy identity, VPC/subnet/secondary ranges, Cloud NAT, firewall rules, and a private-node GKE cluster are live in billed project `aerobic-guide-498413-u6`. Cloud Armor stays in the architecture design but is out of runtime evidence scope for this implementation.
 - Current test: `terraform fmt/validate`, clean Terraform plan, GKE node readiness, network/NAT/firewall verification, Gateway API availability, and live-cluster Kustomize dry-run preflight.
 - Next test: Install Istio CRDs/control plane or split mesh resources into a later sync wave, then install/connect Argo CD and prove GitOps sync plus workload health.
-- Inputs ready from user: GCP account, project, region, and zone are selected. Still need domain/certificate choice and Cloud Armor quota increase if WAF/rate-limit evidence is required.
+- Inputs ready from user: GCP account, project, region, and zone are selected. Still need domain/certificate choice for public edge evidence.
 
 ## Items
 
@@ -49,8 +49,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Post-WIF dev foundation plan | PASS; remaining plan is still `9 to add, 0 to change, 0 to destroy`. | 2026-06-05 |
 | All-service deploy handoff | PASS; all nine service images were built, scanned, pushed, and written into the dev Kustomize overlay. | 2026-06-05 |
 | Fresh runtime foundation plan | PASS; `/tmp/aquashield-dev-foundation-runtime.tfplan` proposes `9 to add, 0 to change, 0 to destroy` in `aerobic-guide-498413-u6`. | 2026-06-05 |
-| Runtime foundation apply | PASS with caveat; VPC, subnet, secondary ranges, NAT, firewall, GKE cluster, and node pool are live. Cloud Armor is blocked by zero quota and disabled in dev Terraform. | 2026-06-05 |
-| Final Terraform plan | PASS; after Cloud Armor quota handling, Terraform reports no changes. | 2026-06-05 |
+| Runtime foundation apply | PASS; VPC, subnet, secondary ranges, NAT, firewall, GKE cluster, and node pool are live. Cloud Armor is intentionally disabled for dev runtime evidence. | 2026-06-05 |
+| Final Terraform plan | PASS; with Cloud Armor disabled for dev evidence scope, Terraform reports no changes. | 2026-06-05 |
 | GKE node readiness | PASS; single private `e2-standard-2` node is `Ready`. | 2026-06-05 |
 | Live overlay preflight | BLOCKED; Gateway API exists, but Istio `AuthorizationPolicy` and `PeerAuthentication` CRDs are missing. | 2026-06-05 |
 
@@ -67,4 +67,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Applied the GitHub OIDC/WIF deploy identity slice through Terraform. GitHub Actions can impersonate the deployer service account from `tns30-dev/aqua_scale` on `main` and push to the nine service repositories. |
 | 2026-06-05 | Completed all-service image backfill. Artifact Registry and dev Kustomize are ready for GKE/Argo CD rollout once the runtime foundation is applied. |
 | 2026-06-05 | Aligned local `gcloud` project to `aerobic-guide-498413-u6` and regenerated the runtime foundation plan at `/tmp/aquashield-dev-foundation-runtime.tfplan`; remaining plan is `9 add`. |
-| 2026-06-05 | Applied the runtime foundation. GKE/network resources are live and Terraform is clean. Cloud Armor is quota-blocked (`SECURITY_POLICIES=0`, `SECURITY_POLICY_RULES=0`), so dev Terraform now disables that module until quota is granted. |
+| 2026-06-05 | Applied the runtime foundation. GKE/network resources are live and Terraform is clean. Cloud Armor remains architecture/design-only for this implementation and is disabled in dev Terraform. |

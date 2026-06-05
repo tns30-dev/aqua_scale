@@ -159,6 +159,6 @@ Subnet: aquashield-dev-gke-subnet
 Terraform final plan: no changes
 ```
 
-Cloud Armor did not apply because this project has zero quota for `SECURITY_POLICIES`, `SECURITY_POLICY_RULES`, and `SECURITY_POLICY_CEVAL_RULES`. Dev Terraform now sets `enable_cloud_armor = false`; turn it back on only after quota is granted.
+Cloud Armor remains in the architecture/design docs, but runtime implementation evidence is out of scope for this build. The project also has zero quota for `SECURITY_POLICIES`, `SECURITY_POLICY_RULES`, and `SECURITY_POLICY_CEVAL_RULES`, so dev Terraform sets `enable_cloud_armor = false`.
 
 The next cloud slice is Istio plus Argo CD rollout proof, not another Terraform foundation apply.

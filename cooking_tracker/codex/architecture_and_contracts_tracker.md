@@ -43,4 +43,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-04 | Updated Redis, API, service discovery, and Pub/Sub docs as implementation discoveries landed. |
 | 2026-06-05 | Rephrased tracker for Codex-only non-service ownership. |
 | 2026-06-05 | Confirmed deployment docs now have matching evidence for Artifact Registry image handoff and dev Kustomize references across all implemented services. |
-| 2026-06-05 | Confirmed physical/deployment architecture now has live GKE/network evidence; Cloud Armor is quota-blocked and edge rollout remains pending. |
+| 2026-06-05 | Confirmed physical/deployment architecture now has live GKE/network evidence; Cloud Armor remains design-only for this implementation and edge rollout remains pending. |
