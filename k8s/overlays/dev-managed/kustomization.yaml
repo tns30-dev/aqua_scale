@@ -33,9 +33,8 @@ patches:
       labelSelector: app.kubernetes.io/part-of=aquashield
     patch: |-
       - op: add
-        path: /spec/template/metadata/annotations
-        value:
-          aquashield.dev/managed-runtime-revision: "2026-06-05-real-pubsub"
+        path: /spec/template/metadata/annotations/aquashield.dev~1managed-runtime-revision
+        value: "2026-06-05-real-pubsub-v2"
 
 replacements:
   - source:
