@@ -55,7 +55,7 @@ images:
   newTag: 6c837a806ed3
 - name: identity-access-service
   newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/identity-access-service/identity-access-service
-  newTag: 6c837a806ed3
+  newTag: f4f6dd8667af
 - name: ingestion-service
   newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/ingestion-service/ingestion-service
   newTag: 6c837a806ed3
