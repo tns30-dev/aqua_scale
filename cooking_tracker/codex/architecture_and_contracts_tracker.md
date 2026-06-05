@@ -7,9 +7,9 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns architecture, contracts, diagrams, and cross-service integration documentation.
-- Current state: The main architecture and contract docs are already consolidated. Shared API artifacts exist under `shared-api/`, the CI/CD path proves all nine deployable service images can be handed to GitOps, and the GKE/network runtime foundation now exists in GCP.
-- Current test: Validate docs against implemented service contracts, generated proto files, JSON event schemas, Kustomize/Gateway routing, deploy-handoff evidence, and live GKE foundation evidence.
-- Next test: Re-check deployment and edge docs after Istio/Argo CD/Gateway rollout so diagrams and evidence match real running workloads.
+- Current state: The main architecture and contract docs are already consolidated. Shared API artifacts exist under `shared-api/`, the CI/CD path proves all nine deployable service images can be handed to GitOps, the GKE/network runtime foundation exists in GCP, and Argo CD has a healthy analytics smoke rollout.
+- Current test: Validate docs against implemented service contracts, generated proto files, JSON event schemas, Kustomize/Gateway routing, deploy-handoff evidence, live GKE foundation evidence, and Argo CD smoke evidence.
+- Next test: Re-check deployment and edge docs after public Gateway/LB/TLS rollout and after the full data-backed service stack replaces the smoke slice.
 
 ## Items
 
@@ -33,6 +33,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Tracker ownership rewrite | PASS; tracker no longer depends on Claude handoff language. | 2026-06-05 |
 | Deploy handoff alignment | PASS; all implemented services have images and dev GitOps image references. | 2026-06-05 |
 | Runtime foundation alignment | PASS; physical/deployment architecture now has live VPC, subnet, NAT, firewall, and private-node GKE evidence. | 2026-06-05 |
+| GitOps smoke alignment | PASS; deployment architecture now has live Istio, Argo CD, Artifact Registry pull, and analytics smoke workload evidence. | 2026-06-05 |
 
 ## Log
 
@@ -44,3 +45,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Rephrased tracker for Codex-only non-service ownership. |
 | 2026-06-05 | Confirmed deployment docs now have matching evidence for Artifact Registry image handoff and dev Kustomize references across all implemented services. |
 | 2026-06-05 | Confirmed physical/deployment architecture now has live GKE/network evidence; Cloud Armor remains design-only for this implementation and edge rollout remains pending. |
+| 2026-06-05 | Confirmed GitOps architecture now has live evidence through Argo CD `Synced/Healthy` smoke rollout from commit `6ce1f08`. |

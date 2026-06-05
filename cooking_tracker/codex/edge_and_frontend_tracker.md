@@ -7,9 +7,9 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED, DESIGN_ONLY
 ## Summary
 
 - Ownership: Codex owns frontend deployment, CDN, public API edge, Cloud Armor, WSS endpoint, and frontend-to-service integration.
-- Current state: Local gateway route rehearsal and frontend Java-service wiring are in progress. Dev Kustomize points all nine backend services to Artifact Registry images, and GKE Gateway API classes are available on the live cluster. Public Gateway/LB/WSS and Firebase Hosting are not deployed.
-- Current test: Frontend tests/build, Kustomize render for Gateway/HTTPRoute manifests, all-service image substitution, GKE GatewayClass discovery, and live-cluster dry-run preflight.
-- Next test: Install Istio or split mesh resources, then sync the dev overlay through Argo CD and provision Gateway/LB/WSS edge. Firebase preview/staging remains separate.
+- Current state: Local gateway route rehearsal and frontend Java-service wiring are in progress. Dev Kustomize points all nine backend services to Artifact Registry images, GKE Gateway API classes are available, and Argo CD has a healthy analytics smoke rollout. Public Gateway/LB/WSS and Firebase Hosting are not deployed.
+- Current test: Frontend tests/build, Kustomize render for Gateway/HTTPRoute manifests, all-service image substitution, GKE GatewayClass discovery, Argo CD smoke sync, and internal analytics `/healthz` smoke.
+- Next test: Provision Gateway/LB/WSS edge after choosing a domain/TLS approach and deciding whether to keep the public edge on the analytics smoke slice or wait for the full runtime stack. Firebase preview/staging remains separate.
 
 ## Items
 
@@ -18,7 +18,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED, DESIGN_ONLY
 | Firebase Hosting | TODO | Frontend hosting workflow exists but deploy jobs skip until Firebase service account and project vars are configured. | `../../.github/workflows/frontend-ci-cd.yml`, `../main/frontend_deployment.md` | 2026-06-04 |
 | Frontend integration | IN_PROGRESS | Identity, notification, realtime, analytics, pond/cycle/treatment/comparison adapters are wired to Java service contracts. Some local e2e gaps remain unowned by services: feature-access/action-controls, project summary, legacy pond historical. | `../../frontend/src/services/api.service.ts`, `../../frontend/src/test/services/api.service.test.ts`, `../../docs/evidence/frontend-analytics/2026-06-04-analytics-wiring.md` | 2026-06-04 |
 | CDN | TODO | Firebase Hosting CDN remains selected for frontend. Cloud CDN only applies if backend static assets are later introduced. | `../main/cdn.md` | 2026-06-05 |
-| GCP API edge | IN_PROGRESS | Gateway API and HTTPRoute skeleton route `/api/**` and `/ws` to implemented services; GKE GatewayClasses are live. Cloud LB is not provisioned yet because app sync is gated by Istio CRDs. | `../../k8s/base/edge/`, `../../k8s/overlays/dev/kustomization.yaml`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md` | 2026-06-05 |
+| GCP API edge | IN_PROGRESS | Gateway API and HTTPRoute skeleton route `/api/**` and `/ws` to implemented services; GKE GatewayClasses are live. Cloud LB is deferred until a domain/TLS choice and runtime-scope decision are made. | `../../k8s/base/edge/`, `../../k8s/overlays/dev/kustomization.yaml`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md`, `../../docs/evidence/gitops/2026-06-05-argocd-dev-smoke-rollout.md` | 2026-06-05 |
 | Cloud Armor | DESIGN_ONLY | WAF/rate-limit control remains in architecture docs, but runtime implementation/evidence is out of current scope. Dev Terraform keeps the policy disabled. | `../../infra/modules/security/`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md`, `../main/api_gateway.md`, `../main/network_security.md` | 2026-06-05 |
 | WSS realtime endpoint | IN_PROGRESS | `/ws` route points to `realtime-gateway:8088`; public endpoint target remains `wss://api.aquashield.example.com/ws`. | `../../k8s/base/edge/http-route.yaml`, `../../docs/evidence/k8s-realtime-gateway/2026-06-04-realtime-gateway-kustomize-validation.md` | 2026-06-04 |
 
@@ -32,7 +32,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED, DESIGN_ONLY
 | Tracker ownership rewrite | PASS; edge/frontend is Codex-owned. | 2026-06-05 |
 | Dev overlay image substitution | PASS; all nine service images resolve to Artifact Registry tag `783c78a16381`. | 2026-06-05 |
 | GKE Gateway API availability | PASS; GKE GatewayClasses are present and accepted. | 2026-06-05 |
-| Dev overlay live preflight | BLOCKED; Istio CRDs are missing for mesh resources in the overlay. | 2026-06-05 |
+| Istio and Argo runtime prerequisite | PASS; Istio and Argo CD are installed, and the analytics smoke slice is `Synced/Healthy`. | 2026-06-05 |
+| Public edge rollout | PENDING; no public Gateway/LB/TLS endpoint has been provisioned yet. | 2026-06-05 |
 
 ## Log
 
@@ -43,4 +44,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED, DESIGN_ONLY
 | 2026-06-04 | Updated `/ws` and `/api/audit` edge routes to implemented services. |
 | 2026-06-05 | Rephrased tracker for Codex-only non-service ownership. |
 | 2026-06-05 | All-service Artifact Registry backfill updated the dev overlay; edge deployment is now waiting on GKE/Gateway/LB runtime resources. |
-| 2026-06-05 | GKE runtime foundation is live and Gateway API is available. Public edge rollout is gated by Istio CRDs and then Argo CD sync. |
+| 2026-06-05 | GKE runtime foundation is live, Gateway API is available, and Argo CD smoke sync is healthy. Public edge rollout is now gated by domain/TLS and runtime-scope decisions, not by missing Istio/Argo prerequisites. |

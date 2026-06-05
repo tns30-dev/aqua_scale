@@ -7,9 +7,9 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns managed data services, event infrastructure, AWS IoT ingress, the Lambda bridge, and Terraform-managed infrastructure.
-- Current state: Local equivalents are heavily exercised through Docker Compose, Flyway, Redis, Pub/Sub emulator, and Bigtable emulator. GCP remote state, Artifact Registry, GitHub OIDC/WIF, VPC/NAT/firewall, GKE, and all-service image backfill are provisioned; managed data resources and AWS IoT/Lambda are not provisioned yet.
-- Current test: Local service integration tests, Pub/Sub emulator flows, Redis key evidence, Terraform validation, remote-state apply, Artifact Registry apply, GKE runtime apply, and all-service deploy handoff.
-- Next test: Add cost-bounded Terraform modules for Pub/Sub and managed data services after the Argo CD/runtime app sync path is stable.
+- Current state: Local equivalents are heavily exercised through Docker Compose, Flyway, Redis, Pub/Sub emulator, and Bigtable emulator. GCP remote state, Artifact Registry, GitHub OIDC/WIF, VPC/NAT/firewall, GKE, Istio, Argo CD, and all-service image backfill are provisioned. The live cloud smoke path is analytics-only and intentionally avoids PostgreSQL/Redis/Pub/Sub until cost/quota decisions are made.
+- Current test: Local service integration tests, Pub/Sub emulator flows, Redis key evidence, Terraform validation, remote-state apply, Artifact Registry apply, GKE runtime apply, all-service deploy handoff, and analytics-only Argo smoke rollout.
+- Next test: Add cost-bounded Terraform modules or emulator-backed in-cluster dependencies for PostgreSQL/Redis/Pub/Sub so the full `k8s/overlays/dev` service stack can move beyond smoke mode.
 - Inputs ready from user: GCP account, project, region, and AWS account exist. Still need AWS account/region confirmation, data-service cost ceilings, and whether AWS IoT/Lambda should be Terraform-managed or manually evidenced.
 
 ## Items
@@ -38,6 +38,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Artifact Registry Terraform apply | PASS; repository resources are in remote state and verified in GCP. | 2026-06-05 |
 | GitHub OIDC/WIF Terraform apply | PASS; deployer identity and repository writer bindings are in remote state. | 2026-06-05 |
 | GKE runtime foundation Terraform apply | PASS; network/GKE resources are in remote state and final plan is clean. | 2026-06-05 |
+| Runtime dependency gap | EXPECTED; the full nine-service rollout needs PostgreSQL, Redis, Pub/Sub, and JWT secret provisioning before it can be healthy. | 2026-06-05 |
+| Data-free smoke path | PASS; analytics-only smoke rollout avoids managed data dependencies and returns `/healthz` from live GKE. | 2026-06-05 |
 
 ## Log
 
@@ -51,3 +53,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Artifact Registry resources applied through Terraform remote state. Data stores, Pub/Sub cloud topics, and AWS IoT/Lambda remain separate future slices. |
 | 2026-06-05 | GitHub OIDC/WIF and all-service image backfill completed; runtime foundation is now the blocker before managed data and Pub/Sub cloud slices. |
 | 2026-06-05 | Runtime foundation applied through Terraform. Managed data, Pub/Sub cloud topics, and AWS IoT/Lambda remain separate future slices after app rollout proof. |
+| 2026-06-05 | Proved the data-free GitOps smoke path with analytics-service. Full runtime health is now gated by the managed data/messaging slice or explicit billing/quota expansion. |

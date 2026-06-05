@@ -30,9 +30,9 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [x] | Cloud NAT | Controlled outbound egress for private nodes | [network_security.md](../main/network_security.md) |
 | [ ] | Private Google Access / PSC | Private Google Access enabled; PSC deferred to managed data modules | [network_security.md](../main/network_security.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
 | [x] | VPC firewall rules | Health check and internal GKE firewall controls | [network_security.md](../main/network_security.md) |
-| [ ] | Kubernetes NetworkPolicy | Pod-to-pod traffic controls | [network_security.md](../main/network_security.md), [gke.md](../main/gke.md) |
-| [ ] | Istio service mesh | mTLS, AuthorizationPolicy, service identity controls | [service_discovery.md](../main/service_discovery.md), [network_security.md](../main/network_security.md) |
-| [ ] | Namespaces | Environment namespaces created | [gke.md](../main/gke.md) |
+| [x] | Kubernetes NetworkPolicy | Default-deny and analytics smoke ingress controls live in GKE | [network_security.md](../main/network_security.md), [gke.md](../main/gke.md) |
+| [x] | Istio service mesh | Istio control plane, sidecar injection, strict mTLS, and AuthorizationPolicy proven on smoke slice | [service_discovery.md](../main/service_discovery.md), [network_security.md](../main/network_security.md) |
+| [x] | Namespaces | `aquashield-dev` namespace created with Istio injection enabled | [gke.md](../main/gke.md) |
 | [x] | Artifact Registry | Container repositories created | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
 | [x] | Terraform remote state | Google Cloud Storage bucket stores Terraform state | [terraform.md](../main/terraform.md) |
 
@@ -70,7 +70,7 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [x] | Identity authorization snapshot | Feature access and ACL stored in Redis after login | [identity_and_access_service.md](../main/identity_and_access_service.md), [redis.md](../main/redis.md) |
 | [x] | Token lifecycle | Login, refresh rotation, logout, revocation, MFA optional state | [identity_and_access_service.md](../main/identity_and_access_service.md), [authn_authz.md](../main/authn_authz.md) |
 | [ ] | Three-layer firewall model | Internet-to-web, web-to-app, app-to-app, app-to-data controls | [network_security.md](../main/network_security.md) |
-| [ ] | Service-to-service protection | Kubernetes service identity, Istio mTLS, AuthorizationPolicy | [service_discovery.md](../main/service_discovery.md), [network_security.md](../main/network_security.md) |
+| [x] | Service-to-service protection | Kubernetes service identity, Istio strict mTLS, and AuthorizationPolicy proven on the live smoke slice | [service_discovery.md](../main/service_discovery.md), [network_security.md](../main/network_security.md) |
 | [ ] | Security evidence | SAST, SCA, secret scan, container scan, DAST reports | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
 
 ## CI/CD And Testing
@@ -80,8 +80,8 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [x] | Path-aware CI workflows | Build/test/scan only affected services | [ci.md](../main/ci.md) |
 | [x] | Artifact Registry push | All nine implemented service images pushed with Git-SHA tags | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
 | [x] | GitOps manifest update | Dev Kustomize image tags updated for all nine services | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
-| [ ] | Argo CD rollout | Argo CD sync and health evidence | [cd.md](../main/cd.md) |
-| [ ] | Smoke tests | Health and contract checks after deployment | [cd.md](../main/cd.md) |
+| [x] | Argo CD rollout | Argo CD sync and health evidence for quota-safe dev smoke slice | [cd.md](../main/cd.md) |
+| [x] | Smoke tests | Analytics `/healthz` smoke passed through live GKE service port-forward | [cd.md](../main/cd.md) |
 | [ ] | DAST | OWASP ZAP or equivalent scan after deployment | [cd.md](../main/cd.md) |
 | [ ] | JMeter load and stress tests | Evidence from dedicated `performance-test` branch or manual dispatch | [ci.md](../main/ci.md) |
 | [ ] | Demo evidence | Screenshots, logs, videos, cloud console proof | All docs |
