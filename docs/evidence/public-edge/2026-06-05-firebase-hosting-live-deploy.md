@@ -187,3 +187,15 @@ HTTP 200 body contains:
 ```
 
 Interpretation: Namecheap DNS is correct and public, Firebase Hosting has accepted host ownership for `www.aquashield.live`, and browser-valid HTTPS serves the AquaShield SPA. Firebase's API still reports the certificate as `CERT_PROPAGATING`, which is the expected provider-side rollout state after the domain is already reachable.
+
+## API CORS Follow-Up
+
+The deployed SPA calls `https://api.aquashield.live` from `https://www.aquashield.live`, so browser API access requires an API-edge CORS allow-list. That follow-up fix is recorded separately:
+
+```text
+docs/evidence/public-edge/2026-06-05-api-edge-cors-fix.md
+
+https://www.aquashield.live preflight: HTTP/2 204 with Access-Control-Allow-Origin
+https://www.aquashield.live login: HTTP/2 200 with Access-Control-Allow-Origin
+unknown origin preflight: HTTP/2 204 without Access-Control-Allow-Origin
+```

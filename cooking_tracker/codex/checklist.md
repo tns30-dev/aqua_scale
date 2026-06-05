@@ -41,9 +41,9 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | Status | Item | Output | Reference Doc |
 |---|---|---|---|
 | [x] | Firebase Hosting | React/Vite SPA deployed to Firebase Hosting default site and custom domain `https://www.aquashield.live`; bundle points at the live API/WSS edge | [frontend_deployment.md](../main/frontend_deployment.md), [cdn.md](../main/cdn.md) |
-| [x] | Frontend integration | React/Vite SPA production bundle points at public REST/WSS edge `https://api.aquashield.live` / `wss://api.aquashield.live` and is deployed on Firebase Hosting | [frontend.md](../main/frontend.md), [api_contract_docs.md](../main/api_contract_docs.md), [websocket.md](../main/websocket.md) |
+| [x] | Frontend integration | React/Vite SPA production bundle points at public REST/WSS edge `https://api.aquashield.live` / `wss://api.aquashield.live`, is deployed on Firebase Hosting, and passes live frontend-to-API CORS checks | [frontend.md](../main/frontend.md), [api_contract_docs.md](../main/api_contract_docs.md), [websocket.md](../main/websocket.md) |
 | [x] | CDN | Firebase Hosting CDN serves the deployed frontend over `https://www.aquashield.live` | [cdn.md](../main/cdn.md) |
-| [x] | GCP API edge | `https://api.aquashield.live` is live on GKE Gateway with static IP `8.232.154.25`, active Google-managed cert, healthy backend, Argo `Synced/Healthy`, and public business-flow smoke evidence | [api_gateway.md](../main/api_gateway.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
+| [x] | GCP API edge | `https://api.aquashield.live` is live on GKE Gateway with static IP `8.232.154.25`, active Google-managed cert, healthy backend, Argo `Synced/Healthy`, public business-flow smoke evidence, and frontend-origin CORS allow-list proof | [api_gateway.md](../main/api_gateway.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
 | [ ] | Cloud Armor | Design documented; runtime evidence out of current scope | [api_gateway.md](../main/api_gateway.md), [network_security.md](../main/network_security.md) |
 | [x] | WSS realtime endpoint | Public edge routes `/ws` to `realtime-gateway`; business smoke proved realtime token minting through `https://api.aquashield.live` and the frontend should use `wss://api.aquashield.live` | [websocket.md](../main/websocket.md) |
 
@@ -71,7 +71,7 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [x] | Token lifecycle | Login, refresh rotation, logout, revocation, MFA optional state | [identity_and_access_service.md](../main/identity_and_access_service.md), [authn_authz.md](../main/authn_authz.md) |
 | [x] | Three-layer firewall model | Internet-to-Gateway, Gateway-to-proxy, mesh app-to-app, and app-to-managed-data controls are live; Cloud Armor remains design-only | [network_security.md](../main/network_security.md) |
 | [x] | Service-to-service protection | Kubernetes service identity, Istio strict mTLS, and AuthorizationPolicy proven on the live managed dev runtime | [service_discovery.md](../main/service_discovery.md), [network_security.md](../main/network_security.md) |
-| [ ] | Security evidence | CI security gates, SAST/SCA/secret/SBOM evidence, mesh controls, WIF, and public HTTPS edge are proved; DAST remains pending | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
+| [ ] | Security evidence | CI security gates, SAST/SCA/secret/SBOM evidence, mesh controls, WIF, public HTTPS edge, and frontend CORS allow-list are proved; DAST remains pending | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
 
 ## CI/CD And Testing
 
@@ -80,8 +80,8 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [x] | Path-aware CI workflows | Build/test/scan only affected services | [ci.md](../main/ci.md) |
 | [x] | Artifact Registry push | All nine implemented service images pushed with Git-SHA tags | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
 | [x] | GitOps manifest update | Dev Kustomize image tags updated for all nine services | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
-| [x] | Argo CD rollout | Argo CD sync and health evidence for the managed-backed nine-service dev runtime | [cd.md](../main/cd.md) |
+| [x] | Argo CD rollout | Argo CD sync and health evidence for the managed-backed public dev runtime, including the API edge CORS rollout | [cd.md](../main/cd.md) |
 | [x] | Smoke tests | Managed-backed business flow passed internally, through AWS IoT/Lambda, and through public `https://api.aquashield.live` across identity, project, pond, sensor, ingestion, notification, realtime, analytics, and audit surfaces | [cd.md](../main/cd.md) |
 | [ ] | DAST | OWASP ZAP or equivalent scan after deployment | [cd.md](../main/cd.md) |
 | [ ] | JMeter load and stress tests | Evidence from dedicated `performance-test` branch or manual dispatch | [ci.md](../main/ci.md) |
-| [ ] | Demo evidence | Managed runtime rollout, direct Pub/Sub business smoke, AWS IoT/Lambda live smoke, public HTTPS edge live smoke, Firebase Hosting custom-domain live deploy, and CI/SAST recovery evidence recorded; DAST and performance evidence remain | All docs |
+| [ ] | Demo evidence | Managed runtime rollout, direct Pub/Sub business smoke, AWS IoT/Lambda live smoke, public HTTPS edge live smoke, Firebase Hosting custom-domain live deploy, API edge CORS proof, and CI/SAST recovery evidence recorded; DAST and performance evidence remain | All docs |
