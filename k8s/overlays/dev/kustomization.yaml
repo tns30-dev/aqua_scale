@@ -12,9 +12,7 @@ labels:
   pairs:
     app.kubernetes.io/environment: dev
 patches:
-- target:
-    kind: Deployment
-  patch: |-
+- patch: |-
     - op: replace
       path: /spec/replicas
       value: 1
@@ -37,15 +35,17 @@ patches:
     - op: replace
       path: /spec/template/spec/containers/0/resources/limits/memory
       value: 512Mi
-- target:
-    kind: HorizontalPodAutoscaler
-  patch: |-
+  target:
+    kind: Deployment
+- patch: |-
     - op: replace
       path: /spec/minReplicas
       value: 1
     - op: replace
       path: /spec/maxReplicas
       value: 1
+  target:
+    kind: HorizontalPodAutoscaler
 images:
 - name: analytics-service
   newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/analytics-service/analytics-service
@@ -55,7 +55,7 @@ images:
   newTag: 783c78a16381
 - name: identity-access-service
   newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/identity-access-service/identity-access-service
-  newTag: 783c78a16381
+  newTag: fa024d3554c0
 - name: ingestion-service
   newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/ingestion-service/ingestion-service
   newTag: 783c78a16381
