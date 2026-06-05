@@ -14,6 +14,7 @@ import hmac
 import json
 import os
 import secrets
+import subprocess
 import sys
 import time
 import uuid
@@ -150,6 +151,49 @@ def publish_pubsub(project_id: str, topic: str, access_token: str, envelopes: li
         raise SmokeError(f"Pub/Sub publish failed: {exc}") from exc
 
 
+def publish_aws_iot(
+    *,
+    endpoint: str,
+    topic: str,
+    client_id: str,
+    ca_path: str,
+    cert_path: str,
+    key_path: str,
+    payloads: list[dict[str, Any]],
+) -> None:
+    command_base = [
+        env("AWS_IOT_MOSQUITTO_BIN", "mosquitto_pub"),
+        "-h",
+        endpoint,
+        "-p",
+        "8883",
+        "--cafile",
+        ca_path,
+        "--cert",
+        cert_path,
+        "--key",
+        key_path,
+        "-i",
+        client_id,
+        "-q",
+        "1",
+        "-t",
+        topic,
+    ]
+    for payload in payloads:
+        rendered = json.dumps(payload, separators=(",", ":"), sort_keys=True)
+        result = subprocess.run(
+            [*command_base, "-m", rendered],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            stderr = result.stderr.strip() or result.stdout.strip()
+            raise SmokeError(f"AWS IoT publish failed with exit {result.returncode}: {stderr}")
+
+
 def wait_for(label: str, attempts: int, delay_seconds: float, probe):
     last_error: Exception | None = None
     for _ in range(attempts):
@@ -172,18 +216,56 @@ def first_by(items: list[dict[str, Any]], key: str, value: str) -> dict[str, Any
     raise SmokeError(f"Missing {key}={value}")
 
 
+def find_by(items: list[dict[str, Any]], key: str, value: str) -> dict[str, Any] | None:
+    for item in items:
+        if item.get(key) == value:
+            return item
+    return None
+
+
+def ensure_device(b: Bases, token: str, device_code: str, device_name: str, device_key: str) -> dict[str, Any]:
+    existing = find_by(http_json(b.sensor, "GET", "/api/iot-devices", token=token), "device_code", device_code)
+    if existing:
+        return http_json(
+            b.sensor,
+            "PATCH",
+            f"/api/iot-devices/{existing['iot_device_id']}",
+            token=token,
+            body={
+                "device_name": device_name,
+                "status": "online",
+                "is_active": True,
+                "device_key": device_key,
+            },
+        )
+    return http_json(
+        b.sensor,
+        "POST",
+        "/api/iot-devices",
+        token=token,
+        body={
+            "device_code": device_code,
+            "device_name": device_name,
+            "device_key": device_key,
+        },
+        expected=(201,),
+    )
+
+
 def run() -> dict[str, Any]:
     b = bases()
     admin_email = env("SMOKE_ADMIN_EMAIL", "admin@aquashield.local")
     admin_password = env("SMOKE_ADMIN_PASSWORD", "AdminBoot123!", required=True)
     pubsub_project = env("PUBSUB_PROJECT_ID", required=True)
     pubsub_topic = env("PUBSUB_TOPIC", "iot.telemetry.received")
-    access_token = env("GCP_ACCESS_TOKEN", required=True)
+    publisher = env("SMOKE_PUBLISHER", "pubsub").lower()
 
     suffix = datetime.now(SGT).strftime("%Y%m%d-%H%M%S")
     project_name = f"Managed Smoke Farm {suffix}"
-    device_code = f"DEV-CLOUD-SMOKE-{suffix}"
-    device_key = secrets.token_urlsafe(32)
+    device_code = env("SMOKE_DEVICE_CODE", f"DEV-CLOUD-SMOKE-{suffix}")
+    device_key = env("SMOKE_DEVICE_KEY", secrets.token_urlsafe(32))
+    port_a = env("SMOKE_PORT_A", "A1")
+    port_b = env("SMOKE_PORT_B", "A2")
 
     print_step("identity login and audit emission")
     login = http_json(
@@ -278,18 +360,7 @@ def run() -> dict[str, Any]:
         },
         expected=(201,),
     )
-    http_json(
-        b.sensor,
-        "POST",
-        "/api/iot-devices",
-        token=token,
-        body={
-            "device_code": device_code,
-            "device_name": f"Managed Smoke Gateway {suffix}",
-            "device_key": device_key,
-        },
-        expected=(201,),
-    )
+    ensure_device(b, token, device_code, f"Managed Smoke Gateway {suffix}", device_key)
     http_json(
         b.sensor,
         "POST",
@@ -299,7 +370,7 @@ def run() -> dict[str, Any]:
             "pond_id": pond_a_id,
             "sensor_type_id": sensor_type["sensor_type_id"],
             "device_code": device_code,
-            "port": "A1",
+            "port": port_a,
             "serial_number": f"MS-A-{suffix}",
         },
         expected=(201,),
@@ -313,7 +384,7 @@ def run() -> dict[str, Any]:
             "pond_id": pond_b_id,
             "sensor_type_id": sensor_type["sensor_type_id"],
             "device_code": device_code,
-            "port": "A2",
+            "port": port_b,
             "serial_number": f"MS-B-{suffix}",
         },
         expected=(201,),
@@ -346,7 +417,7 @@ def run() -> dict[str, Any]:
         },
     )
 
-    print_step("publish signed telemetry to real Pub/Sub")
+    print_step(f"publish signed telemetry via {publisher}")
     now = datetime.now(timezone.utc).replace(microsecond=0)
     ts = int(now.timestamp())
     seq = int(time.time() * 1000)
@@ -367,7 +438,7 @@ def run() -> dict[str, Any]:
         now,
         [
             {
-                "port": "A1",
+                "port": port_a,
                 "readings": [
                     {"parameter": "temperature", "value": 27.8},
                     {"parameter": "ph", "value": 9.2},
@@ -378,7 +449,7 @@ def run() -> dict[str, Any]:
                 ],
             },
             {
-                "port": "A2",
+                "port": port_b,
                 "readings": [
                     {"parameter": "temperature", "value": 28.3},
                     {"parameter": "ph", "value": 7.8},
@@ -393,30 +464,46 @@ def run() -> dict[str, Any]:
     breach = payload(
         seq + 1,
         now,
-        [{"port": "A1", "readings": [{"parameter": "ph", "value": 9.2}]}],
+        [{"port": port_a, "readings": [{"parameter": "ph", "value": 9.2}]}],
     )
     correlation_id = str(uuid.uuid4())
-    envelopes = [
-        {
-            "eventId": str(uuid.uuid4()),
-            "eventType": "iot.telemetry.received",
-            "schemaVersion": "v1",
-            "occurredAt": now.isoformat().replace("+00:00", "Z"),
-            "source": "managed-business-smoke",
-            "correlationId": correlation_id,
-            "payload": normal,
-        },
-        {
-            "eventId": str(uuid.uuid4()),
-            "eventType": "iot.telemetry.received",
-            "schemaVersion": "v1",
-            "occurredAt": now.isoformat().replace("+00:00", "Z"),
-            "source": "managed-business-smoke",
-            "correlationId": correlation_id,
-            "payload": breach,
-        },
-    ]
-    publish_pubsub(pubsub_project, pubsub_topic, access_token, envelopes)
+    mqtt_topic = ""
+    if publisher == "pubsub":
+        access_token = env("GCP_ACCESS_TOKEN", required=True)
+        envelopes = [
+            {
+                "eventId": str(uuid.uuid4()),
+                "eventType": "iot.telemetry.received",
+                "schemaVersion": "v1",
+                "occurredAt": now.isoformat().replace("+00:00", "Z"),
+                "source": "managed-business-smoke",
+                "correlationId": correlation_id,
+                "payload": normal,
+            },
+            {
+                "eventId": str(uuid.uuid4()),
+                "eventType": "iot.telemetry.received",
+                "schemaVersion": "v1",
+                "occurredAt": now.isoformat().replace("+00:00", "Z"),
+                "source": "managed-business-smoke",
+                "correlationId": correlation_id,
+                "payload": breach,
+            },
+        ]
+        publish_pubsub(pubsub_project, pubsub_topic, access_token, envelopes)
+    elif publisher == "aws_iot":
+        mqtt_topic = env("AWS_IOT_TOPIC", f"{env('AWS_IOT_TOPIC_PREFIX', 'aquashield/dev/telemetry')}/{device_code}")
+        publish_aws_iot(
+            endpoint=env("AWS_IOT_ENDPOINT", required=True),
+            topic=mqtt_topic,
+            client_id=env("AWS_IOT_CLIENT_ID", device_code),
+            ca_path=env("AWS_IOT_CA_PATH", required=True),
+            cert_path=env("AWS_IOT_CERT_PATH", required=True),
+            key_path=env("AWS_IOT_KEY_PATH", required=True),
+            payloads=[normal, breach],
+        )
+    else:
+        raise SmokeError(f"Unsupported SMOKE_PUBLISHER: {publisher}")
 
     today = datetime.now(SGT).date().isoformat()
 
@@ -497,6 +584,9 @@ def run() -> dict[str, Any]:
         "projectName": project_name,
         "ponds": {"alpha": pond_a_id, "beta": pond_b_id},
         "deviceCode": device_code,
+        "ports": {"alpha": port_a, "beta": port_b},
+        "publisher": publisher,
+        "mqttTopic": mqtt_topic or None,
         "pubsubProject": pubsub_project,
         "pubsubTopic": pubsub_topic,
         "correlationId": correlation_id,

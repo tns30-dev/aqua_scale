@@ -48,5 +48,5 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED, DESIGN_ONLY
 | 2026-06-05 | Rephrased tracker for Codex-only non-service ownership. |
 | 2026-06-05 | All-service Artifact Registry backfill updated the dev overlay; edge deployment is now waiting on GKE/Gateway/LB runtime resources. |
 | 2026-06-05 | GKE runtime foundation is live, Gateway API is available, and Argo CD managed-runtime sync is healthy. Public edge rollout is now gated by domain/TLS, not by missing Istio/Argo or data-runtime prerequisites. |
-| 2026-06-05 | Managed-backed business smoke passed internally; public edge/Firebase work now follows the AWS IoT/Lambda bridge slice. |
+| 2026-06-05 | Managed-backed business smoke passed internally; AWS IoT/Lambda bridge is now live, so public edge/Firebase is the next deployment slice. |
 | 2026-06-05 | Added `dev-managed-public` Gateway overlay and Firebase readiness evidence. Live HTTP Gateway apply requires explicit approval or a domain/TLS path. |
