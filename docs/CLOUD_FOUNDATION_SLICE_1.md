@@ -140,12 +140,11 @@ Services: analytics-service, audit-service, identity-access-service, ingestion-s
 Current reachable GitOps commit: c6724db
 ```
 
-Current `main` verification after repository metadata cleanup also passed:
+Repository metadata cleanup verification also passed:
 
 ```text
 CI run: https://github.com/tns30-dev/aqua_scale/actions/runs/26989856501
 Deploy-handoff run: https://github.com/tns30-dev/aqua_scale/actions/runs/26989888972
-Head commit: 8d3b299
 ```
 
 The original full dev plan at `/tmp/aquashield-dev-foundation.tfplan` is now stale because the registry and WIF resources have already been applied. A fresh runtime foundation plan succeeds and is saved locally at `/tmp/aquashield-dev-foundation-runtime.tfplan`. It proposes 9 resources: VPC/subnet/NAT/firewall, Cloud Armor policy, and a single-zone private-node GKE cluster/node pool.

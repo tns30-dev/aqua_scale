@@ -7,7 +7,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns CI/CD, GitOps handoff, Argo CD rollout proof, post-deploy smoke tests, DAST, JMeter, and demo evidence.
-- Current state: Path-aware CI is proven and already builds/tests/scans/containerizes changed services. `deploy-handoff.yml` successfully pushed all nine implemented service images to Artifact Registry and committed the dev Kustomize tag update to `783c78a16381`; current reachable `main` is verified at commit `8d3b299`.
+- Current state: Path-aware CI is proven and already builds/tests/scans/containerizes changed services. `deploy-handoff.yml` successfully pushed all nine implemented service images to Artifact Registry and committed the dev Kustomize tag update to `783c78a16381`.
 - Current test: GitHub Actions CI evidence, Terraform WIF apply, all-service deploy-handoff run, Artifact Registry tag verification, local Kustomize render, local e2e harness, and security gate evidence.
 - Next test: Apply the remaining GKE/network foundation, install/connect Argo CD, then prove sync plus healthy rollout from the GitOps tag.
 - Inputs ready from user: GCP account, project, region, repositories, WIF provider, and deployer service account are ready. Still need Argo CD deployment decision for live rollout.
@@ -39,7 +39,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Artifact Registry tag verification | PASS; full SHA and short SHA tags exist for `identity-access-service` and point to digest `sha256:b6b9d8d5e25ee1577336bf54528ed820e8a7a401adb684a72496501bf9f3bd07`. | 2026-06-05 |
 | All-service Artifact Registry backfill | PASS; run `26971844902` built, scanned, and pushed all nine service images. | 2026-06-05 |
 | All-service GitOps tag update | PASS; current reachable commit `c6724db` points every dev service image to `783c78a16381`. | 2026-06-05 |
-| Current main CI verification | PASS; CI run `26989856501` and deploy-handoff run `26989888972` completed successfully for current `main` commit `8d3b299`. | 2026-06-05 |
+| Repository metadata cleanup verification | PASS; CI run `26989856501` and deploy-handoff run `26989888972` completed successfully after the `main` history cleanup. | 2026-06-05 |
 
 ## Log
 
@@ -52,4 +52,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Provisioned GitHub OIDC/WIF deploy identity and added `deploy-handoff.yml` for selected-service image push plus dev Kustomize tag update. |
 | 2026-06-05 | Proved the deploy handoff through GitHub Actions run `26970676442`: WIF auth, Docker login, build, Trivy scan, Artifact Registry push, and Kustomize tag commit all passed. |
 | 2026-06-05 | Ran all-service image backfill through GitHub Actions run `26971844902`; all nine repositories now have full/short Git SHA tags, and the dev overlay points all services to tag `783c78a16381`. |
-| 2026-06-05 | Re-verified current `main` after repository metadata cleanup: CI run `26989856501` and deploy-handoff run `26989888972` both passed at commit `8d3b299`. |
+| 2026-06-05 | Re-verified the repository after metadata cleanup: CI run `26989856501` and deploy-handoff run `26989888972` both passed. |

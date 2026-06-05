@@ -257,12 +257,11 @@ kubectl kustomize k8s/overlays/dev
 PASS
 ```
 
-Current `main` verification after repository metadata cleanup:
+Repository metadata cleanup verification:
 
 ```text
 CI run: https://github.com/tns30-dev/aqua_scale/actions/runs/26989856501
 Deploy-handoff run: https://github.com/tns30-dev/aqua_scale/actions/runs/26989888972
-Head commit: 8d3b299dbc2c419fc5d55782029e48e84924595c
 ```
 
 ## Next Test
