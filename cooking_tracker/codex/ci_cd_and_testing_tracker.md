@@ -7,9 +7,9 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns CI/CD, GitOps handoff, Argo CD rollout proof, post-deploy smoke tests, DAST, JMeter, and demo evidence.
-- Current state: Path-aware CI is proven and already builds/tests/scans/containerizes changed services. `deploy-handoff.yml` successfully pushed all nine implemented service images to Artifact Registry and committed the dev Kustomize tag update to `783c78a16381`. Argo CD is installed and the live `aquashield-dev` Application now targets the full `k8s/overlays/dev-full` runtime.
-- Current test: GitHub Actions CI evidence, Terraform WIF apply, all-service deploy-handoff run, Artifact Registry tag verification, local Kustomize render, GKE runtime foundation verification, Istio/Argo CD install, live Argo full-runtime sync, and all-service readiness checks.
-- Next test: Apply managed GCP data/messaging resources, create runtime secrets, switch Argo to `k8s/overlays/dev-managed`, then run business-flow smoke and DAST against the managed-backed deployment.
+- Current state: Path-aware CI is proven and already builds/tests/scans/containerizes changed services. `deploy-handoff.yml` successfully pushed all nine implemented service images to Artifact Registry and committed the dev Kustomize tag update to `783c78a16381`. Argo CD is installed and the live `aquashield-dev` Application now targets the managed-backed `k8s/overlays/dev-managed` runtime.
+- Current test: GitHub Actions CI evidence, Terraform WIF apply, all-service deploy-handoff run, Artifact Registry tag verification, local Kustomize render, GKE runtime foundation verification, Istio/Argo CD install, managed Argo sync, and all-service readiness checks.
+- Next test: Run business-flow smoke and DAST against the managed-backed deployment after public API edge is available.
 - Inputs ready from user: GCP account, project, region, repositories, WIF provider, deployer service account, GKE cluster, Istio, and Argo CD are ready. Still need data-runtime decision for PostgreSQL/Redis/Pub/Sub and public edge/domain choice.
 
 ## Items
@@ -19,8 +19,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Path-aware CI workflows | DONE | Proven on GitHub for Java services and analytics lane. Security gates, SBOM, container build/scan, and changed-service matrix exist. | `../../.github/workflows/ci.yml`, `../../docs/evidence/ci/2026-06-04-ci-skeleton-and-dependency-hardening.txt` | 2026-06-04 |
 | Artifact Registry push | DONE | `deploy-handoff.yml` authenticated through GitHub OIDC/WIF, built all nine implemented services, passed Trivy image scans, and pushed full/short Git SHA tags to Artifact Registry. | `../../.github/workflows/deploy-handoff.yml`, `../../infra/modules/github-oidc/`, `../../docs/evidence/terraform-foundation/2026-06-05-github-oidc-deploy-handoff.md` | 2026-06-05 |
 | GitOps manifest update | DONE | `deploy-handoff.yml` committed the dev Kustomize image tag update for all nine services back to `main`; current reachable GitOps commit is `c6724db`. | `../../.github/workflows/deploy-handoff.yml`, `../../k8s/overlays/dev/kustomization.yaml`, `../main/ci.md`, `../main/cd.md`, `../../docs/evidence/terraform-foundation/2026-06-05-github-oidc-deploy-handoff.md` | 2026-06-05 |
-| Argo CD rollout | DONE | Argo CD synced the private GitHub repo at revision `9545374571ff969a34c11152850bc1ed56852c3c`, targets `k8s/overlays/dev-full`, and reports `Synced/Healthy`. | `../main/cd.md`, `../main/gke.md`, `../../k8s/argocd/aquashield-dev-application.yaml`, `../../docs/evidence/gitops/2026-06-05-argocd-dev-full-rollout.md` | 2026-06-05 |
-| Smoke tests | DONE | Live full runtime smoke passed at readiness level: all nine service pods are ready and in-container health endpoints returned `UP`. Business-flow smoke through service-to-service mesh remains a follow-up. | `../../docs/LOCAL_E2E.md`, `../../docs/evidence/local-e2e/2026-06-04-gateway-e2e.md`, `../../docs/evidence/gitops/2026-06-05-argocd-dev-full-rollout.md` | 2026-06-05 |
+| Argo CD rollout | DONE | Argo CD synced the private GitHub repo at revision `829227a3a6868b8844f62ca6a573bf36fb90fbaa`, targets `k8s/overlays/dev-managed`, and reports `Synced/Healthy`. | `../main/cd.md`, `../main/gke.md`, `../../k8s/argocd/aquashield-dev-application.yaml`, `../../docs/evidence/gitops/2026-06-05-argocd-dev-managed-rollout.md` | 2026-06-05 |
+| Smoke tests | DONE | Live managed runtime smoke passed at readiness level: all nine service pods are ready on Cloud SQL, Memorystore, and real Pub/Sub. Business-flow smoke through service-to-service mesh remains a follow-up. | `../../docs/LOCAL_E2E.md`, `../../docs/evidence/local-e2e/2026-06-04-gateway-e2e.md`, `../../docs/evidence/gitops/2026-06-05-argocd-dev-managed-rollout.md` | 2026-06-05 |
 | DAST | TODO | Requires deployed dev/staging API endpoint. Plan is OWASP ZAP baseline after Argo CD health and smoke pass. | `../main/cd.md` | 2026-06-05 |
 | JMeter load and stress tests | TODO | `perf.yml` lane exists; concrete plans/evidence are pending. Should run only on `performance-test` branch or manual dispatch. | `../../.github/workflows/perf.yml`, `../main/ci.md` | 2026-06-05 |
 | Demo evidence | IN_PROGRESS | Per-service and local foundation evidence exists; cloud console screenshots/logs/rollout proof pending. | `../../docs/evidence/` | 2026-06-04 |
@@ -47,6 +47,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Quota-safe dev smoke rollout | PASS; `aquashield-dev` points to `k8s/overlays/dev-smoke`, Argo reports `Synced/Healthy`, and analytics `/healthz` passed. | 2026-06-05 |
 | Full dev runtime rollout | PASS; `aquashield-dev` points to `k8s/overlays/dev-full`, Argo reports `Synced/Healthy`, and all nine service pods are ready. | 2026-06-05 |
 | Managed GCP overlay render | PASS; `kubectl kustomize k8s/overlays/dev-managed` renders after adding Terraform-managed data cutover manifests. | 2026-06-05 |
+| Managed dev runtime rollout | PASS; `aquashield-dev` points to `k8s/overlays/dev-managed`, Argo reports `Synced/Healthy`, and all nine service pods are `2/2 Running`. | 2026-06-05 |
 
 ## Log
 
@@ -64,3 +65,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Installed Istio and Argo CD, connected Argo to the private GitHub repo, proved full dev sync mechanics, then moved live rollout to quota-safe `dev-smoke` because the full stack needs managed data/messaging and more quota. |
 | 2026-06-05 | Argo CD `aquashield-dev` synced commit `6ce1f08` from `k8s/overlays/dev-smoke` and reported `Synced/Healthy`; analytics `/healthz` returned `{"status":"UP"}`. |
 | 2026-06-05 | Promoted Argo CD to `k8s/overlays/dev-full`; all nine services became ready on in-cluster Postgres/Redis/Pub/Sub emulator dependencies. Added `k8s/overlays/dev-managed` for the real GCP data/messaging cutover. |
+| 2026-06-05 | Cut Argo CD to `k8s/overlays/dev-managed`; all nine services became ready on managed Cloud SQL, Memorystore Redis, and real Google Pub/Sub. |
