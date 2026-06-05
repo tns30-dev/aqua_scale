@@ -7,9 +7,9 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns CI/CD, GitOps handoff, Argo CD rollout proof, post-deploy smoke tests, DAST, JMeter, and demo evidence.
-- Current state: Path-aware CI is proven and already builds/tests/scans/containerizes changed services. `deploy-handoff.yml` pushed all nine implemented service images to Artifact Registry. The live `aquashield-dev` Argo CD Application targets `k8s/overlays/dev-managed-public`, eight Java services are rebuilt at tag `bef15c6`, analytics remains at `783c78a16381`, the managed-backed business smoke passed, the live AWS IoT/Lambda bridge smoke passed, and the public HTTPS API edge at `https://api.aquashield.live` passed the full business-flow smoke.
-- Current test: GitHub Actions CI evidence, SAST recovery run `27004222745`, Terraform WIF apply, all-service deploy-handoff run, Artifact Registry tag verification, local Kustomize render, GKE runtime foundation verification, Istio/Argo CD install, managed Argo sync, all-service readiness checks, managed business-flow smoke, AWS bridge unit/build/package checks, AWS live Terraform apply, x.509 MQTT smoke, CloudWatch delivery logs, public edge DNS/cert/backend checks, and public HTTPS business-flow smoke.
-- Next test: Firebase live deploy, then DAST/performance evidence.
+- Current state: Path-aware CI is proven and already builds/tests/scans/containerizes changed services. `deploy-handoff.yml` pushed all nine implemented service images to Artifact Registry. The live `aquashield-dev` Argo CD Application targets `k8s/overlays/dev-managed-public`, eight Java services are rebuilt at tag `bef15c6`, analytics remains at `783c78a16381`, the managed-backed business smoke passed, the live AWS IoT/Lambda bridge smoke passed, the public HTTPS API edge at `https://api.aquashield.live` passed the full business-flow smoke, and Firebase Hosting serves the frontend default site at `https://aerobic-guide-498413-u6.web.app`.
+- Current test: GitHub Actions CI evidence, SAST recovery run `27004222745`, Terraform WIF apply, all-service deploy-handoff run, Artifact Registry tag verification, local Kustomize render, GKE runtime foundation verification, Istio/Argo CD install, managed Argo sync, all-service readiness checks, managed business-flow smoke, AWS bridge unit/build/package checks, AWS live Terraform apply, x.509 MQTT smoke, CloudWatch delivery logs, public edge DNS/cert/backend checks, public HTTPS business-flow smoke, Firebase deploy proof, default Hosting URL checks, SPA rewrite check, and custom-domain DNS propagation checks.
+- Next test: Wait for `www.aquashield.live` certificate activation, then DAST/performance evidence.
 - Inputs ready from user: GCP account, project, region, repositories, WIF provider, deployer service account, GKE cluster, Istio, Argo CD, AWS profile `aquashield`, domain `aquashield.live`, and public API endpoint `https://api.aquashield.live` are ready.
 
 ## Items
@@ -23,7 +23,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Smoke tests | DONE | Managed business-flow smoke passed via direct Pub/Sub, via AWS IoT MQTT/x.509 through Lambda/WIF, and via public HTTPS `https://api.aquashield.live`: login/audit, project/pond setup, sensor mapping, energy read model, active threshold alert, pond comparison, analytics JSON, realtime token, and audit rows. | `../../scripts/smoke-managed-business-flow.py`, `../../docs/evidence/gitops/2026-06-05-managed-business-flow-smoke.md`, `../../docs/evidence/aws-iot-bridge/2026-06-05-live-deploy-and-smoke.md`, `../../docs/evidence/public-edge/2026-06-05-public-edge-live-rollout.md` | 2026-06-05 |
 | DAST | TODO | Requires deployed dev/staging API endpoint. Plan is OWASP ZAP baseline after Argo CD health and smoke pass. | `../main/cd.md` | 2026-06-05 |
 | JMeter load and stress tests | TODO | `perf.yml` lane exists; concrete plans/evidence are pending. Should run only on `performance-test` branch or manual dispatch. | `../../.github/workflows/perf.yml`, `../main/ci.md` | 2026-06-05 |
-| Demo evidence | IN_PROGRESS | Managed runtime smoke, AWS IoT/Lambda live smoke, public HTTPS API edge live smoke, public edge/Firebase readiness, CI/SAST recovery, and HTTPS static-IP reservation evidence are recorded. Firebase live deploy, DAST, and performance evidence remain. | `../../docs/evidence/` | 2026-06-05 |
+| Demo evidence | IN_PROGRESS | Managed runtime smoke, AWS IoT/Lambda live smoke, public HTTPS API edge live smoke, Firebase Hosting live deploy, custom-domain DNS proof, CI/SAST recovery, and HTTPS static-IP reservation evidence are recorded. DAST and performance evidence remain. | `../../docs/evidence/` | 2026-06-05 |
 
 ## Validation
 
@@ -55,6 +55,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Public edge static IP | PASS; Terraform reserved global IP `8.232.154.25` for `aquashield-dev-api-edge` with `1 added, 0 changed, 0 destroyed`. | 2026-06-05 |
 | CI/SAST recovery | PASS; run `27004222745` on commit `960e98f` completed with secret-scan, SAST, SCA/fs, SBOM, and CI summary successful after the smoke helper URL validation fix. | 2026-06-05 |
 | Public edge live smoke | PASS; `https://api.aquashield.live` has active managed TLS, healthy backend, Argo `Synced/Healthy`, and public smoke output `energyTotalKwh=3.1`, `activeAlerts=1`, `comparisonMetricCount=4`, `realtimeTokenMinted=true`, `auditSecurityRows=6`. | 2026-06-05 |
+| Firebase Hosting live deploy | PASS; build with live API/WSS env values deployed to Firebase Hosting version `e3363fbcc53afb20`; default Hosting URL and `/login` route return HTTP 200, and the deployed bundle contains the live endpoints. | 2026-06-05 |
+| Firebase custom-domain activation | PARTIAL; `www.aquashield.live` CNAME and `_acme-challenge.www.aquashield.live` TXT are visible locally and from `8.8.8.8`; Firebase reports `HOST_ACTIVE` and `OWNERSHIP_ACTIVE`, with certificate validation pending. | 2026-06-05 |
 
 ## Log
 
@@ -79,3 +81,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Added initial public edge/Firebase readiness evidence; superseded the temporary HTTP branch with the HTTPS static-IP path. |
 | 2026-06-05 | Selected HTTPS public edge path, added the proxy-backed Gateway overlay, and reserved global static IP `8.232.154.25`; at that point live smoke was waiting on domain/DNS/managed cert. |
 | 2026-06-05 | Fixed the Semgrep `urllib` SAST finding in the smoke helper, proved CI run `27004222745` green, synced public edge revision `960e98f`, and passed the full business-flow smoke through `https://api.aquashield.live`. |
+| 2026-06-05 | Deployed the frontend to Firebase Hosting with live API/WSS endpoints, verified the default Hosting URL and SPA rewrite, and activated `www.aquashield.live` host ownership while Firebase certificate validation remains pending. |

@@ -1,6 +1,6 @@
 # Public API Edge and Firebase Readiness - 2026-06-05
 
-Update: this was the initial readiness note before the HTTPS path was selected. The current live public edge evidence is `2026-06-05-public-edge-live-rollout.md`; temporary HTTP exposure is no longer the selected path, and the current overlay no longer matches the historical HTTP-only snippets below.
+Update: this was the initial readiness note before the HTTPS path was selected. The current live public edge evidence is `2026-06-05-public-edge-live-rollout.md`, and the current live Firebase Hosting deploy evidence is `2026-06-05-firebase-hosting-live-deploy.md`. Temporary HTTP exposure is no longer the selected path, and the current overlay no longer matches the historical HTTP-only snippets below.
 
 ## Scope
 
@@ -100,7 +100,7 @@ firebase --version
 15.9.0
 ```
 
-Live Firebase deploy is pending Firebase project/service-account configuration and the final API/WS base URLs.
+Superseded by live deploy evidence: Firebase Hosting is deployed to `https://aerobic-guide-498413-u6.web.app` with `VITE_API_BASE_URL=https://api.aquashield.live` and `VITE_WS_BASE_URL=wss://api.aquashield.live`. The custom frontend domain `www.aquashield.live` has correct public DNS records and Firebase has accepted host ownership; HTTPS certificate activation is pending.
 
 ## Next Evidence
 
@@ -108,5 +108,6 @@ Current path:
 
 - Public API is live at `https://api.aquashield.live`.
 - Public WSS base should be `wss://api.aquashield.live`.
-- Configure Firebase `VITE_API_BASE_URL` and `VITE_WS_BASE_URL`.
-- Deploy Firebase Hosting and capture live frontend evidence.
+- Firebase Hosting default site is live.
+- Wait for Firebase to finish the `www.aquashield.live` managed certificate.
+- Run DAST and performance evidence after the public frontend domain is active.

@@ -7,9 +7,9 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns managed data services, event infrastructure, AWS IoT ingress, the Lambda bridge, and Terraform-managed infrastructure.
-- Current state: Local equivalents are heavily exercised through Docker Compose, Flyway, Redis, Pub/Sub emulator, and Bigtable emulator. GCP remote state, Artifact Registry, GitHub OIDC/WIF, VPC/NAT/firewall, GKE, Istio, Argo CD, all-service image backfill, managed Cloud SQL, Memorystore, Pub/Sub, Bigtable, BigQuery, the live public-edge managed runtime, the live AWS IoT/Lambda bridge, and `https://api.aquashield.live` are proven through Terraform/business-flow evidence.
-- Current test: Local service integration tests, Pub/Sub emulator flows, Redis key evidence, Terraform validation/apply, managed resource verification, Cloud SQL bootstrap logs, Argo CD public-edge sync, all-service readiness checks, signed telemetry through real Pub/Sub, AWS bridge unit tests/build, event schema validation, Terraform-managed AWS apply, x.509 MQTT publish, Lambda logs, WIF IAM proof, AWS-to-GCP business-flow smoke, public HTTPS business-flow smoke, and public API cert/backend checks.
-- Next test: Firebase Hosting deploy, then DAST/performance evidence.
+- Current state: Local equivalents are heavily exercised through Docker Compose, Flyway, Redis, Pub/Sub emulator, and Bigtable emulator. GCP remote state, Artifact Registry, GitHub OIDC/WIF, VPC/NAT/firewall, GKE, Istio, Argo CD, all-service image backfill, managed Cloud SQL, Memorystore, Pub/Sub, Bigtable, BigQuery, the live public-edge managed runtime, the live AWS IoT/Lambda bridge, `https://api.aquashield.live`, and the Firebase-hosted frontend are proven through Terraform/business-flow/deploy evidence.
+- Current test: Local service integration tests, Pub/Sub emulator flows, Redis key evidence, Terraform validation/apply, managed resource verification, Cloud SQL bootstrap logs, Argo CD public-edge sync, all-service readiness checks, signed telemetry through real Pub/Sub, AWS bridge unit tests/build, event schema validation, Terraform-managed AWS apply, x.509 MQTT publish, Lambda logs, WIF IAM proof, AWS-to-GCP business-flow smoke, public HTTPS business-flow smoke, public API cert/backend checks, and Firebase frontend deploy checks.
+- Next test: Wait for `www.aquashield.live` certificate activation, then DAST/performance evidence.
 - Inputs ready from user: GCP account/project/region, AWS profile `aquashield`, domain `aquashield.live`, and public API endpoint `https://api.aquashield.live` are ready.
 
 ## Items
@@ -50,6 +50,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | AWS IoT to managed business flow | PASS; x.509 MQTT publish through AWS IoT/Lambda produced `energyTotalKwh=3.1`, `activeAlerts=1`, `comparisonMetricCount=4`, `realtimeTokenMinted=true`, and `auditSecurityRows=4`. | 2026-06-05 |
 | Public API static IP apply | PASS; Terraform created `aquashield-dev-api-edge` with output IP `8.232.154.25` and no other changes. | 2026-06-05 |
 | Public HTTPS managed business flow | PASS; public `https://api.aquashield.live` smoke published signed telemetry to real Pub/Sub and produced `energyTotalKwh=3.1`, `activeAlerts=1`, `comparisonMetricCount=4`, `realtimeTokenMinted=true`, and `auditSecurityRows=6`. | 2026-06-05 |
+| Firebase frontend deploy | PASS; deployed frontend bundle points to the public API/WSS edge and the default Hosting URL serves the SPA. | 2026-06-05 |
 
 ## Log
 
@@ -73,3 +74,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Applied the live AWS IoT/Lambda bridge and passed the x.509 MQTT-to-GCP Pub/Sub managed business smoke. |
 | 2026-06-05 | Added Terraform `api-edge` module and reserved public API static IP `8.232.154.25`; at that point live HTTPS edge was waiting on domain/DNS/managed certificate. |
 | 2026-06-05 | Activated `api.aquashield.live` and passed the public HTTPS managed business-flow smoke through real Pub/Sub and managed read-model dependencies. |
+| 2026-06-05 | Deployed the frontend to Firebase Hosting with live public API/WSS endpoints; this completes the browser-to-managed-runtime integration proof before DAST/performance. |
