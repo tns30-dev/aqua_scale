@@ -18,6 +18,7 @@ x-java-service: &java-service
     REDIS_HOST: redis
     REDIS_PORT: 6379
     PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
+    SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
     JWT_PUBLIC_KEY_PEM: ${JWT_PUBLIC_KEY_PEM:-}
   depends_on: &java-deps
     postgres: { condition: service_healthy }

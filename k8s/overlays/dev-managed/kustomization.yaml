@@ -26,8 +26,17 @@ patches:
       kind: ConfigMap
       labelSelector: app.kubernetes.io/component in (audit,identity,ingestion,notification,pond,project,realtime,sensor)
     patch: |-
-      - op: remove
+      - op: replace
         path: /data/PUBSUB_EMULATOR_HOST
+        value: ""
+      - op: remove
+        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
+      - op: add
+        path: /data/SPRING_AUTOCONFIGURE_EXCLUDE
+        value: com.google.cloud.spring.autoconfigure.pubsub.GcpPubSubEmulatorAutoConfiguration
+      - op: add
+        path: /data/JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=75 -XX:+UseG1GC -Dio.netty.transport.noNative=true -Dio.netty.handler.ssl.noOpenSsl=true -Dio.grpc.netty.shaded.io.netty.transport.noNative=true -Dio.grpc.netty.shaded.io.netty.handler.ssl.noOpenSsl=true"
   - target:
       kind: Deployment
       labelSelector: app.kubernetes.io/part-of=aquashield

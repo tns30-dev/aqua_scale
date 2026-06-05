@@ -504,6 +504,9 @@ patches:
         path: /data/PUBSUB_EMULATOR_HOST
         value: pubsub-emulator:8085
       - op: add
+        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
+        value: pubsub-emulator:8085
+      - op: add
         path: /data/EVENTS_ENABLED
         value: "true"
   - target:
@@ -515,6 +518,9 @@ patches:
         value: "3"
       - op: add
         path: /data/PUBSUB_EMULATOR_HOST
+        value: pubsub-emulator:8085
+      - op: add
+        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
         value: pubsub-emulator:8085
       - op: add
         path: /data/INGESTION_GRPC_TARGET
@@ -535,6 +541,9 @@ patches:
       - op: add
         path: /data/PUBSUB_EMULATOR_HOST
         value: pubsub-emulator:8085
+      - op: add
+        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
+        value: pubsub-emulator:8085
   - target:
       kind: ConfigMap
       name: sensor-service-config
@@ -545,6 +554,9 @@ patches:
       - op: add
         path: /data/PUBSUB_EMULATOR_HOST
         value: pubsub-emulator:8085
+      - op: add
+        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
+        value: pubsub-emulator:8085
   - target:
       kind: ConfigMap
       name: ingestion-service-config
@@ -554,6 +566,9 @@ patches:
         value: "3"
       - op: add
         path: /data/PUBSUB_EMULATOR_HOST
+        value: pubsub-emulator:8085
+      - op: add
+        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
         value: pubsub-emulator:8085
       - op: add
         path: /data/HMAC_MAX_SKEW
@@ -568,12 +583,18 @@ patches:
       - op: add
         path: /data/PUBSUB_EMULATOR_HOST
         value: pubsub-emulator:8085
+      - op: add
+        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
+        value: pubsub-emulator:8085
   - target:
       kind: ConfigMap
       name: realtime-gateway-config
     patch: |-
       - op: add
         path: /data/PUBSUB_EMULATOR_HOST
+        value: pubsub-emulator:8085
+      - op: add
+        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
         value: pubsub-emulator:8085
   - target:
       kind: ConfigMap
@@ -584,6 +605,9 @@ patches:
         value: "3"
       - op: add
         path: /data/PUBSUB_EMULATOR_HOST
+        value: pubsub-emulator:8085
+      - op: add
+        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
         value: pubsub-emulator:8085
 
 images:

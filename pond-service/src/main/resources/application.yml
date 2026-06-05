@@ -28,8 +28,6 @@ spring:
   cloud:
     gcp:
       project-id: ${PUBSUB_PROJECT_ID:aquashield-local}
-      pubsub:
-        emulator-host: ${PUBSUB_EMULATOR_HOST:localhost:8085}
 
 server:
   port: ${SERVER_PORT:8089}
