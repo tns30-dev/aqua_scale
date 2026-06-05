@@ -98,6 +98,7 @@ module "gke" {
 
 module "security" {
   source = "../../modules/security"
+  count  = var.enable_cloud_armor ? 1 : 0
 
   cloud_armor_policy_name = "aquashield-dev-api-edge"
 }

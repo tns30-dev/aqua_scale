@@ -57,6 +57,12 @@ variable "max_node_count" {
   default     = 3
 }
 
+variable "enable_cloud_armor" {
+  description = "Create the Cloud Armor edge policy. Keep false in projects with zero Cloud Armor quota."
+  type        = bool
+  default     = false
+}
+
 variable "github_repository" {
   description = "GitHub repository allowed to impersonate the CI deployer through Workload Identity Federation."
   type        = string

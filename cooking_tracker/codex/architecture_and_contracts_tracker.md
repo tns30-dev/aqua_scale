@@ -7,9 +7,9 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns architecture, contracts, diagrams, and cross-service integration documentation.
-- Current state: The main architecture and contract docs are already consolidated. Shared API artifacts exist under `shared-api/`, and the CI/CD path now proves all nine deployable service images can be handed to GitOps.
-- Current test: Validate docs against implemented service contracts, generated proto files, JSON event schemas, Kustomize/Gateway routing, and current deploy-handoff evidence.
-- Next test: Re-check all architecture docs after GKE/edge provisioning so diagrams and evidence match real GCP/AWS resources.
+- Current state: The main architecture and contract docs are already consolidated. Shared API artifacts exist under `shared-api/`, the CI/CD path proves all nine deployable service images can be handed to GitOps, and the GKE/network runtime foundation now exists in GCP.
+- Current test: Validate docs against implemented service contracts, generated proto files, JSON event schemas, Kustomize/Gateway routing, deploy-handoff evidence, and live GKE foundation evidence.
+- Next test: Re-check deployment and edge docs after Istio/Argo CD/Gateway rollout so diagrams and evidence match real running workloads.
 
 ## Items
 
@@ -32,6 +32,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Shared contract validation | PASS; `protoc` and `jq` validation evidence exists. | 2026-06-04 |
 | Tracker ownership rewrite | PASS; tracker no longer depends on Claude handoff language. | 2026-06-05 |
 | Deploy handoff alignment | PASS; all implemented services have images and dev GitOps image references. | 2026-06-05 |
+| Runtime foundation alignment | PASS; physical/deployment architecture now has live VPC, subnet, NAT, firewall, and private-node GKE evidence. | 2026-06-05 |
 
 ## Log
 
@@ -42,3 +43,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-04 | Updated Redis, API, service discovery, and Pub/Sub docs as implementation discoveries landed. |
 | 2026-06-05 | Rephrased tracker for Codex-only non-service ownership. |
 | 2026-06-05 | Confirmed deployment docs now have matching evidence for Artifact Registry image handoff and dev Kustomize references across all implemented services. |
+| 2026-06-05 | Confirmed physical/deployment architecture now has live GKE/network evidence; Cloud Armor is quota-blocked and edge rollout remains pending. |

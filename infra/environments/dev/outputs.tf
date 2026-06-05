@@ -30,5 +30,5 @@ output "github_workload_identity_provider" {
 
 output "cloud_armor_policy_name" {
   description = "Cloud Armor policy for the API edge."
-  value       = module.security.cloud_armor_policy_name
+  value       = var.enable_cloud_armor ? module.security[0].cloud_armor_policy_name : null
 }

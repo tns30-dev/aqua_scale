@@ -7,25 +7,25 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns GCP foundation, GKE, service mesh, Kubernetes manifests, Artifact Registry, and Terraform remote state.
-- Current state: Terraform remote state bucket, nine Artifact Registry Docker repositories, GitHub OIDC/WIF deploy identity, and all nine service images are ready in billed project `aerobic-guide-498413-u6`; dev Terraform backend is initialized against GCS. A fresh runtime foundation plan is saved at `/tmp/aquashield-dev-foundation-runtime.tfplan` and contains only network, Cloud Armor, and GKE resources.
-- Current test: `terraform fmt/validate`, `kubectl kustomize`, bootstrap-state apply, Artifact Registry targeted apply, GitHub OIDC/WIF targeted apply, all-service image backfill, and fresh runtime foundation plan.
-- Next test: Apply the reviewed network/GKE/Cloud Armor foundation plan, then verify VPC, subnet, NAT, firewall, Cloud Armor policy, GKE cluster, and workload image pull path.
-- Inputs ready from user: GCP account, project, region, and zone are selected. Still need domain/certificate choice, GitHub repo URL for Argo CD, and final acceptance before creating the GKE runtime.
+- Current state: Terraform remote state bucket, nine Artifact Registry Docker repositories, GitHub OIDC/WIF deploy identity, VPC/subnet/secondary ranges, Cloud NAT, firewall rules, and a private-node GKE cluster are live in billed project `aerobic-guide-498413-u6`. Cloud Armor is disabled in dev because the project quota for security policies and rules is zero.
+- Current test: `terraform fmt/validate`, clean Terraform plan, GKE node readiness, network/NAT/firewall verification, Gateway API availability, and live-cluster Kustomize dry-run preflight.
+- Next test: Install Istio CRDs/control plane or split mesh resources into a later sync wave, then install/connect Argo CD and prove GitOps sync plus workload health.
+- Inputs ready from user: GCP account, project, region, and zone are selected. Still need domain/certificate choice and Cloud Armor quota increase if WAF/rate-limit evidence is required.
 
 ## Items
 
 | Item | Status | Progress notes | Evidence | Updated |
 |---|---|---|---|---|
-| Custom VPC | IN_PROGRESS | Terraform module scaffold created and validated; cloud apply not started. | `../../infra/modules/network/`, `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
-| GKE subnet | IN_PROGRESS | Terraform module scaffold created and validated; cloud apply not started. | `../../infra/modules/network/`, `../../docs/evidence/terraform-foundation/2026-06-04-terraform-validation.md` | 2026-06-04 |
-| Pod secondary range | IN_PROGRESS | VPC-native pod secondary range is in Terraform scaffold; cloud apply not started. | `../../infra/modules/network/` | 2026-06-04 |
-| Service secondary range | IN_PROGRESS | VPC-native service secondary range is in Terraform scaffold; cloud apply not started. | `../../infra/modules/network/` | 2026-06-04 |
-| Private nodes | IN_PROGRESS | GKE module enables private nodes; cloud apply not started. | `../../infra/modules/gke/` | 2026-06-04 |
-| Cloud NAT | IN_PROGRESS | Network module includes Cloud NAT; cloud apply not started. | `../../infra/modules/network/` | 2026-06-04 |
-| Private Google Access / PSC | IN_PROGRESS | Private Google Access is enabled in the network scaffold; PSC/private service access needs data modules. | `../../infra/modules/network/` | 2026-06-04 |
-| VPC firewall rules | IN_PROGRESS | Health-check and internal allow rules exist; app/data-specific rules remain pending. | `../../infra/modules/network/` | 2026-06-04 |
+| Custom VPC | DONE | `aquashield-dev-vpc` is live with custom subnet mode and regional routing. | `../../infra/modules/network/`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md` | 2026-06-05 |
+| GKE subnet | DONE | `aquashield-dev-gke-subnet` is live in `asia-southeast1` with CIDR `10.10.0.0/20`. | `../../infra/modules/network/`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md` | 2026-06-05 |
+| Pod secondary range | DONE | VPC-native pod range `aquashield-dev-pods` is live with CIDR `10.20.0.0/16`. | `../../infra/modules/network/`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md` | 2026-06-05 |
+| Service secondary range | DONE | VPC-native service range `aquashield-dev-services` is live with CIDR `10.30.0.0/20`. | `../../infra/modules/network/`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md` | 2026-06-05 |
+| Private nodes | DONE | `aquashield-dev-gke` is running with private nodes; node has no external IP. | `../../infra/modules/gke/`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md` | 2026-06-05 |
+| Cloud NAT | DONE | `aquashield-dev-vpc-nat` is live for all GKE subnet IP ranges. | `../../infra/modules/network/`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md` | 2026-06-05 |
+| Private Google Access / PSC | IN_PROGRESS | Private Google Access is enabled on the GKE subnet; PSC/private service access remains deferred to managed data modules. | `../../infra/modules/network/`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md` | 2026-06-05 |
+| VPC firewall rules | DONE | Terraform health-check and internal GKE firewall rules are live; GKE also created managed cluster firewall rules. | `../../infra/modules/network/`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md` | 2026-06-05 |
 | Kubernetes NetworkPolicy | IN_PROGRESS | Base default-deny ingress, app-internal allow, GCLB health-check allow, and per-service policies exist. | `../../k8s/base/network/`, `../../k8s/base/services/` | 2026-06-04 |
-| Istio service mesh | IN_PROGRESS | Namespace mesh labels, strict mTLS, and AuthorizationPolicy skeletons exist; live mesh evidence pending. | `../../k8s/base/mesh/`, `../../k8s/base/services/` | 2026-06-04 |
+| Istio service mesh | IN_PROGRESS | Namespace mesh labels, strict mTLS, and AuthorizationPolicy skeletons exist. Live cluster preflight confirms Istio CRDs are not installed yet. | `../../k8s/base/mesh/`, `../../k8s/base/services/`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md` | 2026-06-05 |
 | Namespaces | IN_PROGRESS | Dev and staging namespace manifests exist; not applied to a live cluster yet. | `../../k8s/overlays/dev/namespace.yaml`, `../../k8s/overlays/staging/namespace.yaml` | 2026-06-04 |
 | Service workload manifests | IN_PROGRESS | All nine implemented services have Deployment, Service, HPA, PDB, ConfigMap, NetworkPolicy, and AuthorizationPolicy manifests; dev overlay now points all images to Artifact Registry tag `783c78a16381`. Live cluster apply is pending. | `../../k8s/base/services/`, `../../k8s/overlays/dev/kustomization.yaml`, `../../docs/evidence/k8s-*/` | 2026-06-05 |
 | Artifact Registry | DONE | Nine per-service Docker repositories were created in `asia-southeast1` through Terraform state. CI image push remains tracked separately under CI/CD. | `../../infra/modules/artifact-registry/`, `../../docs/evidence/terraform-foundation/2026-06-05-artifact-registry-apply.md` | 2026-06-05 |
@@ -49,6 +49,10 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Post-WIF dev foundation plan | PASS; remaining plan is still `9 to add, 0 to change, 0 to destroy`. | 2026-06-05 |
 | All-service deploy handoff | PASS; all nine service images were built, scanned, pushed, and written into the dev Kustomize overlay. | 2026-06-05 |
 | Fresh runtime foundation plan | PASS; `/tmp/aquashield-dev-foundation-runtime.tfplan` proposes `9 to add, 0 to change, 0 to destroy` in `aerobic-guide-498413-u6`. | 2026-06-05 |
+| Runtime foundation apply | PASS with caveat; VPC, subnet, secondary ranges, NAT, firewall, GKE cluster, and node pool are live. Cloud Armor is blocked by zero quota and disabled in dev Terraform. | 2026-06-05 |
+| Final Terraform plan | PASS; after Cloud Armor quota handling, Terraform reports no changes. | 2026-06-05 |
+| GKE node readiness | PASS; single private `e2-standard-2` node is `Ready`. | 2026-06-05 |
+| Live overlay preflight | BLOCKED; Gateway API exists, but Istio `AuthorizationPolicy` and `PeerAuthentication` CRDs are missing. | 2026-06-05 |
 
 ## Log
 
@@ -63,3 +67,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Applied the GitHub OIDC/WIF deploy identity slice through Terraform. GitHub Actions can impersonate the deployer service account from `tns30-dev/aqua_scale` on `main` and push to the nine service repositories. |
 | 2026-06-05 | Completed all-service image backfill. Artifact Registry and dev Kustomize are ready for GKE/Argo CD rollout once the runtime foundation is applied. |
 | 2026-06-05 | Aligned local `gcloud` project to `aerobic-guide-498413-u6` and regenerated the runtime foundation plan at `/tmp/aquashield-dev-foundation-runtime.tfplan`; remaining plan is `9 add`. |
+| 2026-06-05 | Applied the runtime foundation. GKE/network resources are live and Terraform is clean. Cloud Armor is quota-blocked (`SECURITY_POLICIES=0`, `SECURITY_POLICY_RULES=0`), so dev Terraform now disables that module until quota is granted. |

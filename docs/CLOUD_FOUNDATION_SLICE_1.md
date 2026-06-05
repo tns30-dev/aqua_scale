@@ -147,11 +147,18 @@ CI run: https://github.com/tns30-dev/aqua_scale/actions/runs/26989856501
 Deploy-handoff run: https://github.com/tns30-dev/aqua_scale/actions/runs/26989888972
 ```
 
-The original full dev plan at `/tmp/aquashield-dev-foundation.tfplan` is now stale because the registry and WIF resources have already been applied. A fresh runtime foundation plan succeeds and is saved locally at `/tmp/aquashield-dev-foundation-runtime.tfplan`. It proposes 9 resources: VPC/subnet/NAT/firewall, Cloud Armor policy, and a single-zone private-node GKE cluster/node pool.
+The original full dev plan at `/tmp/aquashield-dev-foundation.tfplan` is now stale because the registry, WIF, and runtime resources have already been applied.
 
-Do not apply the remaining dev foundation until the GKE/network cost is accepted.
+Runtime foundation apply evidence:
 
-```bash
-GOOGLE_OAUTH_ACCESS_TOKEN="$(gcloud auth print-access-token --account=aquashieldnus@gmail.com)" \
-  terraform -chdir=infra/environments/dev apply /tmp/aquashield-dev-foundation-runtime.tfplan
+```text
+Evidence: docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md
+Cluster: aquashield-dev-gke
+Network: aquashield-dev-vpc
+Subnet: aquashield-dev-gke-subnet
+Terraform final plan: no changes
 ```
+
+Cloud Armor did not apply because this project has zero quota for `SECURITY_POLICIES`, `SECURITY_POLICY_RULES`, and `SECURITY_POLICY_CEVAL_RULES`. Dev Terraform now sets `enable_cloud_armor = false`; turn it back on only after quota is granted.
+
+The next cloud slice is Istio plus Argo CD rollout proof, not another Terraform foundation apply.

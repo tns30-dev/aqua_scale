@@ -22,14 +22,14 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 
 | Status | Item | Output | Reference Doc |
 |---|---|---|---|
-| [ ] | Custom VPC | Dedicated AquaShield network | [network_security.md](../main/network_security.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
-| [ ] | GKE subnet | Node subnet created | [gke.md](../main/gke.md), [network_security.md](../main/network_security.md) |
-| [ ] | Pod secondary range | VPC-native pod range configured | [gke.md](../main/gke.md) |
-| [ ] | Service secondary range | VPC-native service range configured | [gke.md](../main/gke.md) |
-| [ ] | Private nodes | GKE nodes private if feasible | [gke.md](../main/gke.md), [network_security.md](../main/network_security.md) |
-| [ ] | Cloud NAT | Controlled outbound egress for private nodes | [network_security.md](../main/network_security.md) |
-| [ ] | Private Google Access / PSC | Private access to Google APIs and managed services | [network_security.md](../main/network_security.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
-| [ ] | VPC firewall rules | Health check, web-to-app, internal, app-to-data, deny-default controls | [network_security.md](../main/network_security.md) |
+| [x] | Custom VPC | Dedicated AquaShield network | [network_security.md](../main/network_security.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
+| [x] | GKE subnet | Node subnet created | [gke.md](../main/gke.md), [network_security.md](../main/network_security.md) |
+| [x] | Pod secondary range | VPC-native pod range configured | [gke.md](../main/gke.md) |
+| [x] | Service secondary range | VPC-native service range configured | [gke.md](../main/gke.md) |
+| [x] | Private nodes | GKE nodes private if feasible | [gke.md](../main/gke.md), [network_security.md](../main/network_security.md) |
+| [x] | Cloud NAT | Controlled outbound egress for private nodes | [network_security.md](../main/network_security.md) |
+| [ ] | Private Google Access / PSC | Private Google Access enabled; PSC deferred to managed data modules | [network_security.md](../main/network_security.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
+| [x] | VPC firewall rules | Health check and internal GKE firewall controls | [network_security.md](../main/network_security.md) |
 | [ ] | Kubernetes NetworkPolicy | Pod-to-pod traffic controls | [network_security.md](../main/network_security.md), [gke.md](../main/gke.md) |
 | [ ] | Istio service mesh | mTLS, AuthorizationPolicy, service identity controls | [service_discovery.md](../main/service_discovery.md), [network_security.md](../main/network_security.md) |
 | [ ] | Namespaces | Environment namespaces created | [gke.md](../main/gke.md) |
@@ -44,7 +44,7 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [ ] | Frontend integration | React/Vite SPA integrated with REST API edge and WSS realtime gateway | [frontend.md](../main/frontend.md), [api_contract_docs.md](../main/api_contract_docs.md), [websocket.md](../main/websocket.md) |
 | [ ] | CDN | Firebase Hosting CDN for frontend; Cloud CDN only if additional backend static assets are used | [cdn.md](../main/cdn.md) |
 | [ ] | GCP API edge | External HTTPS Load Balancer, Gateway/Ingress, managed TLS | [api_gateway.md](../main/api_gateway.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
-| [ ] | Cloud Armor | WAF and rate-limit policy for REST and WebSocket token endpoints | [api_gateway.md](../main/api_gateway.md), [network_security.md](../main/network_security.md) |
+| [ ] | Cloud Armor | WAF and rate-limit policy pending non-zero project quota | [api_gateway.md](../main/api_gateway.md), [network_security.md](../main/network_security.md) |
 | [ ] | WSS realtime endpoint | `wss://api.aquashield.example.com/ws` public WebSocket endpoint | [websocket.md](../main/websocket.md) |
 
 ## Data And Messaging
@@ -60,7 +60,7 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [ ] | Google Pub/Sub | Topics, subscriptions, schemas, DLQs | [eda.md](../main/eda.md), [pub_sub_contract_docs.md](../main/pub_sub_contract_docs.md) |
 | [ ] | AWS IoT Core | MQTT broker, device identity, certificates, policies, rules | [iot.md](../main/iot.md) |
 | [ ] | AWS Lambda bridge | AWS IoT event bridge into Google Pub/Sub | [iot.md](../main/iot.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
-| [ ] | Terraform-managed infrastructure | Repeatable infrastructure provisioning where feasible, backed by GCS remote state | [terraform.md](../main/terraform.md) |
+| [x] | Terraform-managed infrastructure | Remote state, Artifact Registry, WIF, VPC, NAT, firewall, and GKE managed by Terraform | [terraform.md](../main/terraform.md) |
 
 ## Security
 

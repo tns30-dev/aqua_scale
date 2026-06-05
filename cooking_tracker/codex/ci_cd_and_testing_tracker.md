@@ -8,9 +8,9 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 
 - Ownership: Codex owns CI/CD, GitOps handoff, Argo CD rollout proof, post-deploy smoke tests, DAST, JMeter, and demo evidence.
 - Current state: Path-aware CI is proven and already builds/tests/scans/containerizes changed services. `deploy-handoff.yml` successfully pushed all nine implemented service images to Artifact Registry and committed the dev Kustomize tag update to `783c78a16381`.
-- Current test: GitHub Actions CI evidence, Terraform WIF apply, all-service deploy-handoff run, Artifact Registry tag verification, local Kustomize render, local e2e harness, and security gate evidence.
-- Next test: Apply the remaining GKE/network foundation, install/connect Argo CD, then prove sync plus healthy rollout from the GitOps tag.
-- Inputs ready from user: GCP account, project, region, repositories, WIF provider, and deployer service account are ready. Still need Argo CD deployment decision for live rollout.
+- Current test: GitHub Actions CI evidence, Terraform WIF apply, all-service deploy-handoff run, Artifact Registry tag verification, local Kustomize render, GKE runtime foundation verification, local e2e harness, and security gate evidence.
+- Next test: Install Istio CRDs/control plane or split mesh resources into a later sync wave, then install/connect Argo CD and prove sync plus healthy rollout from the GitOps tag.
+- Inputs ready from user: GCP account, project, region, repositories, WIF provider, deployer service account, and GKE cluster are ready. Still need Argo CD deployment decision for live rollout.
 
 ## Items
 
@@ -19,7 +19,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Path-aware CI workflows | DONE | Proven on GitHub for Java services and analytics lane. Security gates, SBOM, container build/scan, and changed-service matrix exist. | `../../.github/workflows/ci.yml`, `../../docs/evidence/ci/2026-06-04-ci-skeleton-and-dependency-hardening.txt` | 2026-06-04 |
 | Artifact Registry push | DONE | `deploy-handoff.yml` authenticated through GitHub OIDC/WIF, built all nine implemented services, passed Trivy image scans, and pushed full/short Git SHA tags to Artifact Registry. | `../../.github/workflows/deploy-handoff.yml`, `../../infra/modules/github-oidc/`, `../../docs/evidence/terraform-foundation/2026-06-05-github-oidc-deploy-handoff.md` | 2026-06-05 |
 | GitOps manifest update | DONE | `deploy-handoff.yml` committed the dev Kustomize image tag update for all nine services back to `main`; current reachable GitOps commit is `c6724db`. | `../../.github/workflows/deploy-handoff.yml`, `../../k8s/overlays/dev/kustomization.yaml`, `../main/ci.md`, `../main/cd.md`, `../../docs/evidence/terraform-foundation/2026-06-05-github-oidc-deploy-handoff.md` | 2026-06-05 |
-| Argo CD rollout | TODO | Argo CD is selected in docs but not installed/proven against a live cluster. | `../main/cd.md`, `../main/gke.md` | 2026-06-05 |
+| Argo CD rollout | TODO | GKE cluster is live, but Argo CD rollout must wait for Istio CRDs/control plane or a split mesh sync wave because the dev overlay contains Istio resources. | `../main/cd.md`, `../main/gke.md`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md` | 2026-06-05 |
 | Smoke tests | IN_PROGRESS | Local e2e harness exists and maps to post-deploy smoke design. Cloud post-deploy smoke evidence pending. | `../../docs/LOCAL_E2E.md`, `../../docs/evidence/local-e2e/2026-06-04-gateway-e2e.md` | 2026-06-04 |
 | DAST | TODO | Requires deployed dev/staging API endpoint. Plan is OWASP ZAP baseline after Argo CD health and smoke pass. | `../main/cd.md` | 2026-06-05 |
 | JMeter load and stress tests | TODO | `perf.yml` lane exists; concrete plans/evidence are pending. Should run only on `performance-test` branch or manual dispatch. | `../../.github/workflows/perf.yml`, `../main/ci.md` | 2026-06-05 |
@@ -40,6 +40,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | All-service Artifact Registry backfill | PASS; run `26971844902` built, scanned, and pushed all nine service images. | 2026-06-05 |
 | All-service GitOps tag update | PASS; current reachable commit `c6724db` points every dev service image to `783c78a16381`. | 2026-06-05 |
 | Repository metadata cleanup verification | PASS; CI run `26989856501` and deploy-handoff run `26989888972` completed successfully after the `main` history cleanup. | 2026-06-05 |
+| GKE runtime foundation | PASS; Terraform-managed VPC, NAT, firewall, private-node GKE cluster, and node pool are live and plan clean. | 2026-06-05 |
+| Argo CD preflight | BLOCKED; server-side dry run confirms Istio CRDs are missing for `AuthorizationPolicy` and `PeerAuthentication`. | 2026-06-05 |
 
 ## Log
 
@@ -53,3 +55,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Proved the deploy handoff through GitHub Actions run `26970676442`: WIF auth, Docker login, build, Trivy scan, Artifact Registry push, and Kustomize tag commit all passed. |
 | 2026-06-05 | Ran all-service image backfill through GitHub Actions run `26971844902`; all nine repositories now have full/short Git SHA tags, and the dev overlay points all services to tag `783c78a16381`. |
 | 2026-06-05 | Re-verified the repository after metadata cleanup: CI run `26989856501` and deploy-handoff run `26989888972` both passed. |
+| 2026-06-05 | Runtime GKE foundation is live. Argo CD rollout is now gated by Istio CRD/control-plane installation or a split sync design. |
