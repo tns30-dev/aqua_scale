@@ -1,5 +1,7 @@
 # Public API HTTPS Edge Static IP Reservation - 2026-06-05
 
+Update: the live DNS, managed certificate, Gateway, backend health, CI/SAST recovery, and public business-flow smoke evidence is now recorded in `2026-06-05-public-edge-live-rollout.md`. This file remains the static-IP reservation evidence for the earlier Terraform slice.
+
 ## Scope
 
 The selected public API edge path is HTTPS with a real domain and Google-managed TLS, not temporary HTTP-only exposure.

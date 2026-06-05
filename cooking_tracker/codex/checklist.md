@@ -40,12 +40,12 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 
 | Status | Item | Output | Reference Doc |
 |---|---|---|---|
-| [ ] | Firebase Hosting | Firebase config, lint, tests, and production build are ready; live deploy waits on Firebase project/service account and final HTTPS API/WSS URLs | [frontend_deployment.md](../main/frontend_deployment.md), [cdn.md](../main/cdn.md) |
-| [ ] | Frontend integration | React/Vite SPA integrated with REST API edge and WSS realtime gateway | [frontend.md](../main/frontend.md), [api_contract_docs.md](../main/api_contract_docs.md), [websocket.md](../main/websocket.md) |
+| [ ] | Firebase Hosting | Firebase config, lint, tests, and production build are ready; live deploy waits on Firebase project/service account and `api.aquashield.live` env wiring | [frontend_deployment.md](../main/frontend_deployment.md), [cdn.md](../main/cdn.md) |
+| [ ] | Frontend integration | React/Vite SPA is ready to point at public REST/WSS edge; live Firebase deploy remains pending | [frontend.md](../main/frontend.md), [api_contract_docs.md](../main/api_contract_docs.md), [websocket.md](../main/websocket.md) |
 | [ ] | CDN | Firebase Hosting CDN for frontend; Cloud CDN only if additional backend static assets are used | [cdn.md](../main/cdn.md) |
-| [ ] | GCP API edge | HTTPS Gateway overlay validates and server-side dry-runs; Terraform reserved global IP `8.232.154.25`; live apply waits on real API domain, DNS, and managed TLS certificate | [api_gateway.md](../main/api_gateway.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
+| [x] | GCP API edge | `https://api.aquashield.live` is live on GKE Gateway with static IP `8.232.154.25`, active Google-managed cert, healthy backend, Argo `Synced/Healthy`, and public business-flow smoke evidence | [api_gateway.md](../main/api_gateway.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
 | [ ] | Cloud Armor | Design documented; runtime evidence out of current scope | [api_gateway.md](../main/api_gateway.md), [network_security.md](../main/network_security.md) |
-| [ ] | WSS realtime endpoint | `wss://<api-domain>/ws` public WebSocket endpoint after DNS/TLS/Gateway sync | [websocket.md](../main/websocket.md) |
+| [x] | WSS realtime endpoint | Public edge routes `/ws` to `realtime-gateway`; business smoke proved realtime token minting through `https://api.aquashield.live` and the frontend should use `wss://api.aquashield.live` | [websocket.md](../main/websocket.md) |
 
 ## Data And Messaging
 
@@ -69,9 +69,9 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [x] | Authn/Authz workflow | JWT, Redis authz snapshot, refresh, revocation, ACL flow | [authn_authz.md](../main/authn_authz.md) |
 | [x] | Identity authorization snapshot | Feature access and ACL stored in Redis after login | [identity_and_access_service.md](../main/identity_and_access_service.md), [redis.md](../main/redis.md) |
 | [x] | Token lifecycle | Login, refresh rotation, logout, revocation, MFA optional state | [identity_and_access_service.md](../main/identity_and_access_service.md), [authn_authz.md](../main/authn_authz.md) |
-| [ ] | Three-layer firewall model | Internet-to-web, web-to-app, app-to-app, app-to-data controls | [network_security.md](../main/network_security.md) |
+| [x] | Three-layer firewall model | Internet-to-Gateway, Gateway-to-proxy, mesh app-to-app, and app-to-managed-data controls are live; Cloud Armor remains design-only | [network_security.md](../main/network_security.md) |
 | [x] | Service-to-service protection | Kubernetes service identity, Istio strict mTLS, and AuthorizationPolicy proven on the live managed dev runtime | [service_discovery.md](../main/service_discovery.md), [network_security.md](../main/network_security.md) |
-| [ ] | Security evidence | SAST, SCA, secret scan, container scan, DAST reports | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
+| [ ] | Security evidence | CI security gates, SAST/SCA/secret/SBOM evidence, mesh controls, WIF, and public HTTPS edge are proved; DAST remains pending | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
 
 ## CI/CD And Testing
 
@@ -81,7 +81,7 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [x] | Artifact Registry push | All nine implemented service images pushed with Git-SHA tags | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
 | [x] | GitOps manifest update | Dev Kustomize image tags updated for all nine services | [ci.md](../main/ci.md), [cd.md](../main/cd.md) |
 | [x] | Argo CD rollout | Argo CD sync and health evidence for the managed-backed nine-service dev runtime | [cd.md](../main/cd.md) |
-| [x] | Smoke tests | Managed-backed business flow passed across identity, project, pond, sensor, ingestion, notification, realtime, analytics, and audit surfaces | [cd.md](../main/cd.md) |
+| [x] | Smoke tests | Managed-backed business flow passed internally, through AWS IoT/Lambda, and through public `https://api.aquashield.live` across identity, project, pond, sensor, ingestion, notification, realtime, analytics, and audit surfaces | [cd.md](../main/cd.md) |
 | [ ] | DAST | OWASP ZAP or equivalent scan after deployment | [cd.md](../main/cd.md) |
 | [ ] | JMeter load and stress tests | Evidence from dedicated `performance-test` branch or manual dispatch | [ci.md](../main/ci.md) |
-| [ ] | Demo evidence | Managed runtime rollout, direct Pub/Sub business smoke, AWS IoT/Lambda live smoke, public edge/Firebase readiness, and HTTPS static-IP reservation evidence recorded; live public edge, DAST, and performance evidence remain | All docs |
+| [ ] | Demo evidence | Managed runtime rollout, direct Pub/Sub business smoke, AWS IoT/Lambda live smoke, public HTTPS edge live smoke, Firebase readiness, and CI/SAST recovery evidence recorded; Firebase live deploy, DAST, and performance evidence remain | All docs |

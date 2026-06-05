@@ -7,9 +7,9 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns architecture, contracts, diagrams, and cross-service integration documentation.
-- Current state: The main architecture and contract docs are already consolidated. Shared API artifacts exist under `shared-api/`, the CI/CD path proves all nine deployable service images can be handed to GitOps, the GKE/network runtime foundation exists in GCP, Argo CD has a healthy managed-backed nine-service dev rollout, the managed business smoke proves the core telemetry business flow, the AWS IoT/Lambda bridge is live and smoked through GCP Pub/Sub, and the public HTTPS edge design now has a reserved static IP plus validated manifests.
-- Current test: Validate docs against implemented service contracts, generated proto files, JSON event schemas, Kustomize/Gateway routing, deploy-handoff evidence, live GKE foundation evidence, managed GCP resource evidence, Argo CD managed-runtime evidence, managed business-flow smoke evidence, AWS IoT/Lambda live smoke evidence, public edge/Firebase readiness evidence, and HTTPS static-IP evidence.
-- Next test: Re-check edge docs after real domain/DNS/managed certificate and live public Gateway/LB/TLS rollout.
+- Current state: The main architecture and contract docs are already consolidated. Shared API artifacts exist under `shared-api/`, the CI/CD path proves all nine deployable service images can be handed to GitOps, the GKE/network runtime foundation exists in GCP, Argo CD has a healthy managed-backed public-edge dev rollout, the managed business smoke proves the core telemetry business flow, the AWS IoT/Lambda bridge is live and smoked through GCP Pub/Sub, and the public HTTPS edge is live at `https://api.aquashield.live`.
+- Current test: Validate docs against implemented service contracts, generated proto files, JSON event schemas, Kustomize/Gateway/proxy routing, deploy-handoff evidence, live GKE foundation evidence, managed GCP resource evidence, Argo CD public-edge evidence, managed business-flow smoke evidence, AWS IoT/Lambda live smoke evidence, Firebase readiness evidence, public HTTPS edge evidence, and CI/SAST recovery evidence.
+- Next test: Re-check frontend deployment docs after Firebase Hosting deploy.
 
 ## Items
 
@@ -37,7 +37,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Managed data architecture alignment | PASS; documented Cloud SQL, Memorystore, Pub/Sub, Bigtable, and BigQuery target architecture now has Terraform apply evidence and a live managed-backed dev rollout. | 2026-06-05 |
 | Managed business-flow alignment | PASS; telemetry path from signed device payload through Pub/Sub, ingestion, alerting, realtime token minting, analytics JSON, and audit is evidenced on the managed runtime. | 2026-06-05 |
 | AWS IoT bridge contract alignment | PASS; `iot.telemetry.received` schema matches the live ingestion payload, and the Lambda bridge preserves signed payloads while wrapping the canonical envelope. Live x.509 MQTT delivery through AWS IoT, Lambda, GCP WIF, and Pub/Sub is evidenced. | 2026-06-05 |
-| Public edge contract alignment | PASS; Gateway/HTTPRoute now uses supported `/api` and `/ws` prefix routing to `api-edge-proxy`, while the proxy preserves implemented service path ownership and nested route exceptions. Static IP `8.232.154.25` is reserved; live exposure is pending real domain/DNS/TLS. | 2026-06-05 |
+| Public edge contract alignment | PASS; Gateway/HTTPRoute uses supported `/api` and `/ws` prefix routing to `api-edge-proxy`, while the proxy preserves implemented service path ownership and nested route exceptions. `https://api.aquashield.live` is live and the public smoke proved identity, project, pond, sensor, ingestion, notification, analytics, realtime, and audit paths. | 2026-06-05 |
 
 ## Log
 
@@ -55,4 +55,5 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Added AWS IoT/Lambda bridge code-readiness evidence and aligned the `iot.telemetry.received` schema with the actual ingestion contract. |
 | 2026-06-05 | Added AWS IoT/Lambda live deploy and smoke evidence; the physical/event architecture now has an exercised AWS-to-GCP telemetry path. |
 | 2026-06-05 | Added initial public edge/Firebase readiness evidence; superseded the temporary HTTP branch with the HTTPS static-IP path. |
-| 2026-06-05 | Switched public edge architecture to HTTPS with an in-cluster proxy for path-aware routing and reserved static IP `8.232.154.25`; live proof waits on real domain/DNS/managed certificate. |
+| 2026-06-05 | Switched public edge architecture to HTTPS with an in-cluster proxy for path-aware routing and reserved static IP `8.232.154.25`; at that point live proof was waiting on real domain/DNS/managed certificate. |
+| 2026-06-05 | Proved the public edge architecture live at `https://api.aquashield.live`: DNS, managed TLS, GKE Gateway, `api-edge-proxy`, mesh routing, and full business-flow smoke all align with the documented contract model. |

@@ -1,6 +1,6 @@
 # Public API Edge and Firebase Readiness - 2026-06-05
 
-Update: this was the initial readiness note before the HTTPS path was selected. The current public edge evidence is `2026-06-05-public-edge-https-ip-reservation.md`; temporary HTTP exposure is no longer the selected path, and the current overlay no longer matches the historical HTTP-only snippets below.
+Update: this was the initial readiness note before the HTTPS path was selected. The current live public edge evidence is `2026-06-05-public-edge-live-rollout.md`; temporary HTTP exposure is no longer the selected path, and the current overlay no longer matches the historical HTTP-only snippets below.
 
 ## Scope
 
@@ -106,8 +106,7 @@ Live Firebase deploy is pending Firebase project/service-account configuration a
 
 Current path:
 
-- Use the reserved static IP from `2026-06-05-public-edge-https-ip-reservation.md`.
-- Provide the real API domain and create the DNS `A` record.
-- Create the managed certificate/TLS config.
-- Deploy `dev-managed-public` with the HTTPS listener and HTTP redirect.
+- Public API is live at `https://api.aquashield.live`.
+- Public WSS base should be `wss://api.aquashield.live`.
 - Configure Firebase `VITE_API_BASE_URL` and `VITE_WS_BASE_URL`.
+- Deploy Firebase Hosting and capture live frontend evidence.
