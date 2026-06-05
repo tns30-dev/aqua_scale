@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: https://github.com/tns30-dev/aqua_scale.git
     targetRevision: main
-    path: k8s/overlays/dev
+    path: k8s/overlays/dev-smoke
   destination:
     server: https://kubernetes.default.svc
     namespace: aquashield-dev

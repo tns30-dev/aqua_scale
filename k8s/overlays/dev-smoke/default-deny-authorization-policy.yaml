@@ -1,0 +1,7 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: default-deny
+  labels:
+    app.kubernetes.io/part-of: aquashield
+spec: {}

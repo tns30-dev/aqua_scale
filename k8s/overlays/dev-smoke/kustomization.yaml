@@ -1,0 +1,72 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: aquashield-dev
+
+resources:
+  - namespace.yaml
+  - service-account.yaml
+  - analytics-service-secret.yaml
+  - ../../base/services/analytics-service
+  - peer-authentication.yaml
+  - default-deny-authorization-policy.yaml
+  - default-deny-ingress.yaml
+  - allow-gclb-health-checks.yaml
+
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/environment: dev
+      app.kubernetes.io/part-of: aquashield
+  - pairs:
+      app.kubernetes.io/smoke-slice: analytics
+
+patches:
+  - target:
+      kind: Deployment
+      name: analytics-service
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: add
+        path: /spec/strategy
+        value:
+          type: RollingUpdate
+          rollingUpdate:
+            maxSurge: 0
+            maxUnavailable: 1
+      - op: add
+        path: /spec/template/metadata/annotations
+        value:
+          sidecar.istio.io/proxyCPU: 25m
+          sidecar.istio.io/proxyMemory: 64Mi
+          sidecar.istio.io/proxyCPULimit: 250m
+          sidecar.istio.io/proxyMemoryLimit: 256Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 25m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 192Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 250m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 384Mi
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: analytics-service
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 1
+
+images:
+  - name: analytics-service
+    newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/analytics-service/analytics-service
+    newTag: 783c78a16381
