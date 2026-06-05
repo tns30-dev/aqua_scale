@@ -8,9 +8,9 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 
 - Ownership: Codex owns CI/CD, GitOps handoff, Argo CD rollout proof, post-deploy smoke tests, DAST, JMeter, and demo evidence.
 - Current state: Path-aware CI is proven and already builds/tests/scans/containerizes changed services. `deploy-handoff.yml` pushed all nine implemented service images to Artifact Registry. The live `aquashield-dev` Argo CD Application targets `k8s/overlays/dev-managed`, eight Java services are rebuilt at tag `bef15c6`, analytics remains at `783c78a16381`, and the managed-backed business smoke passed.
-- Current test: GitHub Actions CI evidence, Terraform WIF apply, all-service deploy-handoff run, Artifact Registry tag verification, local Kustomize render, GKE runtime foundation verification, Istio/Argo CD install, managed Argo sync, all-service readiness checks, managed business-flow smoke, and AWS bridge code-readiness checks.
-- Next test: AWS IoT/Lambda live smoke after credentials are refreshed, then public API edge/Firebase smoke and DAST.
-- Inputs ready from user: GCP account, project, region, repositories, WIF provider, deployer service account, GKE cluster, Istio, and Argo CD are ready. AWS credentials currently return `InvalidClientTokenId`; public edge/domain choice remains pending.
+- Current test: GitHub Actions CI evidence, Terraform WIF apply, all-service deploy-handoff run, Artifact Registry tag verification, local Kustomize render, GKE runtime foundation verification, Istio/Argo CD install, managed Argo sync, all-service readiness checks, managed business-flow smoke, AWS bridge code-readiness checks, and public edge/Firebase readiness checks.
+- Next test: AWS IoT/Lambda live smoke after credentials are refreshed; public API edge live smoke after explicit HTTP approval or domain/TLS; then DAST.
+- Inputs ready from user: GCP account, project, region, repositories, WIF provider, deployer service account, GKE cluster, Istio, and Argo CD are ready. AWS credentials currently return `InvalidClientTokenId`; public edge live rollout needs explicit HTTP approval or a domain/TLS choice.
 
 ## Items
 
@@ -51,6 +51,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Managed business-flow smoke | PASS; run `DEV-CLOUD-SMOKE-20260605-140646` produced `energyTotalKwh=3.1`, `activeAlerts=1`, `comparisonMetricCount=4`, `realtimeTokenMinted=true`, and `auditSecurityRows=3`. | 2026-06-05 |
 | AWS bridge code readiness | PASS; Lambda unit tests/build/package, production dependency audit, event schema validation, and Terraform validation passed. | 2026-06-05 |
 | AWS bridge live smoke | BLOCKED; AWS CLI default and `tns_admin` profiles return `InvalidClientTokenId`. | 2026-06-05 |
+| Public edge/Firebase readiness | PASS; Gateway overlay render/server dry run, frontend lint, frontend tests, and production build passed. | 2026-06-05 |
+| Public edge live smoke | BLOCKED; HTTP-only public exposure needs explicit approval, or HTTPS requires domain/TLS configuration. | 2026-06-05 |
 
 ## Log
 
@@ -71,3 +73,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Cut Argo CD to `k8s/overlays/dev-managed`; all nine services became ready on managed Cloud SQL, Memorystore Redis, and real Google Pub/Sub. |
 | 2026-06-05 | Rebuilt the eight Java services at tag `bef15c6` after removing baked Pub/Sub emulator configuration, rolled them through Argo CD at commit `a057b0b`, and passed the managed business-flow smoke. |
 | 2026-06-05 | Added AWS IoT/Lambda bridge code and Terraform readiness evidence; live smoke waits on valid AWS credentials and account ID. |
+| 2026-06-05 | Added public edge/Firebase readiness evidence. Live public edge apply is pending explicit HTTP approval or domain/TLS input. |

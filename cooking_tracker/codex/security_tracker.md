@@ -8,8 +8,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 
 - Ownership: Codex owns platform security architecture, cloud/network controls, service-to-service protection, and security evidence.
 - Current state: Application-layer authn/authz is implemented and tested. CI security gates exist, all nine deployable service images passed Trivy image scan, the GKE VPC/firewall/private-node foundation is live, Istio strict mTLS plus AuthorizationPolicy are proven on the managed nine-service dev runtime, and Workload Identity-backed Pub/Sub access is proven by the business smoke. Cloud Armor remains an architecture/design control without runtime evidence in this implementation.
-- Current test: Existing auth integration tests, Redis snapshot evidence, CI gates, all-service container scans, local e2e security paths, GKE node readiness, firewall/NAT verification, Istio mTLS policy presence, Argo CD managed-runtime evidence, live Workload Identity-backed GCP API access, managed business smoke, and AWS bridge IAM design validation.
-- Next test: Apply AWS IoT/Lambda IAM after credentials are refreshed, then run public-edge DAST once an HTTPS endpoint exists.
+- Current test: Existing auth integration tests, Redis snapshot evidence, CI gates, all-service container scans, local e2e security paths, GKE node readiness, firewall/NAT verification, Istio mTLS policy presence, Argo CD managed-runtime evidence, live Workload Identity-backed GCP API access, managed business smoke, AWS bridge IAM design validation, and public edge dry-run validation.
+- Next test: Apply AWS IoT/Lambda IAM after credentials are refreshed, then run public-edge DAST once an approved HTTP endpoint or HTTPS endpoint exists.
 
 ## Items
 
@@ -20,7 +20,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Token lifecycle | DONE | Login, refresh rotation, reuse detection, logout, and jti revocation are implemented and tested. MFA remains optional/deferred. | `../../docs/evidence/identity-access/` | 2026-06-04 |
 | Three-layer firewall model | IN_PROGRESS | VPC, private-node GKE, NAT, health-check firewall, and internal firewall are live. Cloud Armor WAF/rate-limit policy remains design-only for this implementation. | `../../infra/modules/network/`, `../../infra/modules/security/`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md`, `../main/network_security.md` | 2026-06-05 |
 | Service-to-service protection | DONE | K8s service accounts, NetworkPolicy default-deny, Istio sidecar injection, strict mTLS, and AuthorizationPolicy are live on the managed nine-service dev runtime; the managed business smoke exercised authenticated cross-service flows. | `../../k8s/base/service-accounts.yaml`, `../../k8s/base/mesh/`, `../../k8s/base/services/`, `../../k8s/overlays/dev-managed/`, `../../docs/evidence/gitops/2026-06-05-managed-business-flow-smoke.md` | 2026-06-05 |
-| Security evidence | IN_PROGRESS | CI gates include Gitleaks, Semgrep, Trivy fs/image scans, CycloneDX SBOM, all-service deploy-handoff image scans, GKE/network apply evidence, managed mesh evidence, live Workload Identity-backed GCP API access, managed business-smoke auth/audit evidence, and AWS bridge IAM/WIF code-readiness evidence. AWS live IAM proof and DAST are pending. | `../../docs/evidence/ci/2026-06-04-ci-skeleton-and-dependency-hardening.txt`, `../../docs/evidence/terraform-foundation/2026-06-05-github-oidc-deploy-handoff.md`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md`, `../../docs/evidence/gitops/2026-06-05-managed-business-flow-smoke.md`, `../../docs/evidence/terraform-foundation/2026-06-05-managed-data-apply.md`, `../../docs/evidence/aws-iot-bridge/2026-06-05-code-readiness.md` | 2026-06-05 |
+| Security evidence | IN_PROGRESS | CI gates include Gitleaks, Semgrep, Trivy fs/image scans, CycloneDX SBOM, all-service deploy-handoff image scans, GKE/network apply evidence, managed mesh evidence, live Workload Identity-backed GCP API access, managed business-smoke auth/audit evidence, AWS bridge IAM/WIF code-readiness evidence, and public edge dry-run evidence. AWS live IAM proof and DAST are pending. | `../../docs/evidence/ci/2026-06-04-ci-skeleton-and-dependency-hardening.txt`, `../../docs/evidence/terraform-foundation/2026-06-05-github-oidc-deploy-handoff.md`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md`, `../../docs/evidence/gitops/2026-06-05-managed-business-flow-smoke.md`, `../../docs/evidence/terraform-foundation/2026-06-05-managed-data-apply.md`, `../../docs/evidence/aws-iot-bridge/2026-06-05-code-readiness.md`, `../../docs/evidence/public-edge/2026-06-05-public-edge-firebase-readiness.md` | 2026-06-05 |
 
 ## Validation
 
@@ -39,6 +39,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Workload Identity proof | PASS; `dev-managed` service accounts are annotated for per-service Google service accounts and the managed rollout used ADC/Workload Identity for real Pub/Sub and managed GCP APIs without JSON keys. | 2026-06-05 |
 | Managed auth/audit smoke | PASS; business smoke minted a JWT, refreshed project grants, used the authz snapshot across services, and observed audit security rows. | 2026-06-05 |
 | AWS bridge IAM design | PASS; Terraform defines IoT publish-only device policy, Lambda log-only execution role, GCP WIF restricted to the Lambda assumed-role prefix, and Pub/Sub publisher-only IAM. Live proof is blocked by AWS credentials. | 2026-06-05 |
+| Public edge exposure control | BLOCKED; HTTP-only public API exposure was not applied without explicit temporary-risk approval. HTTPS requires domain/TLS input. | 2026-06-05 |
 
 ## Log
 
@@ -54,3 +55,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Promoted managed security evidence to live `dev-managed`: all nine services are healthy with Workload Identity annotations and managed Cloud SQL/Memorystore/Pub/Sub runtime dependencies. |
 | 2026-06-05 | Managed business smoke passed, proving Workload Identity Pub/Sub access plus JWT/authz/audit paths on the live managed runtime. |
 | 2026-06-05 | Added AWS IoT/Lambda bridge IAM/WIF scaffold with publisher-only GCP access and no Google service account key. Live evidence waits on valid AWS credentials. |
+| 2026-06-05 | Added public Gateway dry-run evidence but did not apply HTTP-only public exposure without explicit approval. |

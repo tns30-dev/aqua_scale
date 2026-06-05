@@ -40,10 +40,10 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 
 | Status | Item | Output | Reference Doc |
 |---|---|---|---|
-| [ ] | Firebase Hosting | React SPA hosted as static frontend | [frontend_deployment.md](../main/frontend_deployment.md), [cdn.md](../main/cdn.md) |
+| [ ] | Firebase Hosting | Firebase config, lint, tests, and production build are ready; live deploy waits on Firebase project/service account and final API/WS URLs | [frontend_deployment.md](../main/frontend_deployment.md), [cdn.md](../main/cdn.md) |
 | [ ] | Frontend integration | React/Vite SPA integrated with REST API edge and WSS realtime gateway | [frontend.md](../main/frontend.md), [api_contract_docs.md](../main/api_contract_docs.md), [websocket.md](../main/websocket.md) |
 | [ ] | CDN | Firebase Hosting CDN for frontend; Cloud CDN only if additional backend static assets are used | [cdn.md](../main/cdn.md) |
-| [ ] | GCP API edge | External HTTPS Load Balancer, Gateway/Ingress, managed TLS | [api_gateway.md](../main/api_gateway.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
+| [ ] | GCP API edge | `dev-managed-public` Gateway overlay validates and server-side dry-runs; live apply waits on explicit HTTP approval or domain/TLS choice | [api_gateway.md](../main/api_gateway.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
 | [ ] | Cloud Armor | Design documented; runtime evidence out of current scope | [api_gateway.md](../main/api_gateway.md), [network_security.md](../main/network_security.md) |
 | [ ] | WSS realtime endpoint | `wss://api.aquashield.example.com/ws` public WebSocket endpoint | [websocket.md](../main/websocket.md) |
 
@@ -84,4 +84,4 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [x] | Smoke tests | Managed-backed business flow passed across identity, project, pond, sensor, ingestion, notification, realtime, analytics, and audit surfaces | [cd.md](../main/cd.md) |
 | [ ] | DAST | OWASP ZAP or equivalent scan after deployment | [cd.md](../main/cd.md) |
 | [ ] | JMeter load and stress tests | Evidence from dedicated `performance-test` branch or manual dispatch | [ci.md](../main/ci.md) |
-| [ ] | Demo evidence | Managed runtime rollout, business-flow smoke, and AWS bridge code-readiness evidence recorded; AWS live apply, public edge, DAST, and performance evidence remain | All docs |
+| [ ] | Demo evidence | Managed runtime rollout, business-flow smoke, AWS bridge code-readiness, and public edge/Firebase readiness evidence recorded; live AWS, live public edge, DAST, and performance evidence remain | All docs |
