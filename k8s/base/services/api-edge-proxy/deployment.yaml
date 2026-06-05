@@ -14,7 +14,7 @@ spec:
         app.kubernetes.io/component: api-edge
         app.kubernetes.io/part-of: aquashield
       annotations:
-        config.aquashield.dev/api-edge-proxy-config-version: "2026-06-05-service-host-upstreams-http11"
+        config.aquashield.dev/api-edge-proxy-config-version: "2026-06-05-cors-frontend-origin"
         sidecar.istio.io/proxyCPU: 25m
         sidecar.istio.io/proxyMemory: 64Mi
         sidecar.istio.io/proxyCPULimit: 250m

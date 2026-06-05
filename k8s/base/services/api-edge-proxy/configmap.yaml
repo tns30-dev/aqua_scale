@@ -31,6 +31,12 @@ data:
         '' $scheme;
       }
 
+      map $http_origin $cors_allow_origin {
+        default "";
+        "https://www.aquashield.live" $http_origin;
+        "https://aerobic-guide-498413-u6.web.app" $http_origin;
+      }
+
       upstream identity-access-service { server identity-access-service:8081; }
       upstream project-service { server project-service:8082; }
       upstream sensor-service { server sensor-service:8083; }
@@ -51,6 +57,16 @@ data:
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $forwarded_proto;
         proxy_set_header X-Forwarded-Host $host;
+
+        add_header Access-Control-Allow-Origin $cors_allow_origin always;
+        add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With, X-Correlation-Id" always;
+        add_header Access-Control-Expose-Headers "X-Correlation-Id" always;
+        add_header Vary "Origin" always;
+
+        if ($request_method = OPTIONS) {
+          return 204;
+        }
 
         location = /healthz {
           default_type application/json;
