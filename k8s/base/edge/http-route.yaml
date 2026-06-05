@@ -6,7 +6,9 @@ metadata:
     app.kubernetes.io/component: api-edge
 spec:
   parentRefs:
-    - name: aquashield-api-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: aquashield-api-gateway
       sectionName: https
   hostnames:
     - api.aquashield.example.com
