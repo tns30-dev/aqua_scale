@@ -40,11 +40,12 @@ data:
     ensure_schema() {
       schema="$1"
       role="$2"
+      password="$3"
       psql -v ON_ERROR_STOP=1 <<SQL
     GRANT CONNECT, CREATE ON DATABASE ${PGDATABASE} TO ${role};
+    SQL
+      PGPASSWORD="${password}" psql -v ON_ERROR_STOP=1 -h "${PGHOST}" -p "${PGPORT}" -U "${role}" -d "${PGDATABASE}" <<SQL
     CREATE SCHEMA IF NOT EXISTS ${schema} AUTHORIZATION ${role};
-    ALTER SCHEMA ${schema} OWNER TO ${role};
-    GRANT USAGE, CREATE ON SCHEMA ${schema} TO ${role};
     ALTER ROLE ${role} SET search_path TO ${schema};
     SQL
     }
@@ -59,13 +60,13 @@ data:
     ensure_user notification_svc "${NOTIFICATION_DB_PASSWORD}"
     ensure_user audit_svc "${AUDIT_DB_PASSWORD}"
 
-    ensure_schema identity_access identity_access_svc
-    ensure_schema project project_svc
-    ensure_schema pond pond_svc
-    ensure_schema sensor sensor_svc
-    ensure_schema ingestion ingestion_svc
-    ensure_schema notification notification_svc
-    ensure_schema audit audit_svc
+    ensure_schema identity_access identity_access_svc "${IDENTITY_ACCESS_DB_PASSWORD}"
+    ensure_schema project project_svc "${PROJECT_DB_PASSWORD}"
+    ensure_schema pond pond_svc "${POND_DB_PASSWORD}"
+    ensure_schema sensor sensor_svc "${SENSOR_DB_PASSWORD}"
+    ensure_schema ingestion ingestion_svc "${INGESTION_DB_PASSWORD}"
+    ensure_schema notification notification_svc "${NOTIFICATION_DB_PASSWORD}"
+    ensure_schema audit audit_svc "${AUDIT_DB_PASSWORD}"
 
     echo "Cloud SQL schema bootstrap complete."
 ---
