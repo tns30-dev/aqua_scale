@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-app-internal-traffic
+  name: allow-gclb-health-checks
 spec:
   podSelector:
     matchLabels:
@@ -10,9 +10,10 @@ spec:
     - Ingress
   ingress:
     - from:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/part-of: aquashield
+        - ipBlock:
+            cidr: 35.191.0.0/16
+        - ipBlock:
+            cidr: 130.211.0.0/22
       ports:
         - protocol: TCP
           port: 8080
@@ -23,8 +24,6 @@ spec:
         - protocol: TCP
           port: 8083
         - protocol: TCP
-          port: 8084
-        - protocol: TCP
           port: 8087
         - protocol: TCP
           port: 8088
@@ -34,17 +33,3 @@ spec:
           port: 8090
         - protocol: TCP
           port: 8092
-        - protocol: TCP
-          port: 9090
-        - protocol: TCP
-          port: 9091
-        - protocol: TCP
-          port: 9092
-        - protocol: TCP
-          port: 9093
-        - protocol: TCP
-          port: 9094
-        - protocol: TCP
-          port: 9095
-        - protocol: TCP
-          port: 9096

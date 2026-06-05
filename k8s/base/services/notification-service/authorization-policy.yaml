@@ -20,3 +20,7 @@ spec:
               - /actuator/info
               - /actuator/metrics
               - /actuator/metrics/*
+    - to:
+        - operation:
+            ports:
+              - "9096"

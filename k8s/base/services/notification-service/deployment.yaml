@@ -27,6 +27,8 @@ spec:
           ports:
             - name: http
               containerPort: 8087
+            - name: grpc
+              containerPort: 9096
           envFrom:
             - configMapRef:
                 name: notification-service-config

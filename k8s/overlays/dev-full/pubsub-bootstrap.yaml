@@ -1,0 +1,117 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pubsub-bootstrap-script
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+data:
+  bootstrap.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    HOST="${PUBSUB_EMULATOR_HOST:-pubsub-emulator:8085}"
+    PROJECT="${PUBSUB_PROJECT_ID:-aquashield-dev}"
+    BASE="http://${HOST}/v1/projects/${PROJECT}"
+
+    CATALOGUE="
+    iot.telemetry.received:ingestion
+    sensor.message.validated:audit
+    sensor.message.rejected:audit
+    reading.ingested:notification,realtime,audit
+    reading.quarantined:audit
+    threshold.violated:realtime,audit
+    alert.created:realtime,audit
+    alert.resolved:realtime,audit
+    notification.requested:dispatcher
+    notification.sent:audit
+    audit.event.recorded:audit
+    project.created:audit
+    project.updated:audit
+    project.settings.updated:notification,audit
+    device.registered:audit
+    device.status.changed:realtime,audit
+    project.sensor.assigned:ingestion,audit
+    project.sensor.updated:ingestion,audit
+    "
+
+    create_topic() {
+      local status
+      status=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "${BASE}/topics/$1")
+      case "${status}" in
+        200) echo "topic: $1" ;;
+        409) echo "topic: $1 (exists)" ;;
+        *) echo "topic: $1 FAILED (${status})" >&2; return 1 ;;
+      esac
+    }
+
+    create_sub() {
+      local sub="$1" topic="$2" dlq="${3:-}"
+      local body status
+      if [ -n "${dlq}" ]; then
+        body="{\"topic\":\"projects/${PROJECT}/topics/${topic}\",\"ackDeadlineSeconds\":30,\"deadLetterPolicy\":{\"deadLetterTopic\":\"projects/${PROJECT}/topics/${dlq}\",\"maxDeliveryAttempts\":5}}"
+      else
+        body="{\"topic\":\"projects/${PROJECT}/topics/${topic}\",\"ackDeadlineSeconds\":30}"
+      fi
+      status=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "${BASE}/subscriptions/${sub}" \
+        -H "Content-Type: application/json" -d "${body}")
+      case "${status}" in
+        200) echo "sub: ${sub}${dlq:+ (DLQ: ${dlq})}" ;;
+        409) echo "sub: ${sub} (exists)" ;;
+        *) echo "sub: ${sub} FAILED (${status})" >&2; return 1 ;;
+      esac
+    }
+
+    echo "${CATALOGUE}" | while IFS=: read -r topic subscribers; do
+      [ -z "${topic}" ] && continue
+      create_topic "${topic}"
+      create_topic "${topic}.dlq"
+      echo "${subscribers}" | tr ',' '\n' | while read -r svc; do
+        [ -z "${svc}" ] && continue
+        create_sub "${svc}.${topic}.sub" "${topic}" "${topic}.dlq"
+      done
+      create_sub "dlq-inspect.${topic}.sub" "${topic}.dlq"
+    done
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pubsub-bootstrap
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: Replace=true
+spec:
+  backoffLimit: 4
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pubsub-bootstrap
+        app.kubernetes.io/component: runtime-dependency
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: pubsub-bootstrap
+          image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+          command: ["bash", "/bootstrap/bootstrap.sh"]
+          env:
+            - name: PUBSUB_EMULATOR_HOST
+              value: pubsub-emulator:8085
+            - name: PUBSUB_PROJECT_ID
+              value: aquashield-dev
+          resources:
+            requests:
+              cpu: 25m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: bootstrap
+              mountPath: /bootstrap
+              readOnly: true
+      volumes:
+        - name: bootstrap
+          configMap:
+            name: pubsub-bootstrap-script
+            defaultMode: 0755

@@ -20,3 +20,7 @@ spec:
               - /api/users/*
               - /actuator/health
               - /actuator/health/*
+    - to:
+        - operation:
+            ports:
+              - "9091"

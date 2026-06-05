@@ -10,3 +10,6 @@ spec:
     - name: http
       port: 8087
       targetPort: http
+    - name: grpc
+      port: 9096
+      targetPort: grpc
