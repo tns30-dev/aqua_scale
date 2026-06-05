@@ -1,0 +1,164 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudsql-bootstrap-script
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+data:
+  bootstrap.sh: |
+    #!/usr/bin/env sh
+    set -eu
+
+    wait_for_postgres() {
+      i=0
+      until pg_isready -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" -d "${PGDATABASE}"; do
+        i=$((i + 1))
+        if [ "${i}" -gt 60 ]; then
+          echo "Cloud SQL did not become ready in time" >&2
+          exit 1
+        fi
+        sleep 5
+      done
+    }
+
+    ensure_user() {
+      role="$1"
+      password="$2"
+      psql -v ON_ERROR_STOP=1 <<SQL
+    DO \$\$
+    BEGIN
+      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${role}') THEN
+        EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${role}', '${password}');
+      ELSE
+        EXECUTE format('ALTER ROLE %I PASSWORD %L', '${role}', '${password}');
+      END IF;
+    END
+    \$\$;
+    SQL
+    }
+
+    ensure_schema() {
+      schema="$1"
+      role="$2"
+      psql -v ON_ERROR_STOP=1 <<SQL
+    GRANT CONNECT, CREATE ON DATABASE ${PGDATABASE} TO ${role};
+    CREATE SCHEMA IF NOT EXISTS ${schema} AUTHORIZATION ${role};
+    ALTER SCHEMA ${schema} OWNER TO ${role};
+    GRANT USAGE, CREATE ON SCHEMA ${schema} TO ${role};
+    ALTER ROLE ${role} SET search_path TO ${schema};
+    SQL
+    }
+
+    wait_for_postgres
+
+    ensure_user identity_access_svc "${IDENTITY_ACCESS_DB_PASSWORD}"
+    ensure_user project_svc "${PROJECT_DB_PASSWORD}"
+    ensure_user pond_svc "${POND_DB_PASSWORD}"
+    ensure_user sensor_svc "${SENSOR_DB_PASSWORD}"
+    ensure_user ingestion_svc "${INGESTION_DB_PASSWORD}"
+    ensure_user notification_svc "${NOTIFICATION_DB_PASSWORD}"
+    ensure_user audit_svc "${AUDIT_DB_PASSWORD}"
+
+    ensure_schema identity_access identity_access_svc
+    ensure_schema project project_svc
+    ensure_schema pond pond_svc
+    ensure_schema sensor sensor_svc
+    ensure_schema ingestion ingestion_svc
+    ensure_schema notification notification_svc
+    ensure_schema audit audit_svc
+
+    echo "Cloud SQL schema bootstrap complete."
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cloudsql-bootstrap
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: Replace=true
+spec:
+  backoffLimit: 4
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cloudsql-bootstrap
+        app.kubernetes.io/component: runtime-bootstrap
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: cloudsql-bootstrap
+          image: postgres:16-alpine
+          command: ["sh", "/bootstrap/bootstrap.sh"]
+          env:
+            - name: PGHOST
+              valueFrom:
+                configMapKeyRef:
+                  name: managed-gcp-runtime
+                  key: CLOUD_SQL_PRIVATE_IP
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: managed-gcp-runtime
+                  key: CLOUD_SQL_DATABASE_NAME
+            - name: PGUSER
+              value: postgres
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cloudsql-admin-secret
+                  key: POSTGRES_PASSWORD
+            - name: IDENTITY_ACCESS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: managed-db-passwords
+                  key: IDENTITY_ACCESS_DB_PASSWORD
+            - name: PROJECT_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: managed-db-passwords
+                  key: PROJECT_DB_PASSWORD
+            - name: POND_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: managed-db-passwords
+                  key: POND_DB_PASSWORD
+            - name: SENSOR_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: managed-db-passwords
+                  key: SENSOR_DB_PASSWORD
+            - name: INGESTION_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: managed-db-passwords
+                  key: INGESTION_DB_PASSWORD
+            - name: NOTIFICATION_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: managed-db-passwords
+                  key: NOTIFICATION_DB_PASSWORD
+            - name: AUDIT_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: managed-db-passwords
+                  key: AUDIT_DB_PASSWORD
+          resources:
+            requests:
+              cpu: 25m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: bootstrap
+              mountPath: /bootstrap
+              readOnly: true
+      volumes:
+        - name: bootstrap
+          configMap:
+            name: cloudsql-bootstrap-script
+            defaultMode: 0755

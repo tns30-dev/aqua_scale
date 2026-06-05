@@ -1,0 +1,256 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: aquashield-dev
+
+resources:
+  - ../dev-full
+  - managed-runtime-config.yaml
+  - cloudsql-bootstrap.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/runtime-slice: managed-gcp
+
+patches:
+  - path: delete-incluster-runtime.yaml
+  - path: workload-identity-service-accounts.yaml
+  - target:
+      kind: Deployment
+      labelSelector: app.kubernetes.io/component in (audit,identity,ingestion,notification,pond,project,sensor)
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
+        value: managed-db-passwords
+  - target:
+      kind: ConfigMap
+      labelSelector: app.kubernetes.io/component in (audit,identity,ingestion,notification,pond,project,realtime,sensor)
+    patch: |-
+      - op: replace
+        path: /data/PUBSUB_EMULATOR_HOST
+        value: ""
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: managed-gcp-runtime
+      fieldPath: data.CLOUD_SQL_PRIVATE_IP
+    targets:
+      - select:
+          kind: ConfigMap
+          name: identity-access-service-config
+        fieldPaths: [data.DB_HOST]
+      - select:
+          kind: ConfigMap
+          name: project-service-config
+        fieldPaths: [data.DB_HOST]
+      - select:
+          kind: ConfigMap
+          name: pond-service-config
+        fieldPaths: [data.DB_HOST]
+      - select:
+          kind: ConfigMap
+          name: sensor-service-config
+        fieldPaths: [data.DB_HOST]
+      - select:
+          kind: ConfigMap
+          name: ingestion-service-config
+        fieldPaths: [data.DB_HOST]
+      - select:
+          kind: ConfigMap
+          name: notification-service-config
+        fieldPaths: [data.DB_HOST]
+      - select:
+          kind: ConfigMap
+          name: audit-service-config
+        fieldPaths: [data.DB_HOST]
+  - source:
+      kind: ConfigMap
+      name: managed-gcp-runtime
+      fieldPath: data.CLOUD_SQL_DATABASE_NAME
+    targets:
+      - select:
+          kind: ConfigMap
+          name: identity-access-service-config
+        fieldPaths: [data.DB_NAME]
+      - select:
+          kind: ConfigMap
+          name: project-service-config
+        fieldPaths: [data.DB_NAME]
+      - select:
+          kind: ConfigMap
+          name: pond-service-config
+        fieldPaths: [data.DB_NAME]
+      - select:
+          kind: ConfigMap
+          name: sensor-service-config
+        fieldPaths: [data.DB_NAME]
+      - select:
+          kind: ConfigMap
+          name: ingestion-service-config
+        fieldPaths: [data.DB_NAME]
+      - select:
+          kind: ConfigMap
+          name: notification-service-config
+        fieldPaths: [data.DB_NAME]
+      - select:
+          kind: ConfigMap
+          name: audit-service-config
+        fieldPaths: [data.DB_NAME]
+  - source:
+      kind: ConfigMap
+      name: managed-gcp-runtime
+      fieldPath: data.MEMORYSTORE_REDIS_HOST
+    targets:
+      - select:
+          kind: ConfigMap
+          name: identity-access-service-config
+        fieldPaths: [data.REDIS_HOST]
+      - select:
+          kind: ConfigMap
+          name: project-service-config
+        fieldPaths: [data.REDIS_HOST]
+      - select:
+          kind: ConfigMap
+          name: pond-service-config
+        fieldPaths: [data.REDIS_HOST]
+      - select:
+          kind: ConfigMap
+          name: sensor-service-config
+        fieldPaths: [data.REDIS_HOST]
+      - select:
+          kind: ConfigMap
+          name: notification-service-config
+        fieldPaths: [data.REDIS_HOST]
+      - select:
+          kind: ConfigMap
+          name: realtime-gateway-config
+        fieldPaths: [data.REDIS_HOST]
+      - select:
+          kind: ConfigMap
+          name: audit-service-config
+        fieldPaths: [data.REDIS_HOST]
+  - source:
+      kind: ConfigMap
+      name: managed-gcp-runtime
+      fieldPath: data.MEMORYSTORE_REDIS_PORT
+    targets:
+      - select:
+          kind: ConfigMap
+          name: identity-access-service-config
+        fieldPaths: [data.REDIS_PORT]
+      - select:
+          kind: ConfigMap
+          name: project-service-config
+        fieldPaths: [data.REDIS_PORT]
+      - select:
+          kind: ConfigMap
+          name: pond-service-config
+        fieldPaths: [data.REDIS_PORT]
+      - select:
+          kind: ConfigMap
+          name: sensor-service-config
+        fieldPaths: [data.REDIS_PORT]
+      - select:
+          kind: ConfigMap
+          name: notification-service-config
+        fieldPaths: [data.REDIS_PORT]
+      - select:
+          kind: ConfigMap
+          name: realtime-gateway-config
+        fieldPaths: [data.REDIS_PORT]
+      - select:
+          kind: ConfigMap
+          name: audit-service-config
+        fieldPaths: [data.REDIS_PORT]
+  - source:
+      kind: ConfigMap
+      name: managed-gcp-runtime
+      fieldPath: data.REDIS_URL
+    targets:
+      - select:
+          kind: ConfigMap
+          name: analytics-service-config
+        fieldPaths: [data.REDIS_URL]
+  - source:
+      kind: ConfigMap
+      name: managed-gcp-runtime
+      fieldPath: data.PUBSUB_PROJECT_ID
+    targets:
+      - select:
+          kind: ConfigMap
+          name: identity-access-service-config
+        fieldPaths: [data.PUBSUB_PROJECT_ID]
+      - select:
+          kind: ConfigMap
+          name: project-service-config
+        fieldPaths: [data.PUBSUB_PROJECT_ID]
+      - select:
+          kind: ConfigMap
+          name: pond-service-config
+        fieldPaths: [data.PUBSUB_PROJECT_ID]
+      - select:
+          kind: ConfigMap
+          name: sensor-service-config
+        fieldPaths: [data.PUBSUB_PROJECT_ID]
+      - select:
+          kind: ConfigMap
+          name: ingestion-service-config
+        fieldPaths: [data.PUBSUB_PROJECT_ID]
+      - select:
+          kind: ConfigMap
+          name: notification-service-config
+        fieldPaths: [data.PUBSUB_PROJECT_ID]
+      - select:
+          kind: ConfigMap
+          name: realtime-gateway-config
+        fieldPaths: [data.PUBSUB_PROJECT_ID]
+      - select:
+          kind: ConfigMap
+          name: audit-service-config
+        fieldPaths: [data.PUBSUB_PROJECT_ID]
+  - source:
+      kind: ConfigMap
+      name: managed-gcp-runtime
+      fieldPath: data.BIGTABLE_INSTANCE_ID
+    targets:
+      - select:
+          kind: ConfigMap
+          name: ingestion-service-config
+        fieldPaths: [data.BIGTABLE_INSTANCE_ID]
+        options:
+          create: true
+      - select:
+          kind: ConfigMap
+          name: analytics-service-config
+        fieldPaths: [data.BIGTABLE_INSTANCE_ID]
+        options:
+          create: true
+  - source:
+      kind: ConfigMap
+      name: managed-gcp-runtime
+      fieldPath: data.BIGTABLE_TABLE_NAME
+    targets:
+      - select:
+          kind: ConfigMap
+          name: ingestion-service-config
+        fieldPaths: [data.BIGTABLE_TABLE_NAME]
+        options:
+          create: true
+      - select:
+          kind: ConfigMap
+          name: analytics-service-config
+        fieldPaths: [data.BIGTABLE_TABLE_NAME]
+        options:
+          create: true
+  - source:
+      kind: ConfigMap
+      name: managed-gcp-runtime
+      fieldPath: data.BIGQUERY_DATASET_ID
+    targets:
+      - select:
+          kind: ConfigMap
+          name: analytics-service-config
+        fieldPaths: [data.BIGQUERY_DATASET_ID]
+        options:
+          create: true

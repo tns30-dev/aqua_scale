@@ -24,6 +24,25 @@ resource "google_compute_subnetwork" "gke" {
   }
 }
 
+resource "google_compute_global_address" "private_service_access" {
+  count = var.enable_private_service_access ? 1 : 0
+
+  project       = var.project_id
+  name          = "${var.network_name}-private-services"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = var.private_service_access_prefix_length
+  network       = google_compute_network.this.id
+}
+
+resource "google_service_networking_connection" "private_service_access" {
+  count = var.enable_private_service_access ? 1 : 0
+
+  network                 = google_compute_network.this.id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_service_access[0].name]
+}
+
 resource "google_compute_router" "this" {
   count = var.enable_cloud_nat ? 1 : 0
 

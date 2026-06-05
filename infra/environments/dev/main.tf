@@ -13,12 +13,17 @@ locals {
 
   required_apis = toset([
     "artifactregistry.googleapis.com",
+    "bigquery.googleapis.com",
+    "bigtableadmin.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "compute.googleapis.com",
     "container.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
+    "pubsub.googleapis.com",
+    "redis.googleapis.com",
     "servicenetworking.googleapis.com",
+    "sqladmin.googleapis.com",
     "sts.googleapis.com"
   ])
 }
@@ -50,6 +55,10 @@ module "network" {
   gke_node_network_tag         = "aquashield-dev-gke-node"
   enable_cloud_nat             = true
   enable_private_google_access = true
+  enable_private_service_access = (
+    var.enable_cloud_sql ||
+    var.enable_memorystore
+  )
 
   depends_on = [google_project_service.required]
 }
@@ -106,6 +115,32 @@ module "gke" {
   enable_private_endpoint = false
 
   depends_on = [google_project_service.required]
+}
+
+module "managed_data" {
+  source = "../../modules/managed-data"
+
+  project_id                    = var.project_id
+  project_number                = data.google_project.current.number
+  region                        = var.region
+  network_self_link             = module.network.network_self_link
+  enable_cloud_sql              = var.enable_cloud_sql
+  enable_memorystore            = var.enable_memorystore
+  enable_pubsub                 = var.enable_pubsub
+  enable_bigtable               = var.enable_bigtable
+  enable_bigquery               = var.enable_bigquery
+  cloud_sql_tier                = var.cloud_sql_tier
+  cloud_sql_deletion_protection = var.cloud_sql_deletion_protection
+  redis_memory_size_gb          = var.redis_memory_size_gb
+  bigtable_zone                 = var.gke_cluster_location
+  bigtable_num_nodes            = var.bigtable_num_nodes
+  bigtable_deletion_protection  = var.bigtable_deletion_protection
+  kubernetes_namespace          = "aquashield-dev"
+
+  depends_on = [
+    google_project_service.required,
+    module.network
+  ]
 }
 
 module "security" {

@@ -59,3 +59,15 @@ variable "enable_private_google_access" {
   type        = bool
   default     = true
 }
+
+variable "enable_private_service_access" {
+  description = "Whether to reserve a private service access range for Cloud SQL, Memorystore, and other Google-managed private services."
+  type        = bool
+  default     = false
+}
+
+variable "private_service_access_prefix_length" {
+  description = "Prefix length for the private service access reserved range."
+  type        = number
+  default     = 16
+}

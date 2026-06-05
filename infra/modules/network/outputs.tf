@@ -32,3 +32,13 @@ output "gke_node_network_tag" {
   description = "GKE node network tag."
   value       = var.gke_node_network_tag
 }
+
+output "private_service_access_range_name" {
+  description = "Reserved private service access range name."
+  value       = var.enable_private_service_access ? google_compute_global_address.private_service_access[0].name : null
+}
+
+output "private_service_access_connection_id" {
+  description = "Private service access connection ID."
+  value       = var.enable_private_service_access ? google_service_networking_connection.private_service_access[0].id : null
+}

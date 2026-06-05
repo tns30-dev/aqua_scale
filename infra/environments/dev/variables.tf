@@ -63,6 +63,66 @@ variable "enable_cloud_armor" {
   default     = false
 }
 
+variable "enable_cloud_sql" {
+  description = "Create managed Cloud SQL PostgreSQL for service-owned transactional schemas."
+  type        = bool
+  default     = false
+}
+
+variable "enable_memorystore" {
+  description = "Create managed Memorystore Redis for cache, authz snapshots, rate limits, and realtime fanout state."
+  type        = bool
+  default     = false
+}
+
+variable "enable_pubsub" {
+  description = "Create real Google Pub/Sub topics, subscriptions, and DLQs."
+  type        = bool
+  default     = false
+}
+
+variable "enable_bigtable" {
+  description = "Create Cloud Bigtable telemetry store. This has provisioned-node cost; enable only for short evidence windows."
+  type        = bool
+  default     = false
+}
+
+variable "enable_bigquery" {
+  description = "Create BigQuery bounded analytics dataset and tables."
+  type        = bool
+  default     = false
+}
+
+variable "cloud_sql_tier" {
+  description = "Cloud SQL PostgreSQL machine tier for dev evidence."
+  type        = string
+  default     = "db-f1-micro"
+}
+
+variable "cloud_sql_deletion_protection" {
+  description = "Prevent accidental Cloud SQL deletion. Keep false for short-lived student evidence environments."
+  type        = bool
+  default     = false
+}
+
+variable "redis_memory_size_gb" {
+  description = "Memorystore Redis size for dev evidence."
+  type        = number
+  default     = 1
+}
+
+variable "bigtable_num_nodes" {
+  description = "Cloud Bigtable node count for the dev telemetry instance."
+  type        = number
+  default     = 1
+}
+
+variable "bigtable_deletion_protection" {
+  description = "Prevent accidental Bigtable deletion. Keep false for short-lived student evidence environments."
+  type        = bool
+  default     = false
+}
+
 variable "github_repository" {
   description = "GitHub repository allowed to impersonate the CI deployer through Workload Identity Federation."
   type        = string

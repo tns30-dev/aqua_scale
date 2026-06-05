@@ -32,3 +32,75 @@ output "cloud_armor_policy_name" {
   description = "Cloud Armor policy for the API edge."
   value       = var.enable_cloud_armor ? module.security[0].cloud_armor_policy_name : null
 }
+
+output "cloud_sql_connection_name" {
+  description = "Cloud SQL instance connection name for Cloud SQL Auth Proxy."
+  value       = module.managed_data.cloud_sql_connection_name
+}
+
+output "cloud_sql_private_ip_address" {
+  description = "Cloud SQL private IP address."
+  value       = module.managed_data.cloud_sql_private_ip_address
+}
+
+output "cloud_sql_database_name" {
+  description = "Cloud SQL database name."
+  value       = module.managed_data.cloud_sql_database_name
+}
+
+output "cloud_sql_admin_password" {
+  description = "Generated Cloud SQL postgres admin password."
+  value       = module.managed_data.cloud_sql_admin_password
+  sensitive   = true
+}
+
+output "cloud_sql_service_passwords" {
+  description = "Generated Cloud SQL service-user passwords."
+  value       = module.managed_data.cloud_sql_service_passwords
+  sensitive   = true
+}
+
+output "memorystore_host" {
+  description = "Memorystore Redis private host."
+  value       = module.managed_data.memorystore_host
+}
+
+output "memorystore_port" {
+  description = "Memorystore Redis port."
+  value       = module.managed_data.memorystore_port
+}
+
+output "pubsub_topic_names" {
+  description = "Pub/Sub topic names managed by Terraform."
+  value       = module.managed_data.pubsub_topic_names
+}
+
+output "pubsub_subscription_names" {
+  description = "Pub/Sub subscription names managed by Terraform."
+  value       = module.managed_data.pubsub_subscription_names
+}
+
+output "bigtable_instance_name" {
+  description = "Cloud Bigtable instance name."
+  value       = module.managed_data.bigtable_instance_name
+}
+
+output "bigtable_table_name" {
+  description = "Cloud Bigtable telemetry table name."
+  value       = module.managed_data.bigtable_table_name
+}
+
+output "bigquery_dataset_id" {
+  description = "BigQuery dataset ID."
+  value       = module.managed_data.bigquery_dataset_id
+}
+
+output "bigquery_table_ids" {
+  description = "BigQuery table IDs."
+  value       = module.managed_data.bigquery_table_ids
+}
+
+output "runtime_service_account_emails" {
+  description = "GCP runtime service accounts bound to Kubernetes service accounts."
+  value       = module.managed_data.runtime_service_account_emails
+}

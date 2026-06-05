@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: managed-gcp-runtime
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  # Replace these two values from Terraform outputs before switching Argo CD to
+  # this overlay:
+  #   terraform output -raw cloud_sql_private_ip_address
+  #   terraform output -raw memorystore_host
+  CLOUD_SQL_PRIVATE_IP: "REPLACE_WITH_TERRAFORM_OUTPUT_cloud_sql_private_ip_address"
+  MEMORYSTORE_REDIS_HOST: "REPLACE_WITH_TERRAFORM_OUTPUT_memorystore_host"
+  REDIS_URL: "redis://REPLACE_WITH_TERRAFORM_OUTPUT_memorystore_host:6379"
+
+  CLOUD_SQL_DATABASE_NAME: "aquashield"
+  MEMORYSTORE_REDIS_PORT: "6379"
+  PUBSUB_PROJECT_ID: "aerobic-guide-498413-u6"
+  BIGTABLE_INSTANCE_ID: "aquashield-dev-telemetry"
+  BIGTABLE_TABLE_NAME: "telemetry_readings"
+  BIGQUERY_DATASET_ID: "aquashield_dev_analytics"

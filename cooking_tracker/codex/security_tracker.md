@@ -7,9 +7,9 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns platform security architecture, cloud/network controls, service-to-service protection, and security evidence.
-- Current state: Application-layer authn/authz is implemented and tested. CI security gates exist, all nine deployable service images passed Trivy image scan, the GKE VPC/firewall/private-node foundation is live, and Istio strict mTLS plus AuthorizationPolicy are proven on the analytics smoke slice. Cloud Armor remains an architecture/design control without runtime evidence in this implementation.
-- Current test: Existing auth integration tests, Redis snapshot evidence, CI gates, all-service container scans, local e2e security paths, GKE node readiness, firewall/NAT verification, Istio mTLS policy presence, and Argo CD smoke rollout evidence.
-- Next test: Add runtime data/messaging dependencies for the full service stack, then run public-edge DAST once an HTTPS endpoint exists.
+- Current state: Application-layer authn/authz is implemented and tested. CI security gates exist, all nine deployable service images passed Trivy image scan, the GKE VPC/firewall/private-node foundation is live, and Istio strict mTLS plus AuthorizationPolicy are proven on the full nine-service dev runtime. Cloud Armor remains an architecture/design control without runtime evidence in this implementation.
+- Current test: Existing auth integration tests, Redis snapshot evidence, CI gates, all-service container scans, local e2e security paths, GKE node readiness, firewall/NAT verification, Istio mTLS policy presence, Argo CD full-runtime evidence, and managed overlay Workload Identity render.
+- Next test: Apply managed data/messaging resources, cut over to `dev-managed`, then run public-edge DAST once an HTTPS endpoint exists.
 
 ## Items
 
@@ -19,8 +19,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Identity authorization snapshot | DONE | Snapshot keys and versioning are implemented in Redis after login; access/role changes invalidate old state. | `../../docs/evidence/identity-access/` | 2026-06-04 |
 | Token lifecycle | DONE | Login, refresh rotation, reuse detection, logout, and jti revocation are implemented and tested. MFA remains optional/deferred. | `../../docs/evidence/identity-access/` | 2026-06-04 |
 | Three-layer firewall model | IN_PROGRESS | VPC, private-node GKE, NAT, health-check firewall, and internal firewall are live. Cloud Armor WAF/rate-limit policy remains design-only for this implementation. | `../../infra/modules/network/`, `../../infra/modules/security/`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md`, `../main/network_security.md` | 2026-06-05 |
-| Service-to-service protection | DONE | K8s service account, NetworkPolicy default-deny, Istio sidecar injection, strict mTLS, and AuthorizationPolicy are live on the analytics smoke slice. Full all-service mesh behavior remains a later runtime rollout concern. | `../../k8s/base/service-accounts.yaml`, `../../k8s/base/mesh/`, `../../k8s/base/services/`, `../../k8s/overlays/dev-smoke/`, `../../docs/evidence/gitops/2026-06-05-argocd-dev-smoke-rollout.md` | 2026-06-05 |
-| Security evidence | IN_PROGRESS | CI gates include Gitleaks, Semgrep, Trivy fs/image scans, CycloneDX SBOM, all-service deploy-handoff image scans, and GKE/network apply evidence. DAST and mesh proof are pending. | `../../docs/evidence/ci/2026-06-04-ci-skeleton-and-dependency-hardening.txt`, `../../docs/evidence/terraform-foundation/2026-06-05-github-oidc-deploy-handoff.md`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md` | 2026-06-05 |
+| Service-to-service protection | DONE | K8s service accounts, NetworkPolicy default-deny, Istio sidecar injection, strict mTLS, and AuthorizationPolicy are live on the full nine-service dev runtime. Business-flow curl through the mesh remains a diagnostic follow-up. | `../../k8s/base/service-accounts.yaml`, `../../k8s/base/mesh/`, `../../k8s/base/services/`, `../../k8s/overlays/dev-full/`, `../../docs/evidence/gitops/2026-06-05-argocd-dev-full-rollout.md` | 2026-06-05 |
+| Security evidence | IN_PROGRESS | CI gates include Gitleaks, Semgrep, Trivy fs/image scans, CycloneDX SBOM, all-service deploy-handoff image scans, GKE/network apply evidence, full dev mesh evidence, and `dev-managed` Workload Identity manifest render. DAST is pending. | `../../docs/evidence/ci/2026-06-04-ci-skeleton-and-dependency-hardening.txt`, `../../docs/evidence/terraform-foundation/2026-06-05-github-oidc-deploy-handoff.md`, `../../docs/evidence/terraform-foundation/2026-06-05-gke-runtime-apply.md`, `../../docs/evidence/gitops/2026-06-05-argocd-dev-full-rollout.md`, `../../docs/evidence/terraform-foundation/2026-06-05-managed-data-slice-code-readiness.md` | 2026-06-05 |
 
 ## Validation
 
@@ -33,9 +33,10 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | GKE firewall foundation | PASS; VPC, health-check firewall, internal firewall, private nodes, and NAT are live. | 2026-06-05 |
 | Cloud Armor runtime evidence | NOT_REQUIRED; retained in architecture docs, but not implemented/evidenced in this scope. | 2026-06-05 |
 | Istio install | PASS; Istio `1.30.1` CRDs/control plane are live. | 2026-06-05 |
-| Strict mTLS proof | PASS; `PeerAuthentication/default-strict-mtls` is live in `STRICT` mode for the smoke namespace. | 2026-06-05 |
-| AuthorizationPolicy proof | PASS; `AuthorizationPolicy/default-deny` and `analytics-service-allow-http` are live and Argo-synced. | 2026-06-05 |
-| NetworkPolicy proof | PASS; default-deny ingress plus analytics/GCLB allow policies are live and Argo-synced. | 2026-06-05 |
+| Strict mTLS proof | PASS; `PeerAuthentication/default-strict-mtls` is live in `STRICT` mode for the full dev namespace. | 2026-06-05 |
+| AuthorizationPolicy proof | PASS; `AuthorizationPolicy/default-deny` and per-service allow policies are live and Argo-synced. | 2026-06-05 |
+| NetworkPolicy proof | PASS; default-deny ingress, app-internal allow, GCLB allow, and per-service policies are live and Argo-synced. | 2026-06-05 |
+| Workload Identity manifest proof | PASS; `dev-managed` renders per-service `iam.gke.io/gcp-service-account` annotations for real GCP API access without JSON keys. | 2026-06-05 |
 
 ## Log
 
@@ -47,3 +48,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | All nine deployable images passed Trivy image scan during Artifact Registry backfill; live Istio/DAST evidence remains next. |
 | 2026-06-05 | Runtime GKE/network foundation went live. Cloud Armor remains design-only for this implementation. At this point mesh proof was still gated by Istio installation. |
 | 2026-06-05 | Installed Istio and proved service identity controls on the live analytics smoke slice: sidecar injection, strict mTLS, default-deny AuthorizationPolicy, and NetworkPolicy. |
+| 2026-06-05 | Promoted mesh/security evidence to the full nine-service `dev-full` runtime and added Workload Identity manifest proof for the managed GCP cutover overlay. |
