@@ -7,9 +7,9 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 ## Summary
 
 - Ownership: Codex owns architecture, contracts, diagrams, and cross-service integration documentation.
-- Current state: The main architecture and contract docs are already consolidated. Shared API artifacts exist under `shared-api/`, the CI/CD path proves all nine deployable service images can be handed to GitOps, the GKE/network runtime foundation exists in GCP, Argo CD has a healthy managed-backed nine-service dev rollout, and the managed business smoke proves the core telemetry business flow.
-- Current test: Validate docs against implemented service contracts, generated proto files, JSON event schemas, Kustomize/Gateway routing, deploy-handoff evidence, live GKE foundation evidence, managed GCP resource evidence, Argo CD managed-runtime evidence, and business-flow smoke evidence.
-- Next test: Re-check IoT and deployment docs after AWS IoT/Lambda bridge implementation, then re-check edge docs after public Gateway/LB/TLS rollout.
+- Current state: The main architecture and contract docs are already consolidated. Shared API artifacts exist under `shared-api/`, the CI/CD path proves all nine deployable service images can be handed to GitOps, the GKE/network runtime foundation exists in GCP, Argo CD has a healthy managed-backed nine-service dev rollout, the managed business smoke proves the core telemetry business flow, and AWS IoT/Lambda bridge code is ready.
+- Current test: Validate docs against implemented service contracts, generated proto files, JSON event schemas, Kustomize/Gateway routing, deploy-handoff evidence, live GKE foundation evidence, managed GCP resource evidence, Argo CD managed-runtime evidence, business-flow smoke evidence, and AWS bridge code-readiness evidence.
+- Next test: Re-check IoT/deployment docs after AWS live apply evidence, then re-check edge docs after public Gateway/LB/TLS rollout.
 
 ## Items
 
@@ -36,6 +36,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | GitOps full-runtime alignment | PASS; deployment architecture now has live Istio, Argo CD, Artifact Registry pull, and full nine-service runtime evidence. | 2026-06-05 |
 | Managed data architecture alignment | PASS; documented Cloud SQL, Memorystore, Pub/Sub, Bigtable, and BigQuery target architecture now has Terraform apply evidence and a live managed-backed dev rollout. | 2026-06-05 |
 | Managed business-flow alignment | PASS; telemetry path from signed device payload through Pub/Sub, ingestion, alerting, realtime token minting, analytics JSON, and audit is evidenced on the managed runtime. | 2026-06-05 |
+| AWS IoT bridge contract alignment | PASS; `iot.telemetry.received` schema now matches the live ingestion payload, and the Lambda bridge preserves signed payloads while wrapping the canonical envelope. Live delivery evidence is pending AWS credentials. | 2026-06-05 |
 
 ## Log
 
@@ -50,3 +51,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Confirmed GitOps architecture now has live evidence through Argo CD `Synced/Healthy` full-runtime rollout at revision `9545374571ff969a34c11152850bc1ed56852c3c`. |
 | 2026-06-05 | Added managed GCP data cutover evidence for Cloud SQL, Memorystore, real Pub/Sub, Bigtable, BigQuery, and Argo CD `dev-managed` rollout. |
 | 2026-06-05 | Added managed business-flow smoke evidence and set AWS IoT/Lambda bridge as the next architecture-validation slice before public edge/Firebase. |
+| 2026-06-05 | Added AWS IoT/Lambda bridge code-readiness evidence and aligned the `iot.telemetry.received` schema with the actual ingestion contract. |

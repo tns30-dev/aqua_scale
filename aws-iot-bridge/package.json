@@ -1,0 +1,25 @@
+{
+  "name": "aws-iot-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AquaShield AWS IoT Core to Google Pub/Sub Lambda bridge",
+  "main": "dist/handler.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit && esbuild src/handler.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/handler.js",
+    "package": "npm run build && cd dist && zip -qr aws-iot-bridge.zip .",
+    "test": "vitest run",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@google-cloud/pubsub": "^5.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "esbuild": "^0.25.12",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

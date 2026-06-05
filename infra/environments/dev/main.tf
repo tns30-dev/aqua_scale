@@ -149,3 +149,24 @@ module "security" {
 
   cloud_armor_policy_name = "aquashield-dev-api-edge"
 }
+
+module "aws_iot_bridge" {
+  source = "../../modules/aws-iot-bridge"
+  count  = var.enable_aws_iot_bridge ? 1 : 0
+
+  project_id      = var.project_id
+  project_number  = data.google_project.current.number
+  aws_account_id  = var.aws_account_id
+  aws_region      = var.aws_region
+  lambda_zip_path = coalesce(var.aws_iot_lambda_zip_path != "" ? var.aws_iot_lambda_zip_path : null, abspath("${path.module}/../../../aws-iot-bridge/dist/aws-iot-bridge.zip"))
+
+  pubsub_topic_name = "iot.telemetry.received"
+  iot_thing_name    = var.aws_iot_thing_name
+  iot_topic_prefix  = var.aws_iot_topic_prefix
+  iot_topic_filter  = var.aws_iot_topic_filter
+
+  depends_on = [
+    google_project_service.required,
+    module.managed_data
+  ]
+}

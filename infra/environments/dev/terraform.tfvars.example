@@ -36,3 +36,17 @@ redis_memory_size_gb          = 1
 # evidence windows unless budget/quota is confirmed.
 bigtable_num_nodes           = 1
 bigtable_deletion_protection = false
+
+# AWS IoT/Lambda bridge. Keep disabled until AWS credentials, account ID,
+# and the packaged Lambda zip are ready.
+enable_aws_iot_bridge = false
+aws_region            = "ap-southeast-1"
+aws_profile           = null
+aws_account_id        = "123456789012"
+
+# Optional. If empty, Terraform expects:
+#   aws-iot-bridge/dist/aws-iot-bridge.zip
+aws_iot_lambda_zip_path = ""
+aws_iot_thing_name      = "aq-dev-simulator-01"
+aws_iot_topic_prefix    = "aquashield/dev/telemetry"
+aws_iot_topic_filter    = "aquashield/dev/telemetry/+"

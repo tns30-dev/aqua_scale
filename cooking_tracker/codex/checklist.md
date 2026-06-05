@@ -58,8 +58,8 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [x] | BigQuery | `aquashield_dev_analytics` with `readings` and `alerts` tables is live; deeper analytics wiring remains a future service slice | [polyglot_persistence.md](../main/polyglot_persistence.md), [analytics_service.md](../main/analytics_service.md) |
 | [ ] | Cloud Storage | Reports, exports, archives, artifacts, future ML assets | [polyglot_persistence.md](../main/polyglot_persistence.md) |
 | [x] | Google Pub/Sub | Real Pub/Sub catalogue live with 36 topics and 45 subscriptions; managed overlay removes emulator config | [eda.md](../main/eda.md), [pub_sub_contract_docs.md](../main/pub_sub_contract_docs.md) |
-| [ ] | AWS IoT Core | MQTT broker, device identity, certificates, policies, rules | [iot.md](../main/iot.md) |
-| [ ] | AWS Lambda bridge | AWS IoT event bridge into Google Pub/Sub | [iot.md](../main/iot.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
+| [ ] | AWS IoT Core | Terraform module ready for MQTT broker path, thing, certificate, policy, and IoT rule; live apply blocked by invalid local AWS credentials | [iot.md](../main/iot.md) |
+| [ ] | AWS Lambda bridge | TypeScript bridge and Terraform WIF/Pub/Sub publisher IAM are validated locally; live AWS invocation evidence pending credentials | [iot.md](../main/iot.md), [physical_arch_docs.md](../main/physical_arch_docs.md) |
 | [x] | Terraform-managed infrastructure | Remote state, Artifact Registry, WIF, VPC, NAT, firewall, GKE, private service access, Cloud SQL, Memorystore, Pub/Sub, Bigtable, and BigQuery are Terraform-owned | [terraform.md](../main/terraform.md) |
 
 ## Security
@@ -84,4 +84,4 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [x] | Smoke tests | Managed-backed business flow passed across identity, project, pond, sensor, ingestion, notification, realtime, analytics, and audit surfaces | [cd.md](../main/cd.md) |
 | [ ] | DAST | OWASP ZAP or equivalent scan after deployment | [cd.md](../main/cd.md) |
 | [ ] | JMeter load and stress tests | Evidence from dedicated `performance-test` branch or manual dispatch | [ci.md](../main/ci.md) |
-| [ ] | Demo evidence | Managed runtime rollout and business-flow smoke evidence recorded; public edge, AWS bridge, DAST, and performance evidence remain | All docs |
+| [ ] | Demo evidence | Managed runtime rollout, business-flow smoke, and AWS bridge code-readiness evidence recorded; AWS live apply, public edge, DAST, and performance evidence remain | All docs |

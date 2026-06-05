@@ -8,9 +8,9 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 
 - Ownership: Codex owns CI/CD, GitOps handoff, Argo CD rollout proof, post-deploy smoke tests, DAST, JMeter, and demo evidence.
 - Current state: Path-aware CI is proven and already builds/tests/scans/containerizes changed services. `deploy-handoff.yml` pushed all nine implemented service images to Artifact Registry. The live `aquashield-dev` Argo CD Application targets `k8s/overlays/dev-managed`, eight Java services are rebuilt at tag `bef15c6`, analytics remains at `783c78a16381`, and the managed-backed business smoke passed.
-- Current test: GitHub Actions CI evidence, Terraform WIF apply, all-service deploy-handoff run, Artifact Registry tag verification, local Kustomize render, GKE runtime foundation verification, Istio/Argo CD install, managed Argo sync, all-service readiness checks, and managed business-flow smoke.
-- Next test: AWS IoT/Lambda bridge smoke, then public API edge/Firebase smoke and DAST.
-- Inputs ready from user: GCP account, project, region, repositories, WIF provider, deployer service account, GKE cluster, Istio, and Argo CD are ready. Still need data-runtime decision for PostgreSQL/Redis/Pub/Sub and public edge/domain choice.
+- Current test: GitHub Actions CI evidence, Terraform WIF apply, all-service deploy-handoff run, Artifact Registry tag verification, local Kustomize render, GKE runtime foundation verification, Istio/Argo CD install, managed Argo sync, all-service readiness checks, managed business-flow smoke, and AWS bridge code-readiness checks.
+- Next test: AWS IoT/Lambda live smoke after credentials are refreshed, then public API edge/Firebase smoke and DAST.
+- Inputs ready from user: GCP account, project, region, repositories, WIF provider, deployer service account, GKE cluster, Istio, and Argo CD are ready. AWS credentials currently return `InvalidClientTokenId`; public edge/domain choice remains pending.
 
 ## Items
 
@@ -23,7 +23,7 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Smoke tests | DONE | Managed business-flow smoke passed: login/audit, project/pond setup, sensor mapping, signed telemetry to real Pub/Sub, energy read model, active threshold alert, pond comparison, analytics JSON, realtime token, and audit rows. | `../../scripts/smoke-managed-business-flow.py`, `../../docs/evidence/gitops/2026-06-05-managed-business-flow-smoke.md` | 2026-06-05 |
 | DAST | TODO | Requires deployed dev/staging API endpoint. Plan is OWASP ZAP baseline after Argo CD health and smoke pass. | `../main/cd.md` | 2026-06-05 |
 | JMeter load and stress tests | TODO | `perf.yml` lane exists; concrete plans/evidence are pending. Should run only on `performance-test` branch or manual dispatch. | `../../.github/workflows/perf.yml`, `../main/ci.md` | 2026-06-05 |
-| Demo evidence | IN_PROGRESS | Per-service and local foundation evidence exists; cloud console screenshots/logs/rollout proof pending. | `../../docs/evidence/` | 2026-06-04 |
+| Demo evidence | IN_PROGRESS | Managed runtime smoke and AWS bridge code-readiness evidence exist. AWS live logs/screenshots, public edge, DAST, and performance evidence remain. | `../../docs/evidence/` | 2026-06-05 |
 
 ## Validation
 
@@ -49,6 +49,8 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | Managed GCP overlay render | PASS; `kubectl kustomize k8s/overlays/dev-managed` renders after adding Terraform-managed data cutover manifests. | 2026-06-05 |
 | Managed dev runtime rollout | PASS; `aquashield-dev` points to `k8s/overlays/dev-managed`, Argo reports `Synced/Healthy`, and all nine service pods are `2/2 Running`. | 2026-06-05 |
 | Managed business-flow smoke | PASS; run `DEV-CLOUD-SMOKE-20260605-140646` produced `energyTotalKwh=3.1`, `activeAlerts=1`, `comparisonMetricCount=4`, `realtimeTokenMinted=true`, and `auditSecurityRows=3`. | 2026-06-05 |
+| AWS bridge code readiness | PASS; Lambda unit tests/build/package, production dependency audit, event schema validation, and Terraform validation passed. | 2026-06-05 |
+| AWS bridge live smoke | BLOCKED; AWS CLI default and `tns_admin` profiles return `InvalidClientTokenId`. | 2026-06-05 |
 
 ## Log
 
@@ -68,3 +70,4 @@ Status legend: TODO, IN_PROGRESS, DONE, BLOCKED
 | 2026-06-05 | Promoted Argo CD to `k8s/overlays/dev-full`; all nine services became ready on in-cluster Postgres/Redis/Pub/Sub emulator dependencies. Added `k8s/overlays/dev-managed` for the real GCP data/messaging cutover. |
 | 2026-06-05 | Cut Argo CD to `k8s/overlays/dev-managed`; all nine services became ready on managed Cloud SQL, Memorystore Redis, and real Google Pub/Sub. |
 | 2026-06-05 | Rebuilt the eight Java services at tag `bef15c6` after removing baked Pub/Sub emulator configuration, rolled them through Argo CD at commit `a057b0b`, and passed the managed business-flow smoke. |
+| 2026-06-05 | Added AWS IoT/Lambda bridge code and Terraform readiness evidence; live smoke waits on valid AWS credentials and account ID. |

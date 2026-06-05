@@ -13,6 +13,7 @@ Terraform owns the repeatable cloud foundation for the GCP-primary AquaShield de
 | `modules/artifact-registry/` | Docker repositories for service images |
 | `modules/managed-data/` | Cloud SQL, Memorystore, Pub/Sub, Bigtable, BigQuery, and runtime Workload Identity bindings |
 | `modules/security/` | Cloud Armor policy foundation |
+| `modules/aws-iot-bridge/` | AWS IoT Core, Lambda bridge, GCP WIF, and Pub/Sub publisher-only IAM |
 
 ## State Flow
 
@@ -35,6 +36,7 @@ enable_memorystore = false
 enable_pubsub      = false
 enable_bigtable    = false
 enable_bigquery    = false
+enable_aws_iot_bridge = false
 ```
 
-Turn these on only in ignored local `terraform.tfvars` after reviewing plan cost and quota. Bigtable uses a one-node production instance when enabled because Google Cloud no longer offers new development instances.
+Turn these on only in ignored local `terraform.tfvars` after reviewing plan cost and quota. Bigtable uses a one-node production instance when enabled because Google Cloud no longer offers new development instances. The AWS IoT/Lambda bridge also requires valid AWS credentials, an AWS account ID, and a packaged Lambda zip.

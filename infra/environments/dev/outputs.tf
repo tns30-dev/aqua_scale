@@ -104,3 +104,40 @@ output "runtime_service_account_emails" {
   description = "GCP runtime service accounts bound to Kubernetes service accounts."
   value       = module.managed_data.runtime_service_account_emails
 }
+
+output "aws_iot_bridge_lambda_function_name" {
+  description = "AWS Lambda bridge function name."
+  value       = var.enable_aws_iot_bridge ? module.aws_iot_bridge[0].lambda_function_name : null
+}
+
+output "aws_iot_bridge_rule_name" {
+  description = "AWS IoT topic rule name."
+  value       = var.enable_aws_iot_bridge ? module.aws_iot_bridge[0].iot_rule_name : null
+}
+
+output "aws_iot_bridge_thing_name" {
+  description = "AWS IoT demo thing name."
+  value       = var.enable_aws_iot_bridge ? module.aws_iot_bridge[0].iot_thing_name : null
+}
+
+output "aws_iot_bridge_gcp_service_account_email" {
+  description = "GCP service account impersonated by the AWS Lambda bridge."
+  value       = var.enable_aws_iot_bridge ? module.aws_iot_bridge[0].gcp_bridge_service_account_email : null
+}
+
+output "aws_iot_bridge_wif_provider" {
+  description = "GCP WIF provider for the AWS Lambda bridge."
+  value       = var.enable_aws_iot_bridge ? module.aws_iot_bridge[0].gcp_workload_identity_provider : null
+}
+
+output "aws_iot_bridge_certificate_pem" {
+  description = "AWS IoT demo certificate PEM. Store outside git before using a simulator."
+  value       = var.enable_aws_iot_bridge ? module.aws_iot_bridge[0].iot_certificate_pem : null
+  sensitive   = true
+}
+
+output "aws_iot_bridge_private_key" {
+  description = "AWS IoT demo private key. Store outside git before using a simulator."
+  value       = var.enable_aws_iot_bridge ? module.aws_iot_bridge[0].iot_private_key : null
+  sensitive   = true
+}

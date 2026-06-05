@@ -128,3 +128,51 @@ variable "github_repository" {
   type        = string
   default     = "tns30-dev/aqua_scale"
 }
+
+variable "enable_aws_iot_bridge" {
+  description = "Create AWS IoT Core, Lambda bridge, and GCP WIF resources for IoT telemetry ingress."
+  type        = bool
+  default     = false
+}
+
+variable "aws_region" {
+  description = "AWS region for IoT Core and Lambda bridge resources."
+  type        = string
+  default     = "ap-southeast-1"
+}
+
+variable "aws_profile" {
+  description = "Optional local AWS CLI profile for Terraform applies."
+  type        = string
+  default     = null
+}
+
+variable "aws_account_id" {
+  description = "AWS account ID trusted by GCP Workload Identity Federation for the Lambda bridge."
+  type        = string
+  default     = ""
+}
+
+variable "aws_iot_lambda_zip_path" {
+  description = "Optional absolute path to the packaged aws-iot-bridge Lambda zip."
+  type        = string
+  default     = ""
+}
+
+variable "aws_iot_thing_name" {
+  description = "AWS IoT demo thing/device name."
+  type        = string
+  default     = "aq-dev-simulator-01"
+}
+
+variable "aws_iot_topic_prefix" {
+  description = "MQTT topic prefix for AquaShield telemetry."
+  type        = string
+  default     = "aquashield/dev/telemetry"
+}
+
+variable "aws_iot_topic_filter" {
+  description = "AWS IoT SQL topic filter routed to Lambda."
+  type        = string
+  default     = "aquashield/dev/telemetry/+"
+}
