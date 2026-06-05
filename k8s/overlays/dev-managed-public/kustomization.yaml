@@ -23,6 +23,12 @@ patches:
         value:
           - type: NamedAddress
             value: aquashield-dev-api-edge
+      - op: replace
+        path: /spec/listeners/0/hostname
+        value: api.aquashield.live
+      - op: replace
+        path: /spec/listeners/1/hostname
+        value: api.aquashield.live
       - op: remove
         path: /spec/listeners/1/tls/certificateRefs
       - op: add
@@ -33,6 +39,9 @@ patches:
       kind: HTTPRoute
       name: aquashield-api-routes
     patch: |-
+      - op: replace
+        path: /spec/hostnames/0
+        value: api.aquashield.live
       - op: replace
         path: /spec/rules
         value:
@@ -57,3 +66,10 @@ patches:
       - op: add
         path: /spec/template/metadata/labels/app.kubernetes.io~1environment
         value: dev
+  - target:
+      kind: HTTPRoute
+      name: aquashield-api-http-redirect
+    patch: |-
+      - op: replace
+        path: /spec/hostnames/0
+        value: api.aquashield.live
