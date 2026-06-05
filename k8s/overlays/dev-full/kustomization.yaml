@@ -616,25 +616,25 @@ images:
     newTag: 783c78a16381
   - name: audit-service
     newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/audit-service/audit-service
-    newTag: 783c78a16381
+    newTag: bef15c6
   - name: identity-access-service
     newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/identity-access-service/identity-access-service
-    newTag: 783c78a16381
+    newTag: bef15c6
   - name: ingestion-service
     newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/ingestion-service/ingestion-service
-    newTag: 783c78a16381
+    newTag: bef15c6
   - name: notification-service
     newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/notification-service/notification-service
-    newTag: 783c78a16381
+    newTag: bef15c6
   - name: pond-service
     newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/pond-service/pond-service
-    newTag: 783c78a16381
+    newTag: bef15c6
   - name: project-service
     newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/project-service/project-service
-    newTag: 783c78a16381
+    newTag: bef15c6
   - name: realtime-gateway
     newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/realtime-gateway/realtime-gateway
-    newTag: 783c78a16381
+    newTag: bef15c6
   - name: sensor-service
     newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/sensor-service/sensor-service
-    newTag: 783c78a16381
+    newTag: bef15c6
