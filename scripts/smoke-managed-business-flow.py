@@ -70,6 +70,18 @@ def url(base: str, path: str, params: dict[str, str] | None = None) -> str:
     return full
 
 
+def require_http_url(target: str) -> str:
+    parsed = parse.urlsplit(target)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise SmokeError(f"Refusing non-HTTP smoke URL: {target}")
+    return target
+
+
+def open_http(req: request.Request, timeout: int):
+    require_http_url(req.full_url)
+    return request.urlopen(req, timeout=timeout)  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+
+
 def http_json(
     base: str,
     method: str,
@@ -89,9 +101,9 @@ def http_json(
         data = json.dumps(body, separators=(",", ":")).encode()
         headers["Content-Type"] = "application/json"
 
-    req = request.Request(url(base, path, params), data=data, headers=headers, method=method)
+    req = request.Request(require_http_url(url(base, path, params)), data=data, headers=headers, method=method)
     try:
-        with request.urlopen(req, timeout=timeout) as resp:
+        with open_http(req, timeout=timeout) as resp:
             status = resp.status
             raw = resp.read().decode()
     except error.HTTPError as exc:
@@ -140,7 +152,7 @@ def publish_pubsub(project_id: str, topic: str, access_token: str, envelopes: li
         method="POST",
     )
     try:
-        with request.urlopen(req, timeout=30) as resp:
+        with open_http(req, timeout=30) as resp:
             if resp.status != 200:
                 raise SmokeError(f"Pub/Sub publish returned {resp.status}")
             json.loads(resp.read().decode())
