@@ -10,6 +10,7 @@ import {
 
 const VUS = envInt('VUS', 50);
 const HOLD_SECONDS = envInt('HOLD_SECONDS', 30);
+const WS_ORIGIN = __ENV.WS_ORIGIN || __ENV.LOADTEST_ORIGIN || 'https://www.aquashield.live';
 
 export const options = {
   noCookiesReset: true,
@@ -40,7 +41,7 @@ export default function () {
   if (!token) return;
 
   let authOk = false;
-  const upgrade = ws.connect(WS_URL, {}, (socket) => {
+  const upgrade = ws.connect(WS_URL, { headers: { Origin: WS_ORIGIN } }, (socket) => {
     socket.on('open', () => {
       socket.send(JSON.stringify({ type: 'AUTH', token }));
     });
