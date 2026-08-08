@@ -641,7 +641,7 @@ patches:
 images:
 - name: analytics-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/analytics-service/analytics-service
-  newTag: b88b45f5a738
+  newTag: f85dcebd8115
 - name: audit-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/audit-service/audit-service
   newTag: b88b45f5a738
@@ -659,7 +659,7 @@ images:
   newTag: f85dcebd8115
 - name: project-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/project-service/project-service
-  newTag: b88b45f5a738
+  newTag: f85dcebd8115
 - name: realtime-gateway
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/realtime-gateway/realtime-gateway
   newTag: b88b45f5a738
