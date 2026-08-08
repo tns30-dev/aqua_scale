@@ -318,7 +318,7 @@ patches:
       value: 500m
     - op: replace
       path: /spec/template/spec/containers/0/resources/limits/memory
-      value: 768Mi
+      value: 1536Mi
   target:
     kind: Deployment
     name: ingestion-service

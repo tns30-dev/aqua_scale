@@ -1,9 +1,11 @@
 import {
+  BarController,
   BarElement,
   CategoryScale,
   Chart as ChartJS,
   Filler,
   Legend,
+  LineController,
   LineElement,
   LinearScale,
   PointElement,
@@ -12,7 +14,18 @@ import {
 } from "chart.js";
 import type { CycleTemplate } from "./types";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Tooltip, Legend, Filler);
+ChartJS.register(
+  BarController,
+  LineController,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Tooltip,
+  Legend,
+  Filler,
+);
 
 export function hexA(h: string, a: number): string {
   const n = parseInt(h.slice(1), 16);
