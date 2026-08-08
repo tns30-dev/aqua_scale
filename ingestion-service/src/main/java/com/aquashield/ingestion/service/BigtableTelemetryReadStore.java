@@ -139,15 +139,15 @@ public class BigtableTelemetryReadStore implements TelemetryReadStore {
         where project_id = @projectId
           and parameter_key = 'electricity'
           and numeric_value is not null
-          and event_ts >= timestamp(@startIso)
-          and event_ts <= timestamp(@endIso)
+          and event_ts >= @startTs
+          and event_ts <= @endTs
         group by hour_start
         order by hour_start
         """.formatted(bigQueryReadingsTable);
     QueryJobConfiguration config = QueryJobConfiguration.newBuilder(sql)
         .addNamedParameter("projectId", QueryParameterValue.string(projectId.toString()))
-        .addNamedParameter("startIso", QueryParameterValue.string(start.toInstant().toString()))
-        .addNamedParameter("endIso", QueryParameterValue.string(end.toInstant().toString()))
+        .addNamedParameter("startTs", QueryParameterValue.timestamp(toEpochMicros(start.toInstant())))
+        .addNamedParameter("endTs", QueryParameterValue.timestamp(toEpochMicros(end.toInstant())))
         .build();
     TableResult result = bigQuery.query(config);
     List<EnergyHour> rows = new ArrayList<>();
@@ -230,8 +230,8 @@ public class BigtableTelemetryReadStore implements TelemetryReadStore {
         where pond_id = @pondId
           and parameter_key in unnest(@parameters)
           and numeric_value is not null
-          and event_ts >= timestamp(@startIso)
-          and event_ts <= timestamp(@endIso)
+          and event_ts >= @startTs
+          and event_ts <= @endTs
         group by parameter_key, bucket_start
         """.formatted(bigQueryBucketGranularity(grouping), bigQueryReadingsTable);
     QueryJobConfiguration config = QueryJobConfiguration.newBuilder(sql)
@@ -239,8 +239,8 @@ public class BigtableTelemetryReadStore implements TelemetryReadStore {
         .addNamedParameter("parameters", QueryParameterValue.array(
             parameters.toArray(String[]::new), String.class))
         .addNamedParameter("timezone", QueryParameterValue.string(zone.getId()))
-        .addNamedParameter("startIso", QueryParameterValue.string(start.toInstant().toString()))
-        .addNamedParameter("endIso", QueryParameterValue.string(end.toInstant().toString()))
+        .addNamedParameter("startTs", QueryParameterValue.timestamp(toEpochMicros(start.toInstant())))
+        .addNamedParameter("endTs", QueryParameterValue.timestamp(toEpochMicros(end.toInstant())))
         .build();
     TableResult result = bigQuery.query(config);
     List<BucketAverage> rows = new ArrayList<>();
@@ -367,6 +367,12 @@ public class BigtableTelemetryReadStore implements TelemetryReadStore {
       throw new IllegalStateException(name + " contains unsupported characters");
     }
     return text;
+  }
+
+  private static long toEpochMicros(Instant instant) {
+    return Math.addExact(
+        Math.multiplyExact(instant.getEpochSecond(), 1_000_000L),
+        instant.getNano() / 1_000L);
   }
 
   private static String bigQueryBucketGranularity(String grouping) {
