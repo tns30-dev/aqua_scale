@@ -130,7 +130,7 @@ function treatmentStability(s) {
   const body = response.json();
   const rows = Array.isArray(body) ? body : body.results || [];
   if (rows.length === 0) return;
-  const courseId = rows[0].pond_treatment_id || rows[0].pondTreatmentId;
+  const courseId = rows[0].pond_treatment_id || rows[0].pondTreatmentId || rows[0].id || rows[0].courseId;
   if (!courseId) return;
   apiGet(
     `/api/pond-treatments/stability/${qs({ pond, courses: courseId })}`,

@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: aquashield-monitoring
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus.monitoring.svc.cluster.local:9090
+        isDefault: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: aquashield-monitoring
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: aquashield
+        orgId: 1
+        folder: AquaShield
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: aquashield-monitoring
+data:
+  aquashield-runtime.json: |
+    {
+      "uid": "aquashield-runtime",
+      "title": "AquaShield Runtime",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "10s",
+      "time": {
+        "from": "now-30m",
+        "to": "now"
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Scraped AquaShield Pods",
+          "datasource": {"type": "prometheus", "uid": "Prometheus"},
+          "targets": [
+            {
+              "expr": "sum(up{namespace=\"aquashield-dev\"})",
+              "refId": "A"
+            }
+          ],
+          "gridPos": {"h": 7, "w": 8, "x": 0, "y": 0}
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "Istio Requests per Second",
+          "datasource": {"type": "prometheus", "uid": "Prometheus"},
+          "targets": [
+            {
+              "expr": "sum by (destination_service_name) (rate(istio_requests_total{destination_service_namespace=\"aquashield-dev\"}[1m]))",
+              "refId": "A"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 16, "x": 8, "y": 0}
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "HTTP p95 Latency by Destination",
+          "datasource": {"type": "prometheus", "uid": "Prometheus"},
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (destination_service_name, le) (rate(istio_request_duration_milliseconds_bucket{destination_service_namespace=\"aquashield-dev\"}[5m])))",
+              "refId": "A"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Scrape Samples",
+          "datasource": {"type": "prometheus", "uid": "Prometheus"},
+          "targets": [
+            {
+              "expr": "sum by (app) (scrape_samples_scraped{namespace=\"aquashield-dev\"})",
+              "refId": "A"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16}
+        }
+      ]
+    }
