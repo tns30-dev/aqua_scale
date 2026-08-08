@@ -58,6 +58,7 @@ aquashield:
       dataset-id: ${BIGQUERY_DATASET_ID:}
       readings-table: ${BIGQUERY_READINGS_TABLE:readings}
       energy-enabled: ${BIGQUERY_ENERGY_ENABLED:false}
+      analytics-enabled: ${BIGQUERY_ANALYTICS_ENABLED:${BIGQUERY_ENERGY_ENABLED:false}}
   grpc:
     sensor:
       target: ${SENSOR_GRPC_TARGET:localhost:9093}

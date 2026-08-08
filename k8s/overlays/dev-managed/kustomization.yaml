@@ -51,6 +51,9 @@ patches:
         path: /data/BIGQUERY_ENERGY_ENABLED
         value: "true"
       - op: add
+        path: /data/BIGQUERY_ANALYTICS_ENABLED
+        value: "true"
+      - op: add
         path: /data/BIGQUERY_READINGS_TABLE
         value: "readings"
   - target:
@@ -59,7 +62,7 @@ patches:
     patch: |-
       - op: add
         path: /spec/template/metadata/annotations/aquashield.dev~1managed-runtime-revision
-        value: "2026-08-09-telemetry-bigquery-energy-v1"
+        value: "2026-08-09-telemetry-bigquery-analytics-v1"
 
 replacements:
   - source:

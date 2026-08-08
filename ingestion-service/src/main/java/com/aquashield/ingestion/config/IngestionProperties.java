@@ -25,6 +25,7 @@ public record IngestionProperties(
       String projectId,
       String datasetId,
       String readingsTable,
-      boolean energyEnabled) {
+      boolean energyEnabled,
+      boolean analyticsEnabled) {
   }
 }

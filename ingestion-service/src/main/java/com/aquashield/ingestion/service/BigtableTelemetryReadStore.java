@@ -52,7 +52,8 @@ public class BigtableTelemetryReadStore implements TelemetryReadStore {
   private final BigQuery bigQuery;
   private final ObjectMapper mapper;
   private final String tableName;
-  private final boolean bigQueryEnergyEnabled;
+  private final boolean bigQueryReadEnabled;
+  private final boolean bigQueryAnalyticsEnabled;
   private final String bigQueryReadingsTable;
 
   public BigtableTelemetryReadStore(IngestionProperties props, ObjectMapper mapper)
@@ -65,9 +66,10 @@ public class BigtableTelemetryReadStore implements TelemetryReadStore {
     this.mapper = mapper;
 
     IngestionProperties.BigQuery query = props.bigquery();
-    this.bigQueryEnergyEnabled = query != null && query.energyEnabled()
+    this.bigQueryReadEnabled = query != null
         && hasText(query.projectId()) && hasText(query.datasetId()) && hasText(query.readingsTable());
-    if (bigQueryEnergyEnabled) {
+    this.bigQueryAnalyticsEnabled = bigQueryReadEnabled && query.analyticsEnabled();
+    if (bigQueryReadEnabled) {
       this.bigQuery = BigQueryOptions.newBuilder()
           .setProjectId(query.projectId())
           .build()
@@ -100,7 +102,7 @@ public class BigtableTelemetryReadStore implements TelemetryReadStore {
   @Override
   public List<EnergyHour> findProjectElectricityHourly(UUID projectId, OffsetDateTime start,
                                                        OffsetDateTime end, ZoneId zone) {
-    if (bigQueryEnergyEnabled) {
+    if (bigQueryReadEnabled) {
       try {
         return findProjectElectricityHourlyFromBigQuery(projectId, start, end);
       } catch (BigQueryException | InterruptedException e) {
@@ -165,8 +167,28 @@ public class BigtableTelemetryReadStore implements TelemetryReadStore {
     if (parameters.isEmpty()) {
       return List.of();
     }
-    Set<String> requested = new HashSet<>(parameters);
-    Map<String, Integer> order = parameterOrder(parameters);
+    List<String> requestedParameters = parameters.stream()
+        .filter(BigtableTelemetryReadStore::hasText)
+        .distinct()
+        .toList();
+    if (requestedParameters.isEmpty()) {
+      return List.of();
+    }
+    if (bigQueryAnalyticsEnabled) {
+      try {
+        return findPondParameterBucketAveragesFromBigQuery(
+            pondId, start, end, zone, grouping, requestedParameters);
+      } catch (BigQueryException | InterruptedException e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
+        log.warn("BigQuery chart aggregate failed pond={} — falling back to Bigtable: {}",
+            pondId, e.toString());
+      }
+    }
+
+    Set<String> requested = new HashSet<>(requestedParameters);
+    Map<String, Integer> order = parameterOrder(requestedParameters);
     Map<BucketKey, BucketStats> buckets = new HashMap<>();
     for (Reading reading : readTimeRange(BigtableTelemetryCodec.pondPrefix(pondId), start, end)) {
       Instant bucketStart = bucketStart(reading.measuredAt(), zone, grouping);
@@ -191,6 +213,51 @@ public class BigtableTelemetryReadStore implements TelemetryReadStore {
             entry.getKey().bucketStart,
             entry.getValue().average(),
             entry.getValue().count))
+        .toList();
+  }
+
+  private List<BucketAverage> findPondParameterBucketAveragesFromBigQuery(
+      UUID pondId, OffsetDateTime start, OffsetDateTime end, ZoneId zone, String grouping,
+      Collection<String> parameters) throws InterruptedException {
+    Map<String, Integer> order = parameterOrder(parameters);
+    String sql = """
+        select
+          parameter_key,
+          timestamp_trunc(event_ts, %s, @timezone) as bucket_start,
+          avg(numeric_value) as average,
+          count(*) as sample_count
+        from %s
+        where pond_id = @pondId
+          and parameter_key in unnest(@parameters)
+          and numeric_value is not null
+          and event_ts >= timestamp(@startIso)
+          and event_ts <= timestamp(@endIso)
+        group by parameter_key, bucket_start
+        """.formatted(bigQueryBucketGranularity(grouping), bigQueryReadingsTable);
+    QueryJobConfiguration config = QueryJobConfiguration.newBuilder(sql)
+        .addNamedParameter("pondId", QueryParameterValue.string(pondId.toString()))
+        .addNamedParameter("parameters", QueryParameterValue.array(
+            parameters.toArray(String[]::new), String.class))
+        .addNamedParameter("timezone", QueryParameterValue.string(zone.getId()))
+        .addNamedParameter("startIso", QueryParameterValue.string(start.toInstant().toString()))
+        .addNamedParameter("endIso", QueryParameterValue.string(end.toInstant().toString()))
+        .build();
+    TableResult result = bigQuery.query(config);
+    List<BucketAverage> rows = new ArrayList<>();
+    for (FieldValueList row : result.iterateAll()) {
+      rows.add(new BucketAverage(
+          pondId,
+          row.get("parameter_key").getStringValue(),
+          Instant.ofEpochMilli(row.get("bucket_start").getTimestampValue() / 1000L),
+          row.get("average").isNull() ? 0.0 : row.get("average").getDoubleValue(),
+          row.get("sample_count").getLongValue()));
+    }
+    return rows.stream()
+        .sorted(Comparator
+            .comparingInt((BucketAverage row) ->
+                order.getOrDefault(row.parameter(), Integer.MAX_VALUE))
+            .thenComparing(BucketAverage::bucketStart)
+            .thenComparing(BucketAverage::parameter))
         .toList();
   }
 
@@ -300,6 +367,15 @@ public class BigtableTelemetryReadStore implements TelemetryReadStore {
       throw new IllegalStateException(name + " contains unsupported characters");
     }
     return text;
+  }
+
+  private static String bigQueryBucketGranularity(String grouping) {
+    return switch (grouping) {
+      case "hourly" -> "HOUR";
+      case "weekly" -> "WEEK(MONDAY)";
+      case "monthly" -> "MONTH";
+      default -> "DAY";
+    };
   }
 
   private static Map<String, Integer> parameterOrder(Collection<String> parameters) {
