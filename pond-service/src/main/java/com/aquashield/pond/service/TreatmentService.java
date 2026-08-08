@@ -1,8 +1,8 @@
 package com.aquashield.pond.service;
 
-import com.aquashield.api.ingestion.v1.GetReadingsRequest;
+import com.aquashield.api.ingestion.v1.GetPondParameterBucketAveragesRequest;
 import com.aquashield.api.ingestion.v1.IngestionReadServiceGrpc;
-import com.aquashield.api.ingestion.v1.ReadingRow;
+import com.aquashield.api.ingestion.v1.PondParameterBucketAverage;
 import com.aquashield.api.project.v1.EnergySettings;
 import com.aquashield.api.project.v1.GetEnergySettingsRequest;
 import com.aquashield.api.project.v1.GetParameterSettingsRequest;
@@ -46,6 +46,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class TreatmentService {
@@ -82,6 +83,7 @@ public class TreatmentService {
   private final IngestionReadServiceGrpc.IngestionReadServiceBlockingStub ingestionStub;
   private final ObjectMapper mapper;
   private final ZoneId zone;
+  private final long grpcDeadlineMs;
 
   public TreatmentService(PondRepository ponds, CycleRepository cycles,
                           TreatmentRepository treatments,
@@ -89,7 +91,8 @@ public class TreatmentService {
                           ProjectServiceGrpc.ProjectServiceBlockingStub projectStub,
                           IngestionReadServiceGrpc.IngestionReadServiceBlockingStub ingestionStub,
                           ObjectMapper mapper,
-                          @Value("${aquashield.timezone:Asia/Singapore}") String timezone) {
+                          @Value("${aquashield.timezone:Asia/Singapore}") String timezone,
+                          @Value("${aquashield.grpc.deadline-ms:2500}") long grpcDeadlineMs) {
     this.ponds = ponds;
     this.cycles = cycles;
     this.treatments = treatments;
@@ -98,6 +101,7 @@ public class TreatmentService {
     this.ingestionStub = ingestionStub;
     this.mapper = mapper;
     this.zone = ZoneId.of(timezone);
+    this.grpcDeadlineMs = grpcDeadlineMs;
   }
 
   public static BigDecimal courseCost(BigDecimal amount, String unit, BigDecimal unitPrice,
@@ -328,7 +332,8 @@ public class TreatmentService {
     Map<String, ParameterSetting> limits = limitsFor(pond.getProjectId());
     List<String> readingParams = new ArrayList<>(watched.codes());
     readingParams.add("electricity");
-    List<ReadingRow> readings = fetchReadings(pondId, start, end, readingParams);
+    Map<String, List<AggregateReading>> readings =
+        fetchAggregateReadings(pondId, start, end, readingParams);
 
     List<String> rendered = new ArrayList<>();
     List<Map<String, Object>> params = new ArrayList<>();
@@ -337,20 +342,21 @@ public class TreatmentService {
       if (setting == null || (!setting.getHasMin() && !setting.getHasMax())) {
         continue;
       }
-      List<Double> values = readings.stream()
-          .map(r -> r.getValuesMap().get(code))
-          .filter(v -> v != null)
-          .toList();
-      if (values.isEmpty()) {
+      List<AggregateReading> values = readings.getOrDefault(code, List.of());
+      long total = values.stream().mapToLong(AggregateReading::sampleCount).sum();
+      if (total == 0) {
         continue;
       }
-      long safe = values.stream().filter(v -> safe(v, setting)).count();
+      long safe = values.stream()
+          .filter(v -> safe(v.average(), setting))
+          .mapToLong(AggregateReading::sampleCount)
+          .sum();
       Map<String, Object> row = new LinkedHashMap<>();
       row.put("code", code);
       row.put("name", setting.getParameterName());
       row.put("safe", safe);
-      row.put("total", values.size());
-      row.put("pct", Math.round(safe * 100.0 / values.size()));
+      row.put("total", total);
+      row.put("pct", Math.round(safe * 100.0 / total));
       row.put("declaredBy", watched.declaredBy().getOrDefault(code, List.of()));
       params.add(row);
       rendered.add(code);
@@ -363,25 +369,34 @@ public class TreatmentService {
     payload.put("params", params);
 
     if (!rendered.isEmpty()) {
-      int safeMoments = 0;
-      int totalMoments = 0;
-      for (ReadingRow reading : readings) {
+      long safeMoments = 0;
+      long totalMoments = 0;
+      Map<Instant, Map<String, AggregateReading>> byBucket = new LinkedHashMap<>();
+      for (String code : rendered) {
+        for (AggregateReading reading : readings.getOrDefault(code, List.of())) {
+          byBucket.computeIfAbsent(reading.bucketStart(), ignored -> new LinkedHashMap<>())
+              .put(code, reading);
+        }
+      }
+      for (Map<String, AggregateReading> bucket : byBucket.values()) {
         boolean seen = false;
         boolean allSafe = true;
+        long weight = 0;
         for (String code : rendered) {
-          Double value = reading.getValuesMap().get(code);
-          if (value == null) {
+          AggregateReading reading = bucket.get(code);
+          if (reading == null) {
             continue;
           }
+          weight = Math.max(weight, reading.sampleCount());
           seen = true;
-          if (!safe(value, limits.get(code))) {
+          if (!safe(reading.average(), limits.get(code))) {
             allSafe = false;
           }
         }
-        if (seen) {
-          totalMoments++;
+        if (seen && weight > 0) {
+          totalMoments += weight;
           if (allSafe) {
-            safeMoments++;
+            safeMoments += weight;
           }
         }
       }
@@ -391,10 +406,7 @@ public class TreatmentService {
       }
     }
 
-    List<Double> kwhValues = readings.stream()
-        .map(r -> r.getValuesMap().get("electricity"))
-        .filter(v -> v != null)
-        .toList();
+    List<AggregateReading> kwhValues = readings.getOrDefault("electricity", List.of());
     List<Map<String, Object>> costRows = new ArrayList<>();
     for (PondTreatment c : courses) {
       BigDecimal cost = courseCost(c.getAmount(), c.getUnit(), c.getUnitPrice(), c.getPriceUnit());
@@ -407,7 +419,9 @@ public class TreatmentService {
     if (!kwhValues.isEmpty() || !costRows.isEmpty()) {
       ProjectMoney money = projectMoney(pond.getProjectId());
       if (!kwhValues.isEmpty()) {
-        BigDecimal kwh = BigDecimal.valueOf(kwhValues.stream().mapToDouble(Double::doubleValue).sum())
+        BigDecimal kwh = BigDecimal.valueOf(kwhValues.stream()
+                .mapToDouble(v -> v.average() * v.sampleCount())
+                .sum())
             .setScale(1, RoundingMode.HALF_UP);
         payload.put("electricity", Map.of("kwh", kwh,
             "cost", kwh.multiply(money.tariff()).setScale(2, RoundingMode.HALF_UP),
@@ -599,22 +613,38 @@ public class TreatmentService {
     }
   }
 
-  private List<ReadingRow> fetchReadings(UUID pondId, LocalDate start, LocalDate end,
-                                         List<String> parameters) {
+  private Map<String, List<AggregateReading>> fetchAggregateReadings(
+      UUID pondId, LocalDate start, LocalDate end, List<String> parameters) {
     try {
       Instant from = start.atStartOfDay(zone).toInstant();
       Instant to = end.plusDays(1).atStartOfDay(zone).minusNanos(1).toInstant();
-      GetReadingsRequest.Builder req = GetReadingsRequest.newBuilder()
+      GetPondParameterBucketAveragesRequest.Builder req =
+          GetPondParameterBucketAveragesRequest.newBuilder()
           .setPondId(pondId.toString())
           .setStart(from.toString())
           .setEnd(to.toString())
-          .setLimit(50000);
+          .setTimezone(zone.getId())
+          .setGrouping("hourly");
       parameters.stream().distinct().forEach(req::addParameters);
-      return ingestionStub.getReadings(req.build()).getRowsList();
+      Map<String, List<AggregateReading>> out = new LinkedHashMap<>();
+      for (PondParameterBucketAverage row : ingestionStub
+          .withDeadlineAfter(grpcDeadlineMs, TimeUnit.MILLISECONDS)
+          .getPondParameterBucketAverages(req.build()).getRowsList()) {
+        if (row.getSampleCount() <= 0) {
+          continue;
+        }
+        out.computeIfAbsent(row.getParameter(), ignored -> new ArrayList<>())
+            .add(new AggregateReading(
+                row.getParameter(),
+                Instant.parse(row.getBucketStart()),
+                row.getAverage(),
+                row.getSampleCount()));
+      }
+      return out;
     } catch (Exception e) {
-      log.warn("Treatment stability readings fetch failed pond={} — serving empty: {}",
+      log.warn("Treatment stability aggregate fetch failed pond={} — serving empty: {}",
           pondId, e.toString());
-      return List.of();
+      return Map.of();
     }
   }
 
@@ -706,6 +736,8 @@ public class TreatmentService {
   record Watched(List<String> codes, Map<String, List<String>> declaredBy) {}
 
   record ProjectMoney(BigDecimal tariff, String currency) {}
+
+  record AggregateReading(String parameter, Instant bucketStart, double average, long sampleCount) {}
 
   public static class NotFoundDetail extends RuntimeException {
     public NotFoundDetail(String message) {

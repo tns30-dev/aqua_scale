@@ -45,6 +45,7 @@ The cloud-native telemetry evidence should be verified in these managed stores:
 | Cloud Bigtable table | `telemetry_readings` |
 | BigQuery dataset | `aquashield_dev_analytics` |
 | BigQuery readings table | `aquashield_dev_analytics.readings` |
+| BigQuery full parameter facts table | `aquashield_dev_analytics.readings_full_20260809` |
 | BigQuery alerts table | `aquashield_dev_analytics.alerts` |
 
 Current managed-store verification:
@@ -56,6 +57,7 @@ Current managed-store verification:
 | BigQuery tables | `readings` and `alerts` exist |
 | Bigtable telemetry load | `4,000,000` readings loaded through the loader; `15,994,302` Bigtable row mutations written |
 | BigQuery telemetry load | `readings = 4,000,000` |
+| BigQuery full parameter facts load | `readings_full_20260809 = 44,171,644` facts from `4,000,000` source readings across `23` parameters |
 | BigQuery telemetry range | `2025-12-03 06:00:00` to `2026-08-07 13:45:47` |
 | BigQuery partition retention | `365` days, so the full local reference telemetry range is retained |
 | Bigtable GC policy | `raw`, `parsed`, and `meta` keep `max_version = 1` |
@@ -73,6 +75,7 @@ Bigtable:
 | `BIGTABLE_INSTANCE_ID` | `aquashield-dev-telemetry` |
 | `BIGTABLE_TABLE_NAME` | `telemetry_readings` |
 | `BIGTABLE_WRITE_ENABLED` | `true` |
+| `BIGQUERY_READINGS_TABLE` | `readings_full_20260809` |
 
 Deployed image after the Bigtable latest-row fix:
 

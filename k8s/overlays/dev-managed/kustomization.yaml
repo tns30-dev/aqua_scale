@@ -55,14 +55,14 @@ patches:
         value: "true"
       - op: add
         path: /data/BIGQUERY_READINGS_TABLE
-        value: "readings"
+        value: "readings_full_20260809"
   - target:
       kind: Deployment
       labelSelector: app.kubernetes.io/part-of=aquashield
     patch: |-
       - op: add
         path: /spec/template/metadata/annotations/aquashield.dev~1managed-runtime-revision
-        value: "2026-08-09-telemetry-bigquery-analytics-v1"
+        value: "2026-08-09-telemetry-bigquery-full-facts-v1"
 
 replacements:
   - source:
