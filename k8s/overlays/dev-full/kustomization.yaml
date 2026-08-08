@@ -4,665 +4,665 @@ kind: Kustomization
 namespace: aquashield-dev
 
 resources:
-  - namespace.yaml
-  - runtime-secrets.yaml
-  - runtime-dependencies.yaml
-  - pubsub-bootstrap.yaml
-  - service-accounts.yaml
-  - ../../base/services/identity-access-service
-  - ../../base/services/project-service
-  - ../../base/services/pond-service
-  - ../../base/jobs/pond-daily-health
-  - ../../base/services/sensor-service
-  - ../../base/services/ingestion-service
-  - ../../base/services/notification-service
-  - ../../base/services/realtime-gateway
-  - ../../base/services/analytics-service
-  - ../../base/services/audit-service
-  - peer-authentication.yaml
-  - default-deny-authorization-policy.yaml
-  - default-deny-ingress.yaml
-  - allow-app-internal-traffic.yaml
-  - allow-gclb-health-checks.yaml
+- namespace.yaml
+- runtime-secrets.yaml
+- runtime-dependencies.yaml
+- pubsub-bootstrap.yaml
+- service-accounts.yaml
+- ../../base/services/identity-access-service
+- ../../base/services/project-service
+- ../../base/services/pond-service
+- ../../base/jobs/pond-daily-health
+- ../../base/services/sensor-service
+- ../../base/services/ingestion-service
+- ../../base/services/notification-service
+- ../../base/services/realtime-gateway
+- ../../base/services/analytics-service
+- ../../base/services/audit-service
+- peer-authentication.yaml
+- default-deny-authorization-policy.yaml
+- default-deny-ingress.yaml
+- allow-app-internal-traffic.yaml
+- allow-gclb-health-checks.yaml
 
 labels:
-  - includeSelectors: true
-    pairs:
-      app.kubernetes.io/environment: dev
-      app.kubernetes.io/part-of: aquashield
-  - pairs:
-      app.kubernetes.io/runtime-slice: full-dev
+- includeSelectors: true
+  pairs:
+    app.kubernetes.io/environment: dev
+    app.kubernetes.io/part-of: aquashield
+- pairs:
+    app.kubernetes.io/runtime-slice: full-dev
 
 patches:
-  - target:
-      kind: Deployment
-      labelSelector: app.kubernetes.io/component in (audit,identity,ingestion,notification,pond,project,realtime,sensor)
-    patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/startupProbe/failureThreshold
-        value: 60
-      - op: replace
-        path: /spec/template/spec/containers/0/readinessProbe/failureThreshold
-        value: 12
-  - target:
-      kind: Deployment
-      name: identity-access-service
-    patch: |-
-      - op: add
-        path: /metadata/annotations
-        value:
-          argocd.argoproj.io/sync-wave: "2"
-      - op: replace
-        path: /spec/replicas
-        value: 1
-      - op: add
-        path: /spec/strategy
-        value:
-          type: RollingUpdate
-          rollingUpdate:
-            maxSurge: 0
-            maxUnavailable: 1
-      - op: add
-        path: /spec/template/metadata/annotations
-        value:
-          sidecar.istio.io/proxyCPU: 25m
-          sidecar.istio.io/proxyMemory: 64Mi
-          sidecar.istio.io/proxyCPULimit: 250m
-          sidecar.istio.io/proxyMemoryLimit: 256Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
-        value: dev-db-passwords
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
-        value: IDENTITY_ACCESS_DB_PASSWORD
-      - op: add
-        path: /spec/template/spec/containers/0/env/-
-        value:
-          name: BOOTSTRAP_ADMIN_EMAIL
-          valueFrom:
-            secretKeyRef:
-              name: identity-access-service-secrets
-              key: BOOTSTRAP_ADMIN_EMAIL
-              optional: true
-      - op: add
-        path: /spec/template/spec/containers/0/env/-
-        value:
-          name: BOOTSTRAP_ADMIN_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: identity-access-service-secrets
-              key: BOOTSTRAP_ADMIN_PASSWORD
-              optional: true
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 50m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 384Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 500m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 768Mi
-  - target:
-      kind: Deployment
-      name: project-service
-    patch: |-
-      - op: add
-        path: /metadata/annotations
-        value:
-          argocd.argoproj.io/sync-wave: "2"
-      - op: replace
-        path: /spec/replicas
-        value: 1
-      - op: add
-        path: /spec/strategy
-        value:
-          type: RollingUpdate
-          rollingUpdate:
-            maxSurge: 0
-            maxUnavailable: 1
-      - op: add
-        path: /spec/template/metadata/annotations
-        value:
-          sidecar.istio.io/proxyCPU: 25m
-          sidecar.istio.io/proxyMemory: 64Mi
-          sidecar.istio.io/proxyCPULimit: 250m
-          sidecar.istio.io/proxyMemoryLimit: 256Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
-        value: dev-db-passwords
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
-        value: PROJECT_DB_PASSWORD
-      - op: replace
-        path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/name
-        value: jwt-verifier-public-key
-      - op: replace
-        path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/key
-        value: JWT_PUBLIC_KEY_PEM
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 50m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 384Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 500m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 768Mi
-  - target:
-      kind: Deployment
-      name: pond-service
-    patch: |-
-      - op: add
-        path: /metadata/annotations
-        value:
-          argocd.argoproj.io/sync-wave: "2"
-      - op: replace
-        path: /spec/replicas
-        value: 1
-      - op: add
-        path: /spec/strategy
-        value:
-          type: RollingUpdate
-          rollingUpdate:
-            maxSurge: 0
-            maxUnavailable: 1
-      - op: add
-        path: /spec/template/metadata/annotations
-        value:
-          sidecar.istio.io/proxyCPU: 25m
-          sidecar.istio.io/proxyMemory: 64Mi
-          sidecar.istio.io/proxyCPULimit: 250m
-          sidecar.istio.io/proxyMemoryLimit: 256Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
-        value: dev-db-passwords
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
-        value: POND_DB_PASSWORD
-      - op: replace
-        path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/name
-        value: jwt-verifier-public-key
-      - op: replace
-        path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/key
-        value: JWT_PUBLIC_KEY_PEM
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 50m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 384Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 500m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 768Mi
-  - target:
-      kind: CronJob
-      name: pond-daily-health
-    patch: |-
-      - op: add
-        path: /metadata/annotations
-        value:
-          argocd.argoproj.io/sync-wave: "2"
-      - op: add
-        path: /spec/jobTemplate/spec/template/metadata/annotations
-        value:
-          sidecar.istio.io/proxyCPU: 25m
-          sidecar.istio.io/proxyMemory: 64Mi
-          sidecar.istio.io/proxyCPULimit: 250m
-          sidecar.istio.io/proxyMemoryLimit: 256Mi
-      - op: replace
-        path: /spec/jobTemplate/spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/name
-        value: dev-db-passwords
-      - op: replace
-        path: /spec/jobTemplate/spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/key
-        value: POND_DB_PASSWORD
-      - op: replace
-        path: /spec/jobTemplate/spec/template/spec/containers/0/env/2/valueFrom/secretKeyRef/name
-        value: jwt-verifier-public-key
-      - op: replace
-        path: /spec/jobTemplate/spec/template/spec/containers/0/env/2/valueFrom/secretKeyRef/key
-        value: JWT_PUBLIC_KEY_PEM
-  - target:
-      kind: Deployment
-      name: sensor-service
-    patch: |-
-      - op: add
-        path: /metadata/annotations
-        value:
-          argocd.argoproj.io/sync-wave: "2"
-      - op: replace
-        path: /spec/replicas
-        value: 1
-      - op: add
-        path: /spec/strategy
-        value:
-          type: RollingUpdate
-          rollingUpdate:
-            maxSurge: 0
-            maxUnavailable: 1
-      - op: add
-        path: /spec/template/metadata/annotations
-        value:
-          sidecar.istio.io/proxyCPU: 25m
-          sidecar.istio.io/proxyMemory: 64Mi
-          sidecar.istio.io/proxyCPULimit: 250m
-          sidecar.istio.io/proxyMemoryLimit: 256Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
-        value: dev-db-passwords
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
-        value: SENSOR_DB_PASSWORD
-      - op: replace
-        path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/name
-        value: jwt-verifier-public-key
-      - op: replace
-        path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/key
-        value: JWT_PUBLIC_KEY_PEM
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 50m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 384Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 500m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 768Mi
-  - target:
-      kind: Deployment
-      name: ingestion-service
-    patch: |-
-      - op: add
-        path: /metadata/annotations
-        value:
-          argocd.argoproj.io/sync-wave: "2"
-      - op: replace
-        path: /spec/replicas
-        value: 1
-      - op: add
-        path: /spec/strategy
-        value:
-          type: RollingUpdate
-          rollingUpdate:
-            maxSurge: 0
-            maxUnavailable: 1
-      - op: add
-        path: /spec/template/metadata/annotations
-        value:
-          sidecar.istio.io/proxyCPU: 25m
-          sidecar.istio.io/proxyMemory: 64Mi
-          sidecar.istio.io/proxyCPULimit: 250m
-          sidecar.istio.io/proxyMemoryLimit: 256Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
-        value: dev-db-passwords
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
-        value: INGESTION_DB_PASSWORD
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 50m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 384Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 500m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 768Mi
-  - target:
-      kind: Deployment
-      name: notification-service
-    patch: |-
-      - op: add
-        path: /metadata/annotations
-        value:
-          argocd.argoproj.io/sync-wave: "2"
-      - op: replace
-        path: /spec/replicas
-        value: 1
-      - op: add
-        path: /spec/strategy
-        value:
-          type: RollingUpdate
-          rollingUpdate:
-            maxSurge: 0
-            maxUnavailable: 1
-      - op: add
-        path: /spec/template/metadata/annotations
-        value:
-          sidecar.istio.io/proxyCPU: 25m
-          sidecar.istio.io/proxyMemory: 64Mi
-          sidecar.istio.io/proxyCPULimit: 250m
-          sidecar.istio.io/proxyMemoryLimit: 256Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
-        value: dev-db-passwords
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
-        value: NOTIFICATION_DB_PASSWORD
-      - op: replace
-        path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/name
-        value: jwt-verifier-public-key
-      - op: replace
-        path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/key
-        value: JWT_PUBLIC_KEY_PEM
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 50m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 384Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 500m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 768Mi
-  - target:
-      kind: Deployment
-      name: realtime-gateway
-    patch: |-
-      - op: add
-        path: /metadata/annotations
-        value:
-          argocd.argoproj.io/sync-wave: "2"
-      - op: replace
-        path: /spec/replicas
-        value: 1
-      - op: add
-        path: /spec/strategy
-        value:
-          type: RollingUpdate
-          rollingUpdate:
-            maxSurge: 0
-            maxUnavailable: 1
-      - op: add
-        path: /spec/template/metadata/annotations
-        value:
-          sidecar.istio.io/proxyCPU: 25m
-          sidecar.istio.io/proxyMemory: 64Mi
-          sidecar.istio.io/proxyCPULimit: 250m
-          sidecar.istio.io/proxyMemoryLimit: 256Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
-        value: jwt-verifier-public-key
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
-        value: JWT_PUBLIC_KEY_PEM
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 50m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 384Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 500m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 768Mi
-  - target:
-      kind: Deployment
-      name: analytics-service
-    patch: |-
-      - op: add
-        path: /metadata/annotations
-        value:
-          argocd.argoproj.io/sync-wave: "2"
-      - op: replace
-        path: /spec/replicas
-        value: 1
-      - op: add
-        path: /spec/strategy
-        value:
-          type: RollingUpdate
-          rollingUpdate:
-            maxSurge: 0
-            maxUnavailable: 1
-      - op: add
-        path: /spec/template/metadata/annotations
-        value:
-          sidecar.istio.io/proxyCPU: 25m
-          sidecar.istio.io/proxyMemory: 64Mi
-          sidecar.istio.io/proxyCPULimit: 250m
-          sidecar.istio.io/proxyMemoryLimit: 256Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
-        value: jwt-verifier-public-key
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
-        value: JWT_PUBLIC_KEY_PEM
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 50m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 192Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 500m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 512Mi
-  - target:
-      kind: Deployment
-      name: audit-service
-    patch: |-
-      - op: add
-        path: /metadata/annotations
-        value:
-          argocd.argoproj.io/sync-wave: "2"
-      - op: replace
-        path: /spec/replicas
-        value: 1
-      - op: add
-        path: /spec/strategy
-        value:
-          type: RollingUpdate
-          rollingUpdate:
-            maxSurge: 0
-            maxUnavailable: 1
-      - op: add
-        path: /spec/template/metadata/annotations
-        value:
-          sidecar.istio.io/proxyCPU: 25m
-          sidecar.istio.io/proxyMemory: 64Mi
-          sidecar.istio.io/proxyCPULimit: 250m
-          sidecar.istio.io/proxyMemoryLimit: 256Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
-        value: dev-db-passwords
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
-        value: AUDIT_DB_PASSWORD
-      - op: replace
-        path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/name
-        value: jwt-verifier-public-key
-      - op: replace
-        path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/key
-        value: JWT_PUBLIC_KEY_PEM
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 50m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 384Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 500m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 768Mi
-  - target:
-      kind: HorizontalPodAutoscaler
-    patch: |-
-      - op: replace
-        path: /spec/minReplicas
-        value: 1
-      - op: replace
-        path: /spec/maxReplicas
-        value: 1
-  - target:
-      kind: ConfigMap
-      name: identity-access-service-config
-    patch: |-
-      - op: add
-        path: /data/GRPC_PORT
-        value: "9091"
-      - op: add
-        path: /data/DB_POOL_SIZE
-        value: "3"
-      - op: add
-        path: /data/PUBSUB_PROJECT_ID
-        value: aquashield-dev
-      - op: add
-        path: /data/PUBSUB_EMULATOR_HOST
-        value: pubsub-emulator:8085
-      - op: add
-        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
-        value: pubsub-emulator:8085
-      - op: add
-        path: /data/EVENTS_ENABLED
-        value: "true"
-  - target:
-      kind: ConfigMap
-      name: project-service-config
-    patch: |-
-      - op: add
-        path: /data/DB_POOL_SIZE
-        value: "3"
-      - op: add
-        path: /data/PUBSUB_EMULATOR_HOST
-        value: pubsub-emulator:8085
-      - op: add
-        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
-        value: pubsub-emulator:8085
-      - op: add
-        path: /data/INGESTION_GRPC_TARGET
-        value: ingestion-service:9095
-      - op: add
-        path: /data/POND_GRPC_TARGET
-        value: pond-service:9094
-      - op: add
-        path: /data/NOTIFICATION_GRPC_TARGET
-        value: notification-service:9096
-  - target:
-      kind: ConfigMap
-      name: pond-service-config
-    patch: |-
-      - op: add
-        path: /data/DB_POOL_SIZE
-        value: "3"
-      - op: add
-        path: /data/PUBSUB_EMULATOR_HOST
-        value: pubsub-emulator:8085
-      - op: add
-        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
-        value: pubsub-emulator:8085
-  - target:
-      kind: ConfigMap
-      name: sensor-service-config
-    patch: |-
-      - op: add
-        path: /data/DB_POOL_SIZE
-        value: "3"
-      - op: add
-        path: /data/PUBSUB_EMULATOR_HOST
-        value: pubsub-emulator:8085
-      - op: add
-        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
-        value: pubsub-emulator:8085
-  - target:
-      kind: ConfigMap
-      name: ingestion-service-config
-    patch: |-
-      - op: add
-        path: /data/DB_POOL_SIZE
-        value: "3"
-      - op: add
-        path: /data/PUBSUB_EMULATOR_HOST
-        value: pubsub-emulator:8085
-      - op: add
-        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
-        value: pubsub-emulator:8085
-      - op: add
-        path: /data/HMAC_MAX_SKEW
-        value: PT240H
-  - target:
-      kind: ConfigMap
-      name: notification-service-config
-    patch: |-
-      - op: add
-        path: /data/DB_POOL_SIZE
-        value: "3"
-      - op: add
-        path: /data/PUBSUB_EMULATOR_HOST
-        value: pubsub-emulator:8085
-      - op: add
-        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
-        value: pubsub-emulator:8085
-  - target:
-      kind: ConfigMap
-      name: realtime-gateway-config
-    patch: |-
-      - op: add
-        path: /data/PUBSUB_EMULATOR_HOST
-        value: pubsub-emulator:8085
-      - op: add
-        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
-        value: pubsub-emulator:8085
-  - target:
-      kind: ConfigMap
-      name: audit-service-config
-    patch: |-
-      - op: add
-        path: /data/DB_POOL_SIZE
-        value: "3"
-      - op: add
-        path: /data/PUBSUB_EMULATOR_HOST
-        value: pubsub-emulator:8085
-      - op: add
-        path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
-        value: pubsub-emulator:8085
+- patch: |-
+    - op: replace
+      path: /spec/template/spec/containers/0/startupProbe/failureThreshold
+      value: 60
+    - op: replace
+      path: /spec/template/spec/containers/0/readinessProbe/failureThreshold
+      value: 12
+  target:
+    kind: Deployment
+    labelSelector: app.kubernetes.io/component in (audit,identity,ingestion,notification,pond,project,realtime,sensor)
+- patch: |-
+    - op: add
+      path: /metadata/annotations
+      value:
+        argocd.argoproj.io/sync-wave: "2"
+    - op: replace
+      path: /spec/replicas
+      value: 1
+    - op: add
+      path: /spec/strategy
+      value:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 0
+          maxUnavailable: 1
+    - op: add
+      path: /spec/template/metadata/annotations
+      value:
+        sidecar.istio.io/proxyCPU: 25m
+        sidecar.istio.io/proxyMemory: 64Mi
+        sidecar.istio.io/proxyCPULimit: 250m
+        sidecar.istio.io/proxyMemoryLimit: 256Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
+      value: dev-db-passwords
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
+      value: IDENTITY_ACCESS_DB_PASSWORD
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: BOOTSTRAP_ADMIN_EMAIL
+        valueFrom:
+          secretKeyRef:
+            name: identity-access-service-secrets
+            key: BOOTSTRAP_ADMIN_EMAIL
+            optional: true
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: BOOTSTRAP_ADMIN_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: identity-access-service-secrets
+            key: BOOTSTRAP_ADMIN_PASSWORD
+            optional: true
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: 50m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: 384Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: 500m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: 768Mi
+  target:
+    kind: Deployment
+    name: identity-access-service
+- patch: |-
+    - op: add
+      path: /metadata/annotations
+      value:
+        argocd.argoproj.io/sync-wave: "2"
+    - op: replace
+      path: /spec/replicas
+      value: 1
+    - op: add
+      path: /spec/strategy
+      value:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 0
+          maxUnavailable: 1
+    - op: add
+      path: /spec/template/metadata/annotations
+      value:
+        sidecar.istio.io/proxyCPU: 25m
+        sidecar.istio.io/proxyMemory: 64Mi
+        sidecar.istio.io/proxyCPULimit: 250m
+        sidecar.istio.io/proxyMemoryLimit: 256Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
+      value: dev-db-passwords
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
+      value: PROJECT_DB_PASSWORD
+    - op: replace
+      path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/name
+      value: jwt-verifier-public-key
+    - op: replace
+      path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/key
+      value: JWT_PUBLIC_KEY_PEM
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: 50m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: 384Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: 500m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: 768Mi
+  target:
+    kind: Deployment
+    name: project-service
+- patch: |-
+    - op: add
+      path: /metadata/annotations
+      value:
+        argocd.argoproj.io/sync-wave: "2"
+    - op: replace
+      path: /spec/replicas
+      value: 1
+    - op: add
+      path: /spec/strategy
+      value:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 0
+          maxUnavailable: 1
+    - op: add
+      path: /spec/template/metadata/annotations
+      value:
+        sidecar.istio.io/proxyCPU: 25m
+        sidecar.istio.io/proxyMemory: 64Mi
+        sidecar.istio.io/proxyCPULimit: 250m
+        sidecar.istio.io/proxyMemoryLimit: 256Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
+      value: dev-db-passwords
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
+      value: POND_DB_PASSWORD
+    - op: replace
+      path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/name
+      value: jwt-verifier-public-key
+    - op: replace
+      path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/key
+      value: JWT_PUBLIC_KEY_PEM
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: 50m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: 384Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: 500m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: 768Mi
+  target:
+    kind: Deployment
+    name: pond-service
+- patch: |-
+    - op: add
+      path: /metadata/annotations
+      value:
+        argocd.argoproj.io/sync-wave: "2"
+    - op: add
+      path: /spec/jobTemplate/spec/template/metadata/annotations
+      value:
+        sidecar.istio.io/proxyCPU: 25m
+        sidecar.istio.io/proxyMemory: 64Mi
+        sidecar.istio.io/proxyCPULimit: 250m
+        sidecar.istio.io/proxyMemoryLimit: 256Mi
+    - op: replace
+      path: /spec/jobTemplate/spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/name
+      value: dev-db-passwords
+    - op: replace
+      path: /spec/jobTemplate/spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/key
+      value: POND_DB_PASSWORD
+    - op: replace
+      path: /spec/jobTemplate/spec/template/spec/containers/0/env/2/valueFrom/secretKeyRef/name
+      value: jwt-verifier-public-key
+    - op: replace
+      path: /spec/jobTemplate/spec/template/spec/containers/0/env/2/valueFrom/secretKeyRef/key
+      value: JWT_PUBLIC_KEY_PEM
+  target:
+    kind: CronJob
+    name: pond-daily-health
+- patch: |-
+    - op: add
+      path: /metadata/annotations
+      value:
+        argocd.argoproj.io/sync-wave: "2"
+    - op: replace
+      path: /spec/replicas
+      value: 1
+    - op: add
+      path: /spec/strategy
+      value:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 0
+          maxUnavailable: 1
+    - op: add
+      path: /spec/template/metadata/annotations
+      value:
+        sidecar.istio.io/proxyCPU: 25m
+        sidecar.istio.io/proxyMemory: 64Mi
+        sidecar.istio.io/proxyCPULimit: 250m
+        sidecar.istio.io/proxyMemoryLimit: 256Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
+      value: dev-db-passwords
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
+      value: SENSOR_DB_PASSWORD
+    - op: replace
+      path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/name
+      value: jwt-verifier-public-key
+    - op: replace
+      path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/key
+      value: JWT_PUBLIC_KEY_PEM
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: 50m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: 384Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: 500m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: 768Mi
+  target:
+    kind: Deployment
+    name: sensor-service
+- patch: |-
+    - op: add
+      path: /metadata/annotations
+      value:
+        argocd.argoproj.io/sync-wave: "2"
+    - op: replace
+      path: /spec/replicas
+      value: 1
+    - op: add
+      path: /spec/strategy
+      value:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 0
+          maxUnavailable: 1
+    - op: add
+      path: /spec/template/metadata/annotations
+      value:
+        sidecar.istio.io/proxyCPU: 25m
+        sidecar.istio.io/proxyMemory: 64Mi
+        sidecar.istio.io/proxyCPULimit: 250m
+        sidecar.istio.io/proxyMemoryLimit: 256Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
+      value: dev-db-passwords
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
+      value: INGESTION_DB_PASSWORD
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: 50m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: 384Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: 500m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: 768Mi
+  target:
+    kind: Deployment
+    name: ingestion-service
+- patch: |-
+    - op: add
+      path: /metadata/annotations
+      value:
+        argocd.argoproj.io/sync-wave: "2"
+    - op: replace
+      path: /spec/replicas
+      value: 1
+    - op: add
+      path: /spec/strategy
+      value:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 0
+          maxUnavailable: 1
+    - op: add
+      path: /spec/template/metadata/annotations
+      value:
+        sidecar.istio.io/proxyCPU: 25m
+        sidecar.istio.io/proxyMemory: 64Mi
+        sidecar.istio.io/proxyCPULimit: 250m
+        sidecar.istio.io/proxyMemoryLimit: 256Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
+      value: dev-db-passwords
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
+      value: NOTIFICATION_DB_PASSWORD
+    - op: replace
+      path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/name
+      value: jwt-verifier-public-key
+    - op: replace
+      path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/key
+      value: JWT_PUBLIC_KEY_PEM
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: 50m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: 384Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: 500m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: 768Mi
+  target:
+    kind: Deployment
+    name: notification-service
+- patch: |-
+    - op: add
+      path: /metadata/annotations
+      value:
+        argocd.argoproj.io/sync-wave: "2"
+    - op: replace
+      path: /spec/replicas
+      value: 1
+    - op: add
+      path: /spec/strategy
+      value:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 0
+          maxUnavailable: 1
+    - op: add
+      path: /spec/template/metadata/annotations
+      value:
+        sidecar.istio.io/proxyCPU: 25m
+        sidecar.istio.io/proxyMemory: 64Mi
+        sidecar.istio.io/proxyCPULimit: 250m
+        sidecar.istio.io/proxyMemoryLimit: 256Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
+      value: jwt-verifier-public-key
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
+      value: JWT_PUBLIC_KEY_PEM
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: 50m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: 384Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: 500m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: 768Mi
+  target:
+    kind: Deployment
+    name: realtime-gateway
+- patch: |-
+    - op: add
+      path: /metadata/annotations
+      value:
+        argocd.argoproj.io/sync-wave: "2"
+    - op: replace
+      path: /spec/replicas
+      value: 1
+    - op: add
+      path: /spec/strategy
+      value:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 0
+          maxUnavailable: 1
+    - op: add
+      path: /spec/template/metadata/annotations
+      value:
+        sidecar.istio.io/proxyCPU: 25m
+        sidecar.istio.io/proxyMemory: 64Mi
+        sidecar.istio.io/proxyCPULimit: 250m
+        sidecar.istio.io/proxyMemoryLimit: 256Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
+      value: jwt-verifier-public-key
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
+      value: JWT_PUBLIC_KEY_PEM
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: 50m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: 192Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: 500m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: 512Mi
+  target:
+    kind: Deployment
+    name: analytics-service
+- patch: |-
+    - op: add
+      path: /metadata/annotations
+      value:
+        argocd.argoproj.io/sync-wave: "2"
+    - op: replace
+      path: /spec/replicas
+      value: 1
+    - op: add
+      path: /spec/strategy
+      value:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 0
+          maxUnavailable: 1
+    - op: add
+      path: /spec/template/metadata/annotations
+      value:
+        sidecar.istio.io/proxyCPU: 25m
+        sidecar.istio.io/proxyMemory: 64Mi
+        sidecar.istio.io/proxyCPULimit: 250m
+        sidecar.istio.io/proxyMemoryLimit: 256Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/name
+      value: dev-db-passwords
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
+      value: AUDIT_DB_PASSWORD
+    - op: replace
+      path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/name
+      value: jwt-verifier-public-key
+    - op: replace
+      path: /spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/key
+      value: JWT_PUBLIC_KEY_PEM
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: 50m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: 384Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: 500m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: 768Mi
+  target:
+    kind: Deployment
+    name: audit-service
+- patch: |-
+    - op: replace
+      path: /spec/minReplicas
+      value: 1
+    - op: replace
+      path: /spec/maxReplicas
+      value: 1
+  target:
+    kind: HorizontalPodAutoscaler
+- patch: |-
+    - op: add
+      path: /data/GRPC_PORT
+      value: "9091"
+    - op: add
+      path: /data/DB_POOL_SIZE
+      value: "3"
+    - op: add
+      path: /data/PUBSUB_PROJECT_ID
+      value: aquashield-dev
+    - op: add
+      path: /data/PUBSUB_EMULATOR_HOST
+      value: pubsub-emulator:8085
+    - op: add
+      path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
+      value: pubsub-emulator:8085
+    - op: add
+      path: /data/EVENTS_ENABLED
+      value: "true"
+  target:
+    kind: ConfigMap
+    name: identity-access-service-config
+- patch: |-
+    - op: add
+      path: /data/DB_POOL_SIZE
+      value: "3"
+    - op: add
+      path: /data/PUBSUB_EMULATOR_HOST
+      value: pubsub-emulator:8085
+    - op: add
+      path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
+      value: pubsub-emulator:8085
+    - op: add
+      path: /data/INGESTION_GRPC_TARGET
+      value: ingestion-service:9095
+    - op: add
+      path: /data/POND_GRPC_TARGET
+      value: pond-service:9094
+    - op: add
+      path: /data/NOTIFICATION_GRPC_TARGET
+      value: notification-service:9096
+  target:
+    kind: ConfigMap
+    name: project-service-config
+- patch: |-
+    - op: add
+      path: /data/DB_POOL_SIZE
+      value: "3"
+    - op: add
+      path: /data/PUBSUB_EMULATOR_HOST
+      value: pubsub-emulator:8085
+    - op: add
+      path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
+      value: pubsub-emulator:8085
+  target:
+    kind: ConfigMap
+    name: pond-service-config
+- patch: |-
+    - op: add
+      path: /data/DB_POOL_SIZE
+      value: "3"
+    - op: add
+      path: /data/PUBSUB_EMULATOR_HOST
+      value: pubsub-emulator:8085
+    - op: add
+      path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
+      value: pubsub-emulator:8085
+  target:
+    kind: ConfigMap
+    name: sensor-service-config
+- patch: |-
+    - op: add
+      path: /data/DB_POOL_SIZE
+      value: "3"
+    - op: add
+      path: /data/PUBSUB_EMULATOR_HOST
+      value: pubsub-emulator:8085
+    - op: add
+      path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
+      value: pubsub-emulator:8085
+    - op: add
+      path: /data/HMAC_MAX_SKEW
+      value: PT240H
+  target:
+    kind: ConfigMap
+    name: ingestion-service-config
+- patch: |-
+    - op: add
+      path: /data/DB_POOL_SIZE
+      value: "3"
+    - op: add
+      path: /data/PUBSUB_EMULATOR_HOST
+      value: pubsub-emulator:8085
+    - op: add
+      path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
+      value: pubsub-emulator:8085
+  target:
+    kind: ConfigMap
+    name: notification-service-config
+- patch: |-
+    - op: add
+      path: /data/PUBSUB_EMULATOR_HOST
+      value: pubsub-emulator:8085
+    - op: add
+      path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
+      value: pubsub-emulator:8085
+  target:
+    kind: ConfigMap
+    name: realtime-gateway-config
+- patch: |-
+    - op: add
+      path: /data/DB_POOL_SIZE
+      value: "3"
+    - op: add
+      path: /data/PUBSUB_EMULATOR_HOST
+      value: pubsub-emulator:8085
+    - op: add
+      path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
+      value: pubsub-emulator:8085
+  target:
+    kind: ConfigMap
+    name: audit-service-config
 
 images:
-  - name: analytics-service
-    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/analytics-service/analytics-service
-    newTag: 20260808-1440-6fbd5a1c8557
-  - name: audit-service
-    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/audit-service/audit-service
-    newTag: 20260808-1440-6fbd5a1c8557
-  - name: identity-access-service
-    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/identity-access-service/identity-access-service
-    newTag: 20260808-1440-6fbd5a1c8557
-  - name: ingestion-service
-    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/ingestion-service/ingestion-service
-    newTag: 20260809-0131-bigtable-latest
-  - name: notification-service
-    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/notification-service/notification-service
-    newTag: 20260808-1440-6fbd5a1c8557
-  - name: pond-service
-    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/pond-service/pond-service
-    newTag: 20260808-1440-6fbd5a1c8557
-  - name: project-service
-    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/project-service/project-service
-    newTag: 20260808-1440-6fbd5a1c8557
-  - name: realtime-gateway
-    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/realtime-gateway/realtime-gateway
-    newTag: 20260808-1440-6fbd5a1c8557
-  - name: sensor-service
-    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/sensor-service/sensor-service
-    newTag: 20260808-1440-6fbd5a1c8557
+- name: analytics-service
+  newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/analytics-service/analytics-service
+  newTag: b88b45f5a738
+- name: audit-service
+  newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/audit-service/audit-service
+  newTag: b88b45f5a738
+- name: identity-access-service
+  newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/identity-access-service/identity-access-service
+  newTag: b88b45f5a738
+- name: ingestion-service
+  newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/ingestion-service/ingestion-service
+  newTag: b88b45f5a738
+- name: notification-service
+  newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/notification-service/notification-service
+  newTag: b88b45f5a738
+- name: pond-service
+  newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/pond-service/pond-service
+  newTag: b88b45f5a738
+- name: project-service
+  newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/project-service/project-service
+  newTag: b88b45f5a738
+- name: realtime-gateway
+  newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/realtime-gateway/realtime-gateway
+  newTag: b88b45f5a738
+- name: sensor-service
+  newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/sensor-service/sensor-service
+  newTag: b88b45f5a738
