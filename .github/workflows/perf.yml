@@ -69,6 +69,7 @@ jobs:
           LOADTEST_PASSWORD: ${{ secrets.LOADTEST_PASSWORD }}
         run: |
           mkdir -p loadtests/results
+          chmod 0777 loadtests/results
 
           case "$SCENARIO" in
             busy-day)
@@ -116,4 +117,4 @@ jobs:
           name: performance-evidence-k6-${{ inputs.scenario || 'busy-day' }}
           path: loadtests/results/
           retention-days: 30
-          if-no-files-found: ignore
+          if-no-files-found: error
