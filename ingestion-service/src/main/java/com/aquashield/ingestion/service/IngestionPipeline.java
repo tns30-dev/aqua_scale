@@ -158,7 +158,7 @@ public class IngestionPipeline {
       row.values().forEach(values::set);
       storeRows.add(new ReadingStore.Row(
           UUID.fromString(row.mapping().getProjectId()),
-          UUID.fromString(row.mapping().getPondId()),
+          row.mapping().getPondId().isBlank() ? null : UUID.fromString(row.mapping().getPondId()),
           UUID.fromString(row.mapping().getProjectSensorId()),
           row.port(), values));
     }
@@ -175,7 +175,8 @@ public class IngestionPipeline {
       ObjectNode values = mapper.createObjectNode();
       row.values().forEach(values::set);
       events.publish(IngestionEventPublisher.TOPIC_READING_INGESTED, correlationId,
-          row.mapping().getProjectId(), row.mapping().getPondId(),
+          row.mapping().getProjectId(),
+          row.mapping().getPondId().isBlank() ? null : row.mapping().getPondId(),
           mapper.createObjectNode()
               .put("projectSensorId", row.mapping().getProjectSensorId())
               .put("port", row.port())

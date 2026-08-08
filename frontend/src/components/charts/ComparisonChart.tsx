@@ -5,6 +5,7 @@ import {
   BarChart,
   Line,
   Bar,
+  CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
@@ -15,16 +16,10 @@ import type {
   NameType,
 } from "recharts/types/component/DefaultTooltipContent";
 
-// Types
 export interface ComparisonChartDataPoint {
   label: string;
-  seriesA: number;
-  /**
-   * Optional. Omit (or pass undefined) for single-series charts —
-   * Recharts renders nothing for that series at that point, and the legend +
-   * tooltip already skip Pond B when seriesBLabel is empty.
-   */
-  seriesB?: number;
+  seriesA?: number | null;
+  seriesB?: number | null;
 }
 
 interface ComparisonChartTooltipProps {
@@ -34,48 +29,29 @@ interface ComparisonChartTooltipProps {
 }
 
 export interface ComparisonChartProps {
-  /** Chart display mode */
   variant: "line" | "bar";
-
-  /** Chart title shown in card header (e.g., "Ammonium (NH4+)") */
   title: string;
-
-  /** Badge text shown top-right (e.g., "WEEKLY", "DAILY") */
+  unit?: string;
+  watchedBy?: string[];
   badge?: string;
-
-  /** Data array — one object per x-axis tick */
   data: ComparisonChartDataPoint[];
-
-  /** Display name for series A (e.g., "Pond Alpha-01") */
   seriesALabel: string;
-
-  /** Display name for series B (e.g., "Pond Delta-04") */
   seriesBLabel: string;
-
-  /** Profile theme color — drives border, badge tint. Default: #1e40af */
+  seriesANoReadings?: boolean;
+  seriesBNoReadings?: boolean;
   themeColor?: string;
-
-  /** Pond A line/bar color — defaults to themeColor */
   colorA?: string;
-
-  /** Pond B line/bar color — defaults to themeColor at 55% opacity */
   colorB?: string;
-
-  /** Chart height in px — default: 180 */
   height?: number;
-
-  /** Show loading spinner */
   isLoading?: boolean;
 }
 
-// Constants
 const DEFAULT_THEME_COLOR = "#1e40af";
-// Series B color derived from theme — will be set per-instance
 const DEFAULT_HEIGHT = 180;
 const AXIS_TICK_COLOR = "#9CA3AF";
 const AXIS_STROKE_COLOR = "#E5E7EB";
+const GRID_COLOR = "#f1f5f9";
 
-// Sub-components
 function LoadingSpinner({ height }: { height: number }) {
   return (
     <div className="flex items-center justify-center" style={{ height }}>
@@ -90,60 +66,65 @@ function EmptyState({ height }: { height: number }) {
       className="flex items-center justify-center text-sm text-gray-400"
       style={{ height }}
     >
-      No data available
+      No readings for this period
     </div>
+  );
+}
+
+function LineIndicator({ color, muted }: { color: string; muted?: boolean }) {
+  return (
+    <span
+      className="inline-block h-[3px] w-3 rounded-sm"
+      style={{ background: color, opacity: muted ? 0.3 : 1 }}
+    />
+  );
+}
+
+function BarIndicator({ color, muted }: { color: string; muted?: boolean }) {
+  return (
+    <span
+      className="inline-block h-[7px] w-3 rounded-sm"
+      style={{ background: color, opacity: muted ? 0.3 : 0.7 }}
+    />
   );
 }
 
 function ChartLegend({
   seriesALabel,
   seriesBLabel,
+  seriesANoReadings,
+  seriesBNoReadings,
   themeColor,
   seriesBColor,
   variant,
 }: {
   seriesALabel: string;
   seriesBLabel: string;
+  seriesANoReadings: boolean;
+  seriesBNoReadings: boolean;
   themeColor: string;
   seriesBColor: string;
   variant: "line" | "bar";
 }) {
   const Indicator = variant === "bar" ? BarIndicator : LineIndicator;
   return (
-    <div className="flex gap-4 pt-2 text-[10px] text-gray-500">
-      <span className="flex items-center gap-1">
-        <Indicator color={themeColor} />
+    <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-gray-100 pt-2.5 text-[11px] text-gray-500">
+      <span className={`flex items-center gap-1 ${seriesANoReadings ? "text-gray-400" : ""}`}>
+        <Indicator color={themeColor} muted={seriesANoReadings} />
         {seriesALabel}
+        {seriesANoReadings && " - no readings this period"}
       </span>
       {seriesBLabel && (
-        <span className="flex items-center gap-1">
-          <Indicator color={seriesBColor} />
+        <span className={`flex items-center gap-1 ${seriesBNoReadings ? "text-gray-400" : ""}`}>
+          <Indicator color={seriesBColor} muted={seriesBNoReadings} />
           {seriesBLabel}
+          {seriesBNoReadings && " - no readings this period"}
         </span>
       )}
     </div>
   );
 }
 
-function LineIndicator({ color }: { color: string }) {
-  return (
-    <span
-      className="inline-block h-[3px] w-3 rounded-sm"
-      style={{ background: color }}
-    />
-  );
-}
-
-function BarIndicator({ color }: { color: string }) {
-  return (
-    <span
-      className="inline-block h-[7px] w-3 rounded-sm"
-      style={{ background: color, opacity: 0.7 }}
-    />
-  );
-}
-
-// Custom tooltip content
 function CustomTooltip({
   active,
   payload,
@@ -152,7 +133,7 @@ function CustomTooltip({
   seriesBLabel,
   themeColor,
 }: TooltipProps<ValueType, NameType> & ComparisonChartTooltipProps) {
-  if (!active || !payload || payload.length < 2) return null;
+  if (!active || !payload || payload.length === 0) return null;
 
   const valA = payload.find((p) => p.dataKey === "seriesA")?.value;
   const valB = payload.find((p) => p.dataKey === "seriesB")?.value;
@@ -163,26 +144,33 @@ function CustomTooltip({
   return (
     <div className="min-w-[160px] rounded-lg bg-gray-800 px-3 py-2.5">
       <p className="mb-1.5 text-[11px] text-gray-400">{label}</p>
-      <p className="my-0.5 text-xs" style={{ color: themeColor }}>
-        {seriesALabel}:{" "}
-        <span className="font-semibold text-gray-50">{formatValue(valA)}</span>
-      </p>
-      <p className="my-0.5 text-xs text-gray-400">
-        {seriesBLabel}:{" "}
-        <span className="font-semibold text-gray-50">{formatValue(valB)}</span>
-      </p>
+      {seriesALabel && valA !== undefined && (
+        <p className="my-0.5 text-xs" style={{ color: themeColor }}>
+          {seriesALabel}:{" "}
+          <span className="font-semibold text-gray-50">{formatValue(valA)}</span>
+        </p>
+      )}
+      {seriesBLabel && valB !== undefined && (
+        <p className="my-0.5 text-xs text-gray-400">
+          {seriesBLabel}:{" "}
+          <span className="font-semibold text-gray-50">{formatValue(valB)}</span>
+        </p>
+      )}
     </div>
   );
 }
 
-// Main component
 export const ComparisonChart = React.memo(function ComparisonChart({
   variant,
   title,
+  unit,
+  watchedBy = [],
   badge,
   data,
   seriesALabel,
   seriesBLabel,
+  seriesANoReadings = false,
+  seriesBNoReadings = false,
   themeColor = DEFAULT_THEME_COLOR,
   colorA,
   colorB,
@@ -192,8 +180,10 @@ export const ComparisonChart = React.memo(function ComparisonChart({
   const hasData = data && Array.isArray(data) && data.length > 0;
   const seriesAColor = colorA || themeColor;
   const seriesBColor = colorB || `${themeColor}55`;
+  const drawA = !seriesANoReadings;
+  const drawB = Boolean(seriesBLabel) && !seriesBNoReadings;
+  const nothingToDraw = !drawA && !drawB;
 
-  // Shared axis props
   const xAxisProps = {
     dataKey: "label" as const,
     tick: { fontSize: 10, fill: AXIS_TICK_COLOR },
@@ -210,13 +200,17 @@ export const ComparisonChart = React.memo(function ComparisonChart({
     width: 40,
   };
 
+  const gridElement = (
+    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={GRID_COLOR} />
+  );
+
   const tooltipElement = (
     <Tooltip
       content={
         <CustomTooltip
-          seriesALabel={seriesALabel}
-          seriesBLabel={seriesBLabel}
-          themeColor={themeColor}
+          seriesALabel={drawA ? seriesALabel : ""}
+          seriesBLabel={drawB ? seriesBLabel : ""}
+          themeColor={seriesAColor}
         />
       }
       cursor={
@@ -227,12 +221,23 @@ export const ComparisonChart = React.memo(function ComparisonChart({
     />
   );
 
-  // Render component
+  const showChart = !isLoading && hasData && !nothingToDraw;
+
   return (
     <div className="rounded-[10px] border border-gray-200 bg-white px-4 py-3.5">
-      {/* Header */}
-      <div className="mb-2.5 flex items-center justify-between">
-        <span className="text-[13px] font-semibold text-gray-500">{title}</span>
+      <div className="mb-2.5 flex items-center justify-between gap-2">
+        <h3 className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-gray-900">
+          {title}
+          {unit && <span className="text-xs font-semibold text-gray-500">({unit})</span>}
+          {watchedBy.map((name) => (
+            <span
+              key={name}
+              className="rounded-full bg-gray-100 px-1.5 py-px text-[9px] font-semibold text-gray-600"
+            >
+              {name}
+            </span>
+          ))}
+        </h3>
         {badge && (
           <span
             className="rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
@@ -243,68 +248,77 @@ export const ComparisonChart = React.memo(function ComparisonChart({
         )}
       </div>
 
-      {/* Chart area */}
       {isLoading && <LoadingSpinner height={height} />}
+      {!isLoading && (!hasData || nothingToDraw) && <EmptyState height={height} />}
 
-      {!isLoading && !hasData && <EmptyState height={height} />}
-
-      {!isLoading && hasData && variant === "line" && (
+      {showChart && variant === "line" && (
         <ResponsiveContainer width="100%" height={height}>
           <LineChart data={data}>
+            {gridElement}
             <XAxis {...xAxisProps} />
             <YAxis {...yAxisProps} />
             {tooltipElement}
-            <Line
-              type="monotone"
-              dataKey="seriesA"
-              name={seriesALabel}
-              stroke={seriesAColor}
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4, strokeWidth: 0 }}
-            />
-            <Line
-              type="monotone"
-              dataKey="seriesB"
-              name={seriesBLabel}
-              stroke={seriesBColor}
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4, strokeWidth: 0 }}
-            />
+            {drawA && (
+              <Line
+                type="monotone"
+                dataKey="seriesA"
+                name={seriesALabel}
+                stroke={seriesAColor}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4, strokeWidth: 0 }}
+              />
+            )}
+            {drawB && (
+              <Line
+                type="monotone"
+                dataKey="seriesB"
+                name={seriesBLabel}
+                stroke={seriesBColor}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4, strokeWidth: 0 }}
+              />
+            )}
           </LineChart>
         </ResponsiveContainer>
       )}
 
-      {!isLoading && hasData && variant === "bar" && (
+      {showChart && variant === "bar" && (
         <ResponsiveContainer width="100%" height={height}>
           <BarChart data={data} barCategoryGap="20%">
+            {gridElement}
             <XAxis {...xAxisProps} />
             <YAxis {...yAxisProps} />
             {tooltipElement}
-            <Bar
-              dataKey="seriesB"
-              name={seriesBLabel}
-              fill={seriesBColor}
-              fillOpacity={0.45}
-              radius={[4, 4, 0, 0]}
-            />
-            <Bar
-              dataKey="seriesA"
-              name={seriesALabel}
-              fill={seriesAColor}
-              fillOpacity={0.6}
-              radius={[4, 4, 0, 0]}
-            />
+            {drawB && (
+              <Bar
+                dataKey="seriesB"
+                name={seriesBLabel}
+                fill={seriesBColor}
+                fillOpacity={0.45}
+                radius={[4, 4, 0, 0]}
+              />
+            )}
+            {drawA && (
+              <Bar
+                dataKey="seriesA"
+                name={seriesALabel}
+                fill={seriesAColor}
+                fillOpacity={0.6}
+                radius={[4, 4, 0, 0]}
+              />
+            )}
           </BarChart>
         </ResponsiveContainer>
       )}
 
-      {/* Legend */}
       {hasData && !isLoading && (
         <ChartLegend
           seriesALabel={seriesALabel}
           seriesBLabel={seriesBLabel}
+          seriesANoReadings={seriesANoReadings}
+          seriesBNoReadings={Boolean(seriesBLabel) && seriesBNoReadings}
           themeColor={seriesAColor}
           seriesBColor={seriesBColor}
           variant={variant}

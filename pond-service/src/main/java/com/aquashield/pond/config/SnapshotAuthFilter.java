@@ -2,6 +2,7 @@ package com.aquashield.pond.config;
 
 import com.aquashield.common.authz.AuthzSnapshot;
 import com.aquashield.common.authz.AuthzSnapshotConsumer;
+import com.aquashield.common.security.BrowserAuth;
 import com.aquashield.common.security.JwtVerifier;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -52,10 +53,18 @@ public class SnapshotAuthFilter extends OncePerRequestFilter {
   @Override
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                   FilterChain chain) throws ServletException, IOException {
-    String header = request.getHeader("Authorization");
-    if (header != null && header.startsWith("Bearer ")) {
+    var token = BrowserAuth.bearerOrCookie(
+        request.getHeader("Authorization"), request.getHeader("Cookie"));
+    if (token.isPresent()) {
+      if (token.get().fromCookie() && BrowserAuth.isUnsafeMethod(request.getMethod())
+          && !BrowserAuth.csrfMatches(csrfHeader(request), request.getHeader("Cookie"))) {
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setContentType("application/json");
+        response.getWriter().write("{\"detail\":\"CSRF verification failed.\"}");
+        return;
+      }
       try {
-        Claims claims = verifier.verify(header.substring(7));
+        Claims claims = verifier.verify(token.get().token());
         UUID userId = UUID.fromString(claims.getSubject());
         long version = claims.get(JwtVerifier.CLAIM_AUTHZ_VERSION, Long.class);
         // fail closed: only a present, readable snapshot authenticates the request
@@ -73,5 +82,10 @@ public class SnapshotAuthFilter extends OncePerRequestFilter {
       }
     }
     chain.doFilter(request, response);
+  }
+
+  private static String csrfHeader(HttpServletRequest request) {
+    String header = request.getHeader(BrowserAuth.CSRF_HEADER);
+    return header != null ? header : request.getHeader(BrowserAuth.CSRF_ALT_HEADER);
   }
 }

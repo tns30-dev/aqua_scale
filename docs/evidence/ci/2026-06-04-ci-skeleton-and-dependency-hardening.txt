@@ -10,8 +10,8 @@ Workflows (.github/workflows/, spec: main/ci.md):
        reported in json artifact — documented ratchet plan) · CycloneDX aggregate SBOM
     -> container matrix: docker build per changed service + Trivy image scan (CRITICAL)
     -> ci-summary evidence job. permissions: contents: read; concurrency dedupe.
-  perf.yml — JMeter lane SEPARATED from daily CI (spec): performance-test branch +
-    workflow_dispatch w/ target URL; uploads .jtl + HTML reports; guards on plans.
+  perf.yml — performance lane SEPARATED from daily CI (spec): performance-test branch +
+    workflow_dispatch w/ target URL; uploads performance artifacts; guards on plans.
   .gitleaks.toml — allowlists the published HMAC test vector + evidence transcripts.
 
 DEPENDENCY HARDENING (the gate caught real CVEs before its first cloud run):
@@ -31,7 +31,7 @@ Post-hardening Trivy CRITICAL scan:
 Local Semgrep dry-run (p/java + p/security-audit) on all service sources: exit 0, clean.
 
 Deferred (tracked): deploy-handoff.yml (Artifact Registry push + Kustomize bump — needs
-cloud foundation + OIDC/WIF), action SHA-pinning before cloud go-live, JMeter plans,
+cloud foundation + OIDC/WIF), action SHA-pinning before cloud go-live, performance plans,
 HIGH-severity gate ratchet, branch protection (user/GitHub-plan dependent).
 
 === FIRST GITHUB RUNS (2026-06-04) — path-awareness proven both ways ===

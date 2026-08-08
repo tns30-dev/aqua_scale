@@ -1,5 +1,11 @@
 package com.aquashield.notification.service;
 
+import com.aquashield.api.ingestion.v1.GetReadingsRequest;
+import com.aquashield.api.ingestion.v1.IngestionReadServiceGrpc;
+import com.aquashield.api.ingestion.v1.ReadingRow;
+import com.aquashield.api.project.v1.EnergySettings;
+import com.aquashield.api.project.v1.GetEnergySettingsRequest;
+import com.aquashield.api.project.v1.ProjectServiceGrpc;
 import com.aquashield.notification.domain.AlertLog;
 import com.aquashield.notification.events.NotificationEventPublisher;
 import com.aquashield.notification.repo.AlertLogRepository;
@@ -9,9 +15,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.Map;
 import java.util.UUID;
 
@@ -34,18 +43,29 @@ import java.util.UUID;
 public class AlertEngine {
 
   private static final Logger log = LoggerFactory.getLogger(AlertEngine.class);
+  static final String ENERGY_HOURLY_PARAM = "electricity_hourly";
+  static final String ENERGY_DAILY_PARAM = "electricity_daily";
 
   private final ThresholdCache thresholds;
   private final AlertLogRepository alerts;
   private final NotificationEventPublisher events;
   private final ObjectMapper mapper;
+  private final ProjectServiceGrpc.ProjectServiceBlockingStub projectStub;
+  private final IngestionReadServiceGrpc.IngestionReadServiceBlockingStub ingestionStub;
+  private final ZoneId zone;
 
   public AlertEngine(ThresholdCache thresholds, AlertLogRepository alerts,
-                     NotificationEventPublisher events, ObjectMapper mapper) {
+                     NotificationEventPublisher events, ObjectMapper mapper,
+                     ProjectServiceGrpc.ProjectServiceBlockingStub projectStub,
+                     IngestionReadServiceGrpc.IngestionReadServiceBlockingStub ingestionStub,
+                     @Value("${aquashield.timezone:Asia/Singapore}") String timezone) {
     this.thresholds = thresholds;
     this.alerts = alerts;
     this.events = events;
     this.mapper = mapper;
+    this.projectStub = projectStub;
+    this.ingestionStub = ingestionStub;
+    this.zone = ZoneId.of(timezone);
   }
 
   /**
@@ -55,6 +75,10 @@ public class AlertEngine {
    */
   public void evaluate(UUID projectId, UUID pondId, JsonNode values,
                        OffsetDateTime readingTimestamp, String correlationId) {
+    if (pondId == null) {
+      evaluateEnergy(projectId, values, readingTimestamp, correlationId);
+      return;
+    }
     Map<String, ThresholdCache.Threshold> map = thresholds.forProject(projectId);
     values.properties().forEach(entry -> {
       String code = entry.getKey();
@@ -96,6 +120,53 @@ public class AlertEngine {
     });
   }
 
+  private void evaluateEnergy(UUID projectId, JsonNode values,
+                              OffsetDateTime readingTimestamp, String correlationId) {
+    JsonNode electricity = values == null ? null : values.get("electricity");
+    if (electricity == null || !electricity.isNumber()) {
+      return;
+    }
+    double kwh = electricity.asDouble();
+    EnergySettings settings = projectStub.getEnergySettings(GetEnergySettingsRequest.newBuilder()
+        .setProjectId(projectId.toString())
+        .setType("electricity")
+        .build());
+    String unit = settings.getUnit().isBlank() ? "kWh" : settings.getUnit();
+
+    if (settings.getHasHighHourlyThreshold()) {
+      double threshold = settings.getHighHourlyThreshold();
+      if (kwh > threshold) {
+        AlertLog row = openEnergyAlert(projectId, ENERGY_HOURLY_PARAM, readingTimestamp,
+            "Electricity hourly consumption exceeded threshold");
+        if (row != null) {
+          publishEnergy(row, projectId, kwh, threshold, correlationId);
+        }
+      } else {
+        publishEnergyResolved(projectId, ENERGY_HOURLY_PARAM, correlationId,
+            alerts.autoResolveEnergy(projectId, ENERGY_HOURLY_PARAM, OffsetDateTime.now()));
+      }
+    }
+
+    if (settings.getHasHighDailyThreshold()) {
+      double threshold = settings.getHighDailyThreshold();
+      double total = dayTotal(projectId, readingTimestamp);
+      if (total > threshold) {
+        OffsetDateTime local = readingTimestamp.atZoneSameInstant(zone).toOffsetDateTime();
+        String message = "Electricity daily consumption exceeded threshold: "
+            + formatNumber(total) + " " + unit + " > " + formatNumber(threshold) + " "
+            + unit + " (" + local.format(java.time.format.DateTimeFormatter.ofPattern("MMM dd",
+                java.util.Locale.ENGLISH)) + ")";
+        AlertLog row = upsertDailyEnergyAlert(projectId, local, readingTimestamp, message);
+        if (row != null) {
+          publishEnergy(row, projectId, total, threshold, correlationId);
+        }
+      } else {
+        publishEnergyResolved(projectId, ENERGY_DAILY_PARAM, correlationId,
+            alerts.autoResolveEnergy(projectId, ENERGY_DAILY_PARAM, OffsetDateTime.now()));
+      }
+    }
+  }
+
   private void createIfNoActive(UUID projectId, UUID pondId, String code, String severity,
                                   String message, double thresholdValue, JsonNode valueNode,
                                   OffsetDateTime readingTimestamp, String correlationId) {
@@ -132,6 +203,113 @@ public class AlertEngine {
         projectId.toString(), pondId.toString(), payload);
     events.publish(NotificationEventPublisher.TOPIC_NOTIFICATION_REQUESTED, correlationId,
         projectId.toString(), pondId.toString(), payload);
+  }
+
+  private AlertLog openEnergyAlert(UUID projectId, String parameter,
+                                   OffsetDateTime readingTimestamp, String message) {
+    if (alerts.existsByProjectIdAndPondIdIsNullAndParameterAndAcknowledgedFalseAndResolvedFalse(
+        projectId, parameter)) {
+      log.debug("Dedup: active energy alert exists project={} parameter={}", projectId, parameter);
+      return null;
+    }
+    AlertLog alert = new AlertLog(projectId, null, "alert", message, "critical", parameter,
+        readingTimestamp);
+    try {
+      return alerts.save(alert);
+    } catch (DataIntegrityViolationException e) {
+      log.debug("Dedup (unique guard): concurrent active energy alert project={} parameter={}",
+          projectId, parameter);
+      return null;
+    }
+  }
+
+  private AlertLog upsertDailyEnergyAlert(UUID projectId, OffsetDateTime local,
+                                          OffsetDateTime readingTimestamp, String message) {
+    OffsetDateTime dayStart = local.toLocalDate().atStartOfDay(zone).toOffsetDateTime();
+    OffsetDateTime dayEnd = dayStart.plusDays(1);
+    java.util.Optional<AlertLog> existing = alerts
+        .findFirstByProjectIdAndPondIdIsNullAndParameterAndReadingTimestampGreaterThanEqualAndReadingTimestampLessThan(
+            projectId, ENERGY_DAILY_PARAM, dayStart, dayEnd);
+    if (existing.isPresent()) {
+      AlertLog row = existing.get();
+      if (!row.isAcknowledged()) {
+        row.setMessage(message);
+        alerts.save(row);
+      }
+      return null;
+    }
+
+    AlertLog alert = new AlertLog(projectId, null, "alert", message, "critical",
+        ENERGY_DAILY_PARAM, readingTimestamp);
+    try {
+      return alerts.save(alert);
+    } catch (DataIntegrityViolationException e) {
+      log.debug("Dedup (unique guard): concurrent daily energy alert project={}", projectId);
+      return null;
+    }
+  }
+
+  private double dayTotal(UUID projectId, OffsetDateTime readingTimestamp) {
+    LocalDate day = readingTimestamp.atZoneSameInstant(zone).toLocalDate();
+    String start = day.atStartOfDay(zone).toInstant().toString();
+    String end = day.plusDays(1).atStartOfDay(zone).minusNanos(1).toInstant().toString();
+    double total = 0;
+    for (ReadingRow row : ingestionStub.getReadings(GetReadingsRequest.newBuilder()
+        .setProjectId(projectId.toString())
+        .setStart(start)
+        .setEnd(end)
+        .addParameters("electricity")
+        .setLimit(50000)
+        .build()).getRowsList()) {
+      Double value = row.getValuesMap().get("electricity");
+      if (value != null) {
+        total += value;
+      }
+    }
+    return total;
+  }
+
+  private void publishEnergy(AlertLog alert, UUID projectId, double value, double threshold,
+                             String correlationId) {
+    ObjectNode payload = mapper.createObjectNode()
+        .put("log_id", alert.getLogId().toString())
+        .put("project_id", projectId.toString())
+        .putNull("pond_id")
+        .put("pond_name", "Project")
+        .put("parameter", alert.getParameter())
+        .put("severity", alert.getSeverity())
+        .put("message", alert.getMessage())
+        .put("current_value", round(value, 3))
+        .put("threshold", threshold)
+        .put("timestamp", alert.getReadingTimestamp().toString())
+        .put("log_type", alert.getLogType());
+    events.publish(NotificationEventPublisher.TOPIC_ALERT_CREATED, correlationId,
+        projectId.toString(), null, payload);
+    events.publish(NotificationEventPublisher.TOPIC_NOTIFICATION_REQUESTED, correlationId,
+        projectId.toString(), null, payload);
+  }
+
+  private void publishEnergyResolved(UUID projectId, String parameter, String correlationId,
+                                     int resolvedCount) {
+    if (resolvedCount <= 0) {
+      return;
+    }
+    events.publish(NotificationEventPublisher.TOPIC_ALERT_RESOLVED, correlationId,
+        projectId.toString(), null,
+        mapper.createObjectNode().put("parameter", parameter)
+            .put("resolvedCount", resolvedCount));
+  }
+
+  private static double round(double value, int digits) {
+    double factor = Math.pow(10, digits);
+    return Math.round(value * factor) / factor;
+  }
+
+  private static String formatNumber(double value) {
+    if (value == Math.floor(value) && !Double.isInfinite(value)) {
+      return String.valueOf((long) value);
+    }
+    return String.valueOf(round(value, 3));
   }
 
   /** Python float rendering for thresholds: 30 -> "30.0", 6.5 -> "6.5" (parity strings). */

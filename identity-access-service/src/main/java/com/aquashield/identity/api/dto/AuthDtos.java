@@ -11,8 +11,8 @@ import java.util.UUID;
 /**
  * Auth API contract. PARITY: the {user, projects} envelope is shared by login and /me;
  * user.username is the computed full name; featureActionAssigned keeps snake_case inner
- * keys (handled by FeatureActionEntry's @JsonProperty). DIVERGENCE (planned): tokens are
- * returned in the body for the bearer model instead of HttpOnly cookies.
+ * keys (handled by FeatureActionEntry's @JsonProperty). Browser auth is transported by
+ * HttpOnly cookies; token fields remain in the body for scripts and load tools.
  */
 public final class AuthDtos {
 

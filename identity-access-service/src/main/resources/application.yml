@@ -61,6 +61,10 @@ aquashield:
     authz-snapshot-ttl: ${AUTHZ_SNAPSHOT_TTL:PT12H}
     login-rate-limit: ${LOGIN_RATE_LIMIT:10}          # attempts
     login-rate-window: ${LOGIN_RATE_WINDOW:PT15M}     # per window per user/IP
+    cookies:
+      secure: ${AUTH_COOKIE_SECURE:false}
+      same-site: ${AUTH_COOKIE_SAME_SITE:Strict}
+      domain: ${AUTH_COOKIE_DOMAIN:}
   events:
     enabled: ${EVENTS_ENABLED:true}
     source: identity-access-service

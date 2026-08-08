@@ -12,6 +12,10 @@ RUN npm run build && npm prune --omit=dev
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+# The runtime runs `node dist/index.js` and never invokes npm/npx, so drop the
+# base image's bundled global npm. It removes its vendored `tar` (CVE-2026-59873,
+# node-tar gzip-bomb DoS) from the runtime image and shrinks the attack surface.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 # the gRPC contracts ride along — analytics is a consumer of shared-api protos

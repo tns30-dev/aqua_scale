@@ -10,6 +10,8 @@ import {
   ChevronDown,
   GitCompare,
   Zap,
+  Utensils,
+  FlaskConical,
   Users,
 } from "lucide-react";
 import { clsx } from "clsx";
@@ -65,6 +67,18 @@ const baseNavItems: NavItem[] = [
     icon: Zap,
     path: "/energy",
   },
+  {
+    id: "treatments",
+    label: "Treatments",
+    icon: FlaskConical,
+    path: "/treatments",
+  },
+  {
+    id: "feeding-growth",
+    label: "Feeding & Growth",
+    icon: Utensils,
+    path: "/feeding-growth",
+  },
 ];
 
 const adminNavItems: NavItem[] = [
@@ -116,7 +130,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           const isExpanded = expandedId === item.id;
           const isActive = hasChildren
             ? location.pathname.startsWith(item.path)
-            : location.pathname === item.path;
+            : location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
 
           return (
             <div key={item.id}>

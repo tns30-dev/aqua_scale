@@ -10,6 +10,13 @@ import * as protoLoader from '@grpc/proto-loader';
 import * as path from 'node:path';
 import type { ChartConfigEntry, Reading } from '../charts/engine';
 
+export interface BucketAverage {
+  bucketStart: Date;
+  parameter: string;
+  average: number;
+  sampleCount: number;
+}
+
 export interface Backends {
   /** Enabled chart config rows; throws on transport error (caller maps to fallback). */
   getChartConfig(projectId: string): Promise<ChartConfigEntry[]>;
@@ -17,6 +24,14 @@ export interface Backends {
   validatePondInProject(pondId: string, projectId: string): Promise<boolean>;
   /** Readings ordered measured_at ASC; throws on transport error. */
   getReadings(pondId: string, startIso: string, endIso: string): Promise<Reading[]>;
+  /** Bucketed pond parameter averages; throws on transport error. */
+  getPondParameterBucketAverages(
+    pondId: string,
+    startIso: string,
+    endIso: string,
+    timezone: string,
+    grouping: string,
+    parameters: string[]): Promise<BucketAverage[]>;
 }
 
 const LOADER_OPTIONS: protoLoader.Options = {
@@ -92,6 +107,29 @@ export function createGrpcBackends(targets: GrpcTargets): Backends & { close(): 
       return (resp.rows ?? []).map((row: AnyClient) => ({
         timestamp: new Date(row.measured_at),
         values: row.values ?? {},
+      }));
+    },
+
+    async getPondParameterBucketAverages(
+      pondId: string,
+      startIso: string,
+      endIso: string,
+      timezone: string,
+      grouping: string,
+      parameters: string[]): Promise<BucketAverage[]> {
+      const resp = await unary<AnyClient>(ingestion, 'GetPondParameterBucketAverages', {
+        pond_id: pondId,
+        start: startIso,
+        end: endIso,
+        timezone,
+        grouping,
+        parameters,
+      });
+      return (resp.rows ?? []).map((row: AnyClient) => ({
+        bucketStart: new Date(row.bucket_start),
+        parameter: row.parameter,
+        average: Number(row.average),
+        sampleCount: Number(row.sample_count),
       }));
     },
 

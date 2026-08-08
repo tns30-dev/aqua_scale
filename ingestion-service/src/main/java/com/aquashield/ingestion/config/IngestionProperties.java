@@ -9,5 +9,14 @@ public record IngestionProperties(
     String subscription,
     boolean hmacEnabled,
     Duration maxSkew,
-    Duration catalogueRefresh) {
+    Duration catalogueRefresh,
+    String telemetryStore,
+    Bigtable bigtable) {
+
+  public record Bigtable(
+      String projectId,
+      String instanceId,
+      String tableName,
+      boolean writeEnabled) {
+  }
 }

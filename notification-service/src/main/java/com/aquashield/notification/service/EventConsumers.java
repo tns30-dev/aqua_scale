@@ -60,7 +60,9 @@ public class EventConsumers implements SmartLifecycle {
     try {
       JsonNode envelope = mapper.readTree(message.getPubsubMessage().getData().toStringUtf8());
       UUID projectId = UUID.fromString(envelope.get("projectId").asText());
-      UUID pondId = UUID.fromString(envelope.get("pondId").asText());
+      JsonNode pondNode = envelope.get("pondId");
+      UUID pondId = (pondNode == null || pondNode.isNull() || pondNode.asText().isBlank())
+          ? null : UUID.fromString(pondNode.asText());
       JsonNode payload = envelope.get("payload");
       OffsetDateTime measuredAt = OffsetDateTime.parse(payload.get("measuredAt").asText());
       engine.evaluate(projectId, pondId, payload.get("values"), measuredAt,

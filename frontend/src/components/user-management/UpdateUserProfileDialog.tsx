@@ -33,10 +33,9 @@ type Props = {
  *
  * Fields: firstName, lastName, mobileNumber, role. Email and password are
  * intentionally absent — admins do not reset other users' credentials from
- * this dialog. Posts to PUT /api/users/<id>/profile (Phase 4 endpoint),
- * which is partial=True on the BE — sending any subset is valid.
+ * this dialog. Sends PATCH /api/users/<id>; sending any subset is valid.
  *
- * Distinct from /api/auth/profile (self-update — see existing ProfilePage).
+ * Distinct from PATCH /api/auth/me for self-update.
  */
 export function UpdateUserProfileDialog({ userId, onClose, onSuccess }: Props) {
   const [apiError, setApiError] = useState<string | null>(null);
@@ -44,7 +43,7 @@ export function UpdateUserProfileDialog({ userId, onClose, onSuccess }: Props) {
 
   const form = useForm<AdminUpdateUserProfileValues>({
     resolver: zodResolver(adminUpdateUserProfileSchema),
-    defaultValues: { firstName: "", lastName: "", role: "" },
+    defaultValues: { firstName: "", lastName: "", mobileNumber: "", role: "" },
   });
 
   // Hydrate from the current user record so the admin can see what they're
@@ -52,7 +51,7 @@ export function UpdateUserProfileDialog({ userId, onClose, onSuccess }: Props) {
   useEffect(() => {
     if (!userId) {
       setApiError(null);
-      form.reset({ firstName: "", lastName: "", role: "" });
+      form.reset({ firstName: "", lastName: "", mobileNumber: "", role: "" });
       return;
     }
     let cancelled = false;
@@ -65,6 +64,7 @@ export function UpdateUserProfileDialog({ userId, onClose, onSuccess }: Props) {
         form.reset({
           firstName: access.firstName,
           lastName: access.lastName,
+          mobileNumber: access.mobileNumber ?? "",
           role: access.role,
         });
       } catch {
@@ -86,6 +86,7 @@ export function UpdateUserProfileDialog({ userId, onClose, onSuccess }: Props) {
       await apiService.updateUserProfile(userId, {
         firstName: values.firstName,
         lastName: values.lastName,
+        mobileNumber: values.mobileNumber,
         role: values.role,
       });
       onClose();
@@ -142,6 +143,12 @@ export function UpdateUserProfileDialog({ userId, onClose, onSuccess }: Props) {
                 error={form.formState.errors.lastName?.message}
               />
             </div>
+            <Field
+              id="profile-mobileNumber"
+              label="Mobile number"
+              register={form.register("mobileNumber")}
+              error={form.formState.errors.mobileNumber?.message}
+            />
             <Field
               id="profile-role"
               label="Role"

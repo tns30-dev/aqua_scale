@@ -5,13 +5,13 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 data:
-  CLOUD_SQL_PRIVATE_IP: "10.128.1.3"
-  MEMORYSTORE_REDIS_HOST: "10.128.0.3"
-  REDIS_URL: "redis://10.128.0.3:6379"
+  CLOUD_SQL_PRIVATE_IP: "10.199.0.3"
+  MEMORYSTORE_REDIS_HOST: "10.199.73.251"
+  REDIS_URL: "redis://10.199.73.251:6379"
 
   CLOUD_SQL_DATABASE_NAME: "aquashield"
   MEMORYSTORE_REDIS_PORT: "6379"
-  PUBSUB_PROJECT_ID: "aerobic-guide-498413-u6"
+  PUBSUB_PROJECT_ID: "aquashield-ms-dev-20260808"
   BIGTABLE_INSTANCE_ID: "aquashield-dev-telemetry"
   BIGTABLE_TABLE_NAME: "telemetry_readings"
   BIGQUERY_DATASET_ID: "aquashield_dev_analytics"

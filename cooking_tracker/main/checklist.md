@@ -95,5 +95,5 @@
 | [ ] | Codex | Argo CD rollout | Argo CD sync and health evidence | `cd.md` |
 | [ ] | Codex | Smoke tests | Health and contract checks after deployment | `cd.md` |
 | [ ] | Codex | DAST | OWASP ZAP or equivalent scan after deployment | `cd.md` |
-| [ ] | Codex | JMeter load and stress tests | Evidence from dedicated `performance-test` branch or manual dispatch | `ci.md` |
+| [ ] | Codex | k6 load, stress, growth, and WebSocket tests | Evidence from Kubernetes Job or GitHub Actions manual/performance-test run | `ci.md` |
 | [ ] | Codex | Demo evidence | Screenshots, logs, videos, cloud console proof | All docs |

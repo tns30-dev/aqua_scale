@@ -1,0 +1,84 @@
+name: Dynamic Security Test Evidence - OWASP ZAP
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Target API base URL
+        required: true
+        default: https://api.aquashield.live
+      target_path:
+        description: Target path to baseline scan
+        required: true
+        default: /
+
+permissions:
+  contents: read
+
+jobs:
+  zap-baseline:
+    name: OWASP ZAP baseline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve target
+        id: target
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          TARGET_PATH: ${{ inputs.target_path }}
+        run: |
+          set -euo pipefail
+          base="${BASE_URL%/}"
+          path="/${TARGET_PATH#/}"
+          target="${base}${path}"
+          echo "target=${target}" >> "$GITHUB_OUTPUT"
+          echo "DAST target: ${target}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run ZAP baseline
+        run: |
+          set -euo pipefail
+          mkdir -p zap-output
+          docker run --rm \
+            -v "$PWD/zap-output:/zap/wrk/:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+              -t "${{ steps.target.outputs.target }}" \
+              -J zap-report.json \
+              -r zap-report.html \
+              -w zap-report.md \
+              -I
+
+      - name: Summarize ZAP result
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ ! -f zap-output/zap-report.json ]; then
+            echo "No ZAP JSON report produced." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from collections import Counter
+
+          with open("zap-output/zap-report.json", encoding="utf-8") as handle:
+              report = json.load(handle)
+
+          counts = Counter()
+          for site in report.get("site", []):
+              for alert in site.get("alerts", []):
+                  counts[alert.get("riskdesc", "Unknown").split()[0]] += 1
+
+          print("## ZAP Baseline Summary")
+          for risk in ("High", "Medium", "Low", "Informational"):
+              print(f"- {risk}: {counts.get(risk, 0)}")
+          PY
+
+      - name: Publish ZAP evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dast-evidence-zap-baseline
+          path: zap-output/
+          retention-days: 30
+          if-no-files-found: ignore

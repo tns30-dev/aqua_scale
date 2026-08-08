@@ -88,11 +88,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  // Boot: probe /api/auth/me. If the access token is expired but the tab still
-  // has a refresh token, api.service refreshes and retries once.
+  // Boot: first get the readable CSRF cookie, then probe /api/auth/me. If the
+  // access cookie is expired but the refresh cookie is still valid, api.service
+  // refreshes and retries once.
   useEffect(() => {
     (async () => {
       try {
+        await apiService.bootstrapCsrf();
         setSessionState(await apiService.getMe());
       } catch {
         // Leave session as-is.

@@ -2,9 +2,12 @@ package com.aquashield.pond;
 
 import com.aquashield.api.ingestion.v1.GetReadingWindowsRequest;
 import com.aquashield.api.ingestion.v1.GetReadingWindowsResponse;
+import com.aquashield.api.ingestion.v1.GetPondParameterBucketAveragesRequest;
+import com.aquashield.api.ingestion.v1.GetPondParameterBucketAveragesResponse;
 import com.aquashield.api.ingestion.v1.GetReadingsRequest;
 import com.aquashield.api.ingestion.v1.GetReadingsResponse;
 import com.aquashield.api.ingestion.v1.IngestionReadServiceGrpc;
+import com.aquashield.api.ingestion.v1.PondParameterBucketAverage;
 import com.aquashield.api.ingestion.v1.ReadingRow;
 import com.aquashield.api.ingestion.v1.ReadingWindow;
 import com.aquashield.api.pond.v1.GetCurrentCycleRequest;
@@ -59,10 +62,17 @@ import java.security.KeyPairGenerator;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -120,6 +130,8 @@ class PondApiIT {
   static final Map<String, List<ReadingRow>> READINGS = new java.util.concurrent.ConcurrentHashMap<>();
 
   static class FakeIngestion extends IngestionReadServiceGrpc.IngestionReadServiceImplBase {
+    record AggregateKey(String parameter, LocalDateTime bucket) {}
+
     @Override
     public void getReadings(GetReadingsRequest req, StreamObserver<GetReadingsResponse> obs) {
       obs.onNext(GetReadingsResponse.newBuilder()
@@ -143,6 +155,62 @@ class PondApiIT {
       }
       obs.onNext(resp.build());
       obs.onCompleted();
+    }
+
+    @Override
+    public void getPondParameterBucketAverages(GetPondParameterBucketAveragesRequest req,
+                                               StreamObserver<GetPondParameterBucketAveragesResponse> obs) {
+      Instant from = Instant.parse(req.getStart());
+      Instant to = Instant.parse(req.getEnd());
+      ZoneId zone = req.getTimezone().isBlank()
+          ? ZoneId.of("Asia/Singapore")
+          : ZoneId.of(req.getTimezone());
+      Set<String> params = new LinkedHashSet<>(req.getParametersList());
+      Map<AggregateKey, double[]> totals = new HashMap<>();
+      for (ReadingRow row : READINGS.getOrDefault(req.getPondId(), List.of())) {
+        Instant at = Instant.parse(row.getMeasuredAt());
+        if (at.isBefore(from) || at.isAfter(to)) {
+          continue;
+        }
+        LocalDateTime bucket = aggregateBucket(
+            ZonedDateTime.ofInstant(at, zone).toLocalDateTime(), req.getGrouping());
+        for (String param : params) {
+          Double value = row.getValuesMap().get(param);
+          if (value == null) {
+            continue;
+          }
+          double[] stat = totals.computeIfAbsent(new AggregateKey(param, bucket), ignored -> new double[2]);
+          stat[0] += value;
+          stat[1] += 1;
+        }
+      }
+      GetPondParameterBucketAveragesResponse.Builder resp =
+          GetPondParameterBucketAveragesResponse.newBuilder().setPondId(req.getPondId());
+      totals.entrySet().stream()
+          .sorted(Comparator
+              .comparing((Map.Entry<AggregateKey, double[]> entry) -> entry.getKey().parameter())
+              .thenComparing(entry -> entry.getKey().bucket()))
+          .forEach(entry -> {
+            double[] stat = entry.getValue();
+            resp.addRows(PondParameterBucketAverage.newBuilder()
+                .setPondId(req.getPondId())
+                .setParameter(entry.getKey().parameter())
+                .setBucketStart(entry.getKey().bucket().atZone(zone).toInstant().toString())
+                .setAverage(stat[0] / stat[1])
+                .setSampleCount((long) stat[1]));
+          });
+      obs.onNext(resp.build());
+      obs.onCompleted();
+    }
+
+    private static LocalDateTime aggregateBucket(LocalDateTime local, String grouping) {
+      return switch (grouping) {
+        case "hourly" -> local.withMinute(0).withSecond(0).withNano(0);
+        case "weekly" -> local.toLocalDate()
+            .minusDays(local.getDayOfWeek().getValue() - 1L).atStartOfDay();
+        case "monthly" -> local.toLocalDate().withDayOfMonth(1).atStartOfDay();
+        default -> local.toLocalDate().atStartOfDay();
+      };
     }
   }
 
@@ -353,8 +421,8 @@ class PondApiIT {
     JsonNode b = cmp.get("body");
     assertThat(b.at("/dateRange/grouping").asText()).isEqualTo("daily");
     assertThat(b.get("metrics")).hasSize(4);
-    assertThat(b.at("/metrics/0/parameter").asText()).isEqualTo("ammonium");
-    assertThat(b.at("/metrics/3/parameter").asText()).isEqualTo("electricity");
+    assertThat(b.at("/metrics/0/parameter").asText()).isEqualTo("ammonia");
+    assertThat(b.at("/metrics/3/parameter").asText()).isEqualTo("ph");
     assertThat(b.at("/charts/0/data")).hasSize(5); // Jun 1..5 daily buckets all present
     assertThat(b.at("/charts/0/data/0/seriesA").asDouble()).isZero();
     assertThat(b.at("/pondA/name").asText()).isEqualTo("Pond Alpha");
@@ -384,29 +452,26 @@ class PondApiIT {
             .putValues("turbidity", 10.0).putValues("electricity", 3.0).build()));
     try {
       JsonNode cmp = call(base + "?pondAId=" + pondId + "&pondBId=" + pondCId
-          + "&startDate=2026-06-03&endDate=2026-06-03", HttpMethod.GET, null, member);
+          + "&startDate=2026-06-03&endDate=2026-06-03"
+          + "&parameters=ammonium,dissolved_oxygen,turbidity", HttpMethod.GET, null, member);
       assertThat(cmp.get("status").asInt()).isEqualTo(200);
       JsonNode b = cmp.get("body");
       assertThat(b.at("/dateRange/grouping").asText()).isEqualTo("hourly"); // span 1
 
       // metrics — card averages over the whole range (CPython-checked values)
-      JsonNode ammonium = b.at("/metrics/0");
+      JsonNode ammonium = findParameter(b.get("metrics"), "ammonium");
       assertThat(ammonium.get("pondAValue").asDouble()).isEqualTo(0.15);
       assertThat(ammonium.get("pondBValue").asDouble()).isEqualTo(0.4);
       assertThat(ammonium.get("difference").asDouble()).isEqualTo(-0.25);
       assertThat(ammonium.get("percentDifference").asLong()).isEqualTo(-62);
-      JsonNode dox = b.at("/metrics/1");
+      JsonNode dox = findParameter(b.get("metrics"), "dissolved_oxygen");
       assertThat(dox.get("pondAValue").asDouble()).isEqualTo(5.5);
       assertThat(dox.get("percentDifference").asLong()).isEqualTo(38); // 37.5 -> even
-      JsonNode turbidity = b.at("/metrics/2");
+      JsonNode turbidity = findParameter(b.get("metrics"), "turbidity");
       assertThat(turbidity.get("pondAValue").asDouble()).isEqualTo(12.0); // null dropped
       assertThat(turbidity.get("percentDifference").asLong()).isEqualTo(20);
-      JsonNode electricity = b.at("/metrics/3");
-      assertThat(electricity.get("pondAValue").asDouble()).isEqualTo(2.0);
-      assertThat(electricity.get("percentDifference").asLong()).isEqualTo(-33);
-
       // hourly grid: 24 buckets; readings land in the LOCAL 14:00 bucket (06:00Z+08)
-      JsonNode data = b.at("/charts/0/data");
+      JsonNode data = findParameter(b.get("charts"), "ammonium").get("data");
       assertThat(data).hasSize(24);
       assertThat(data.get(14).get("label").asText()).isEqualTo("Jun 03 14:00");
       assertThat(data.get(14).get("seriesA").asDouble()).isEqualTo(0.15);
@@ -434,6 +499,68 @@ class PondApiIT {
       }
     }
     throw new AssertionError("pond not found: " + name);
+  }
+
+  private static JsonNode findParameter(JsonNode rows, String parameter) {
+    for (JsonNode row : rows) {
+      if (row.get("parameter").asText().equals(parameter)) {
+        return row;
+      }
+    }
+    throw new AssertionError("parameter not found: " + parameter);
+  }
+
+  @Test
+  void t05c_feedingGrowth_apiSlice() {
+    String member = mint(MEMBER, "user", 1);
+
+    JsonNode feedType = call("/api/feed-types/", HttpMethod.POST,
+        Map.of("project", PROJECT.toString(), "name", "Starter 35",
+            "pack_kg", "25.00", "pack_price", "62.50"),
+        member);
+    assertThat(feedType.get("status").asInt()).isEqualTo(201);
+    String feedTypeId = feedType.at("/body/feed_type_id").asText();
+
+    JsonNode options = call("/api/projects/" + PROJECT + "/feeding/options/",
+        HttpMethod.GET, null, member);
+    assertThat(options.get("status").asInt()).isEqualTo(200);
+    assertThat(options.at("/body/feedTypes/0/name").asText()).isEqualTo("Starter 35");
+    assertThat(options.at("/body/feedTypes/0/unitPrice").asDouble()).isEqualTo(2.5);
+
+    LocalDate fedOn = LocalDate.now().minusDays(35);
+    JsonNode saved = call("/api/ponds/" + pondId + "/feed-days/" + fedOn + "/",
+        HttpMethod.PUT,
+        Map.of("entries", List.of(Map.of("feedTypeId", feedTypeId, "amountKg", "12.50",
+            "fedTime", "07:30"))),
+        member);
+    assertThat(saved.get("status").asInt()).isEqualTo(200);
+    assertThat(saved.at("/body/ok").asBoolean()).isTrue();
+
+    JsonNode dash = call("/api/projects/" + PROJECT + "/feeding/dashboard/?cycle=" + cycleId,
+        HttpMethod.GET, null, member);
+    assertThat(dash.get("status").asInt()).isEqualTo(200);
+    JsonNode body = dash.get("body");
+    assertThat(body.at("/cycle/cycleId").asText()).isEqualTo(cycleId);
+    assertThat(body.at("/horizonDays").asInt()).isGreaterThanOrEqualTo(36);
+    assertThat(body.at("/kpis/base/feedKg").asDouble()).isEqualTo(12.5);
+    assertThat(body.at("/kpis/base/cost").asDouble()).isEqualTo(31.25);
+    assertThat(body.at("/days/base/0/entries/0/fedTime").asText()).isEqualTo("07:30");
+    assertThat(body.at("/days/base/0/entries/0/cost").asDouble()).isEqualTo(31.25);
+
+    JsonNode biomass = call("/api/cycles/" + cycleId + "/biomass/", HttpMethod.PATCH,
+        Map.of("stockingBiomassKg", "80.50"), member);
+    assertThat(biomass.get("status").asInt()).isEqualTo(200);
+    JsonNode harvestRejected = call("/api/cycles/" + cycleId + "/biomass/", HttpMethod.PATCH,
+        Map.of("harvestBiomassKg", "300.00"), member);
+    assertThat(harvestRejected.get("status").asInt()).isEqualTo(400);
+    assertThat(harvestRejected.at("/body/detail").asText())
+        .isEqualTo("Harvest biomass can only be recorded once the cycle is finished.");
+
+    JsonNode deleteReferenced = call("/api/feed-types/" + feedTypeId + "/", HttpMethod.DELETE,
+        null, member);
+    assertThat(deleteReferenced.get("status").asInt()).isEqualTo(400);
+    assertThat(deleteReferenced.at("/body/detail").asText())
+        .isEqualTo("This feed type is already used by feed logs. Retire it instead.");
   }
 
   @Test

@@ -34,7 +34,7 @@ data:
       map $http_origin $cors_allow_origin {
         default "";
         "https://www.aquashield.live" $http_origin;
-        "https://aerobic-guide-498413-u6.web.app" $http_origin;
+        "https://aquashield-ms-dev-20260808.web.app" $http_origin;
       }
 
       upstream identity-access-service { server identity-access-service:8081; }
@@ -60,7 +60,8 @@ data:
 
         add_header Access-Control-Allow-Origin $cors_allow_origin always;
         add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
-        add_header Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With, X-Correlation-Id" always;
+        add_header Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With, X-Correlation-Id, X-CSRFToken, X-CSRF-Token" always;
+        add_header Access-Control-Allow-Credentials "true" always;
         add_header Access-Control-Expose-Headers "X-Correlation-Id" always;
         add_header Vary "Origin" always;
 
@@ -74,10 +75,12 @@ data:
         }
 
         location ~ ^/api/projects/[^/]+/charts(/.*)?$ { proxy_pass http://analytics-service; }
+        location ~ ^/api/projects/[^/]+/feeding { proxy_pass http://pond-service; }
         location ~ ^/api/projects/[^/]+/pond-comparison { proxy_pass http://pond-service; }
         location ~ ^/api/projects/[^/]+/ponds { proxy_pass http://pond-service; }
         location ~ ^/api/projects/[^/]+/sensors { proxy_pass http://sensor-service; }
 
+        location /api/csrf { proxy_pass http://identity-access-service; }
         location /api/auth/ { proxy_pass http://identity-access-service; }
         location /api/users { proxy_pass http://identity-access-service; }
         location /api/feature-access { proxy_pass http://identity-access-service; }
@@ -92,6 +95,7 @@ data:
         location /api/cycles { proxy_pass http://pond-service; }
         location /api/treatments { proxy_pass http://pond-service; }
         location /api/pond-treatments { proxy_pass http://pond-service; }
+        location /api/feed-types { proxy_pass http://pond-service; }
 
         location /api/iot-devices { proxy_pass http://sensor-service; }
         location /api/sensor-types { proxy_pass http://sensor-service; }

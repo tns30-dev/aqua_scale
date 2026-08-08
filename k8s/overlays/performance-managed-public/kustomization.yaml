@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Performance evidence overlay for the managed GCP runtime exposed through the
+# public API edge. It keeps the dev-managed-public topology, includes the
+# Istio security resources from dev-full, and raises auth throttling so k6
+# measures service endpoints instead of setup-login backoff.
+resources:
+  - ../dev-managed-public
+
+patches:
+  - target:
+      kind: ConfigMap
+      labelSelector: app.kubernetes.io/component in (audit,identity,ingestion,notification,pond,project,sensor)
+    patch: |-
+      - op: replace
+        path: /data/DB_POOL_SIZE
+        value: "2"
+  - target:
+      kind: ConfigMap
+      name: identity-access-service-config
+    patch: |-
+      - op: replace
+        path: /data/LOGIN_RATE_LIMIT
+        value: "10000"
+      - op: replace
+        path: /data/LOGIN_RATE_WINDOW
+        value: "PT15M"

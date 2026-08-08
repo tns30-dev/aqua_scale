@@ -51,9 +51,13 @@ vi.mock("../../stores/pondStore", () => ({
 
 // auth utils: TopNavActions reads getCurrentProjectId to decide whether to
 // fetch alerts; default to no project (skips the fetch).
-vi.mock("../../utils/auth", () => ({
-  getCurrentProjectId: vi.fn(() => null),
-}));
+vi.mock("../../utils/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../utils/auth")>();
+  return {
+    ...actual,
+    getCurrentProjectId: vi.fn(() => null),
+  };
+});
 
 // apiService: surface only what TopNavActions touches.
 vi.mock("../../services/api.service", () => ({

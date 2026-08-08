@@ -73,7 +73,7 @@ public final class Entities {
     @Column(name = "project_id", nullable = false)
     private UUID projectId;
 
-    @Column(name = "pond_id", nullable = false)
+    @Column(name = "pond_id")
     private UUID pondId;
 
     @Column(name = "project_sensor_id", nullable = false)

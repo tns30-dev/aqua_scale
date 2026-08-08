@@ -2,6 +2,12 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import type { ProfileType, ProfileConfig } from '../types/profile';
 import { apiService } from '../services/api.service';
 import { useSession } from './SessionContext';
+import {
+  getCurrentProfileType,
+  getCurrentProjectId,
+  setCurrentProfileType,
+  setCurrentProjectId,
+} from '../utils/auth';
 
 /**
  * Profile Context Interface
@@ -72,7 +78,7 @@ export function ProfileProvider({ children, defaultProfile }: ProfileProviderPro
   // here because it hasn't loaded yet — the realignment effect below picks
   // the right code once data arrives.
   const [currentProfile, setCurrentProfile] = useState<ProfileType>(() => {
-    return localStorage.getItem(PROFILE_STORAGE_KEY) ?? defaultProfile ?? '';
+    return getCurrentProfileType() ?? localStorage.getItem(PROFILE_STORAGE_KEY) ?? defaultProfile ?? '';
   });
   const [isSwitching, setIsSwitching] = useState(false);
 
@@ -103,6 +109,27 @@ export function ProfileProvider({ children, defaultProfile }: ProfileProviderPro
     const sessionCodes = new Set(projects.map((p) => p.profileType));
     return profiles.filter((p) => sessionCodes.has(p.code)).map((p) => p.code);
   }, [profiles, projects]);
+
+  // Keep the profile bound to the selected project. This prevents a stale
+  // valid profile from another project (for example crab_hatchery) from
+  // filtering out the selected shrimp project's ponds after login/refresh.
+  useEffect(() => {
+    if (projects.length === 0) return;
+
+    const selectedProjectId = getCurrentProjectId();
+    const selectedProject =
+      projects.find((project) => project.projectId === selectedProjectId) ?? projects[0];
+    if (!selectedProject) return;
+
+    if (selectedProject.projectId !== selectedProjectId) {
+      setCurrentProjectId(selectedProject.projectId);
+    }
+
+    if (selectedProject.profileType && selectedProject.profileType !== currentProfile) {
+      setCurrentProfileType(selectedProject.profileType);
+      setCurrentProfile(selectedProject.profileType);
+    }
+  }, [projects, currentProfile]);
 
   // Realign currentProfile against the user's actual assignment, not just
   // catalogue membership. A stale localStorage value like "shrimp" would

@@ -157,9 +157,20 @@ export const usePondStore = create<PondStore>((set, get) => ({
   // had none of its own (e.g. a brand-new profile with zero linked ponds).
   getProfilePonds: (profileType) => {
     const targetProfile = profileType?.toLowerCase();
-    return get().ponds.filter(
-      (pond) => pond.profile_type?.toLowerCase?.() === targetProfile,
+    if (!targetProfile) return [];
+
+    const projectProfiles = new Map(
+      get().projects.map((project) => [
+        project.projectId,
+        project.profileType.toLowerCase(),
+      ]),
     );
+
+    return get().ponds.filter((pond) => {
+      const pondProfile =
+        pond.profile_type?.toLowerCase?.() ?? projectProfiles.get(pond.project_id);
+      return pondProfile === targetProfile;
+    });
   },
 
   // Alert management
@@ -209,4 +220,3 @@ export const usePondStore = create<PondStore>((set, get) => ({
     }));
   },
 }));
-

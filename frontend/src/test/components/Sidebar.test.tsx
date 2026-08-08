@@ -65,6 +65,10 @@ vi.mock("lucide-react", () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Zap: (p: any) => <div data-testid="icon-energy" {...p} />,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Utensils: (p: any) => <div data-testid="icon-feeding-growth" {...p} />,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  FlaskConical: (p: any) => <div data-testid="icon-treatments" {...p} />,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Droplets: (p: any) => <div data-testid="icon-logo" {...p} />,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   X: (p: any) => <div data-testid="icon-close" {...p} />,

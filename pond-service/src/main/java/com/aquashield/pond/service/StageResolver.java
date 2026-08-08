@@ -24,7 +24,8 @@ import java.util.UUID;
 @Service
 public class StageResolver {
 
-  public record ProjectContext(String projectName, String profileTypeCode, List<JsonNode> stages) {
+  public record ProjectContext(
+      String projectName, String profileTypeCode, List<JsonNode> stages, Integer cycleLengthDays) {
     public String stageNameForDay(int day) {
       for (JsonNode stage : stages) {
         JsonNode start = stage.get("startDay");
@@ -40,8 +41,10 @@ public class StageResolver {
     }
   }
 
+  record ParsedStageConfig(List<JsonNode> stages, Integer cycleLengthDays) {}
+
   private static final Logger log = LoggerFactory.getLogger(StageResolver.class);
-  private static final ProjectContext EMPTY = new ProjectContext(null, null, List.of());
+  private static final ProjectContext EMPTY = new ProjectContext(null, null, List.of(), null);
 
   private final ProjectServiceGrpc.ProjectServiceBlockingStub project;
   private final ObjectMapper mapper;
@@ -57,8 +60,9 @@ public class StageResolver {
           GetProjectRequest.newBuilder().setProjectId(projectId.toString()).build());
       var profile = project.getProfileType(
           GetProfileTypeRequest.newBuilder().setProfileTypeId(proj.getProfileTypeId()).build());
-      return new ProjectContext(proj.getName(), profile.getCode(),
-          parseStages(profile.getStageConfigJson()));
+      ParsedStageConfig parsed = parseStageConfig(profile.getStageConfigJson());
+      return new ProjectContext(proj.getName(), profile.getCode(), parsed.stages(),
+          parsed.cycleLengthDays());
     } catch (Exception e) {
       log.debug("Project context lookup failed for {}: {}", projectId, e.toString());
       return EMPTY;
@@ -67,21 +71,27 @@ public class StageResolver {
 
   /** PARITY (get_stages): null/garbage -> []; list -> as-is; {"stages":[...]} -> inner. */
   List<JsonNode> parseStages(String stageConfigJson) {
+    return parseStageConfig(stageConfigJson).stages();
+  }
+
+  ParsedStageConfig parseStageConfig(String stageConfigJson) {
     if (stageConfigJson == null || stageConfigJson.isBlank()) {
-      return List.of();
+      return new ParsedStageConfig(List.of(), null);
     }
     try {
       JsonNode config = mapper.readTree(stageConfigJson);
+      Integer cycleLengthDays = config.isObject() && config.path("cycleLengthDays").canConvertToInt()
+          ? config.path("cycleLengthDays").asInt() : null;
       JsonNode source = config.isArray() ? config
           : (config.isObject() && config.path("stages").isArray() ? config.get("stages") : null);
       if (source == null) {
-        return List.of();
+        return new ParsedStageConfig(List.of(), cycleLengthDays);
       }
       List<JsonNode> stages = new ArrayList<>();
       source.forEach(stages::add);
-      return stages;
+      return new ParsedStageConfig(stages, cycleLengthDays);
     } catch (Exception e) {
-      return List.of();
+      return new ParsedStageConfig(List.of(), null);
     }
   }
 }

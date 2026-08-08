@@ -1,0 +1,73 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pond-daily-health
+  labels:
+    app.kubernetes.io/name: pond-daily-health
+    app.kubernetes.io/component: pond
+spec:
+  schedule: "15 0 * * *"
+  timeZone: Asia/Singapore
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: pond-daily-health
+            app.kubernetes.io/component: pond
+        spec:
+          serviceAccountName: pond-service
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: daily-health
+              image: pond-service:latest
+              imagePullPolicy: IfNotPresent
+              envFrom:
+                - configMapRef:
+                    name: pond-service-config
+              env:
+                - name: DAILY_HEALTH_JOB_ENABLED
+                  value: "true"
+                - name: DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: pond-service-secrets
+                      key: DB_PASSWORD
+                      optional: true
+                - name: JWT_PUBLIC_KEY_PEM
+                  valueFrom:
+                    secretKeyRef:
+                      name: pond-service-secrets
+                      key: JWT_PUBLIC_KEY_PEM
+                      optional: true
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 384Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir: {}

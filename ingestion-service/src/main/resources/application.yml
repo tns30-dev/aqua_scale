@@ -47,6 +47,12 @@ aquashield:
     hmac-enabled: ${HMAC_ENABLED:true}
     max-skew: ${HMAC_MAX_SKEW:PT5M}
     catalogue-refresh: ${CATALOGUE_REFRESH:PT10M}
+    telemetry-store: ${TELEMETRY_STORE:postgres}
+    bigtable:
+      project-id: ${BIGTABLE_PROJECT_ID:${PUBSUB_PROJECT_ID:aquashield-local}}
+      instance-id: ${BIGTABLE_INSTANCE_ID:}
+      table-name: ${BIGTABLE_TABLE_NAME:telemetry_readings}
+      write-enabled: ${BIGTABLE_WRITE_ENABLED:false}
   grpc:
     sensor:
       target: ${SENSOR_GRPC_TARGET:localhost:9093}

@@ -38,6 +38,16 @@ patches:
         path: /data/JAVA_TOOL_OPTIONS
         value: "-XX:MaxRAMPercentage=75 -XX:+UseG1GC -Dio.netty.transport.noNative=true -Dio.netty.handler.ssl.noOpenSsl=true -Dio.grpc.netty.shaded.io.netty.transport.noNative=true -Dio.grpc.netty.shaded.io.netty.handler.ssl.noOpenSsl=true"
   - target:
+      kind: ConfigMap
+      name: ingestion-service-config
+    patch: |-
+      - op: replace
+        path: /data/TELEMETRY_STORE
+        value: "bigtable"
+      - op: replace
+        path: /data/BIGTABLE_WRITE_ENABLED
+        value: "true"
+  - target:
       kind: Deployment
       labelSelector: app.kubernetes.io/part-of=aquashield
     patch: |-
@@ -212,6 +222,10 @@ replacements:
           kind: ConfigMap
           name: ingestion-service-config
         fieldPaths: [data.PUBSUB_PROJECT_ID]
+      - select:
+          kind: ConfigMap
+          name: ingestion-service-config
+        fieldPaths: [data.BIGTABLE_PROJECT_ID]
       - select:
           kind: ConfigMap
           name: notification-service-config

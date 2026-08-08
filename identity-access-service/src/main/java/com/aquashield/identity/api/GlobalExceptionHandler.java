@@ -39,6 +39,12 @@ public class GlobalExceptionHandler {
         .body(Map.of("detail", "Too many login attempts. Try again later."));
   }
 
+  @ExceptionHandler(AuthController.CsrfFailureException.class)
+  ResponseEntity<Map<String, String>> csrfFailure() {
+    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+        .body(Map.of("detail", "CSRF verification failed."));
+  }
+
   @ExceptionHandler(AuthService.UserNotFoundException.class)
   ResponseEntity<Map<String, String>> userNotFound() {
     return ResponseEntity.status(HttpStatus.NOT_FOUND)

@@ -27,6 +27,10 @@ service ProjectService {
   // PARITY: mirrors the monolith chart engine's config read (project_visualisations
   // enabled=true joined to visualisation_types, y_parameters resolved to parameter_code).
   rpc GetChartConfig (GetChartConfigRequest) returns (GetChartConfigResponse);
+
+  // Energy pricing lookup — Pond treatment stability prices electricity through
+  // this seam instead of reaching into Project Service tables.
+  rpc GetEnergySettings (GetEnergySettingsRequest) returns (EnergySettings);
 }
 
 message GetProjectRequest {
@@ -120,4 +124,22 @@ message GetChartConfigResponse {
   string project_id = 1;
   // Only enabled rows (monolith filters enabled=True at the engine).
   repeated ChartConfigEntry charts = 2;
+}
+
+message GetEnergySettingsRequest {
+  string project_id = 1;
+  string type = 2;                // empty = electricity
+}
+
+message EnergySettings {
+  string project_id = 1;
+  string type = 2;
+  string unit = 3;
+  double tariff_per_unit = 4;
+  string currency = 5;
+  bool exists = 6;
+  bool has_high_hourly_threshold = 7;
+  double high_hourly_threshold = 8;
+  bool has_high_daily_threshold = 9;
+  double high_daily_threshold = 10;
 }

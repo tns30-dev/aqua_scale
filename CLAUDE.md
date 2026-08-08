@@ -24,7 +24,7 @@ After ANY implementation progress, update the matching tracker in `cooking_track
 | `services_tracker.md` | The 9 services + ML/LLM placeholders |
 | `data_and_messaging_tracker.md` | Cloud SQL, Redis, Bigtable, BigQuery, GCS, Pub/Sub, AWS IoT, Terraform |
 | `security_tracker.md` | Authn/authz, snapshots, token lifecycle, firewall layers, mTLS, scan evidence |
-| `ci_cd_and_testing_tracker.md` | CI workflows, registry, GitOps, Argo CD, smoke/DAST/JMeter, evidence |
+| `ci_cd_and_testing_tracker.md` | CI workflows, registry, GitOps, Argo CD, smoke/DAST/k6 performance, evidence |
 
 Each update: set item status, add a dated log line, fill "Summary for Codex"
 (current focus / last completed / blockers), link evidence. Tick `claude/checklist.md`
@@ -53,8 +53,9 @@ when an item is fully done. Use **`/sync-tracker`** to do this consistently.
   Kubernetes NetworkPolicy (default-deny), three-layer firewall model (edge→app→data).
 - **Delivery:** path-aware monorepo CI (GitHub Actions, OIDC/WIF — no long-lived keys) →
   Artifact Registry → **Kustomize** image-tag bump → **Argo CD** sync to GKE namespaces
-  (`aquashield-dev` auto, staging manual). JMeter load/stress on `performance-test` branch
-  only. OWASP ZAP post-deploy. **Terraform** with GCS remote state (`infra/`).
+  (`aquashield-dev` auto, staging manual). k6 cloud-native performance evidence via
+  Kubernetes Job or GitHub Actions manual/performance-test runs. OWASP ZAP post-deploy.
+  **Terraform** with GCS remote state (`infra/`).
 - **Monolith parity rule:** before implementing any service, read the matching Django
   `module_*` code and preserve its business semantics (esp. `module_user` authorization,
   chart contract `GET /api/projects/{id}/charts/`).
@@ -66,7 +67,7 @@ identity-access-service/  project-service/  pond-service/  sensor-service/
 ingestion-service/  notification-service/  realtime-gateway/  analytics-service/
 audit-service/  ml-service/  llm-service/          ← service roots
 common/ (shared Java lib)   shared-api/{proto,events}/   k8s/{base,overlays}/
-infra/ (terraform)   jmeter/   scripts/  local/  docs/evidence/  .github/workflows/
+infra/ (terraform)   loadtests/   scripts/  local/  docs/evidence/  .github/workflows/
 pom.xml  ← Maven multi-module parent (Java 21, Boot 3.4.x); modules enabled as built
 ```
 Everything lives in THIS repo (`tns30-dev/aqua_scale`); `cooking_tracker/` is deleted
@@ -99,7 +100,7 @@ before submission. No separate implementation repo.
 | `pubsub-eventing` | Topics, envelope, schemas, DLQ, idempotency, outbox, replay |
 | `iot-aws-bridge` | AWS IoT Core, device certs, IoT Rules, TS Lambda → WIF → Pub/Sub |
 | `cloud-native-k8s` | GKE, Kustomize, Argo CD, mesh, NetworkPolicy, gateway, probes/HPA |
-| `devsecops-pipeline` | Path-aware CI, scans, SBOM, OIDC/WIF, GitOps handoff, JMeter, ZAP |
+| `devsecops-pipeline` | Path-aware CI, scans, SBOM, OIDC/WIF, GitOps handoff, k6, ZAP |
 | `architecture-docs` | ADRs, diagrams, Codex hand-off, rubric mapping |
 | `mlops-lifecycle` / `llmops-agentic` / `ml-llm-secops` | DORMANT — future add-ons only |
 

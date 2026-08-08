@@ -2,6 +2,7 @@ package com.aquashield.project.service;
 
 import com.aquashield.project.api.dto.ProjectDtos.CreateProjectRequest;
 import com.aquashield.project.api.dto.ProjectDtos.ParameterSettingDto;
+import com.aquashield.project.api.dto.ProjectDtos.ProjectParameterDto;
 import com.aquashield.project.api.dto.ProjectDtos.ProjectAdminItem;
 import com.aquashield.project.api.dto.ProjectDtos.ProjectDto;
 import com.aquashield.project.api.dto.ProjectDtos.PutParameterSettingItem;
@@ -119,6 +120,21 @@ public class ProjectAppService {
     }
     requireProject(projectId);
     return settings.findByProjectId(projectId).stream().map(ParameterSettingDto::from).toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<ProjectParameterDto> getProjectParameters(UUID projectId, boolean memberOfProject) {
+    if (!memberOfProject) {
+      throw new NotFoundException();
+    }
+    requireProject(projectId);
+    return settings.findByProjectId(projectId).stream()
+        .filter(s -> s.getParameter().getParameterCode() != null)
+        .filter(s -> !"electricity".equals(s.getParameter().getParameterCode()))
+        .sorted((a, b) -> a.getParameter().getParameterName()
+            .compareToIgnoreCase(b.getParameter().getParameterName()))
+        .map(ProjectParameterDto::from)
+        .toList();
   }
 
   /**

@@ -13,6 +13,7 @@ spec:
             ports:
               - "8081"
             paths:
+              - /api/csrf
               - /api/auth
               - /api/auth/*
               - /api/users

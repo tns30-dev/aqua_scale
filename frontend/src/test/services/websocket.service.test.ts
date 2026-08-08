@@ -85,8 +85,10 @@ describe("websocketService — Realtime Gateway contract", () => {
 
   it("dispatches project-scoped alert frames only to the matching project subscription", async () => {
     const onUpdate = vi.fn();
+    const onSecondUpdate = vi.fn();
 
     websocketService.connectToProject("proj-1", onUpdate);
+    websocketService.connectToProject("proj-1", onSecondUpdate);
 
     await waitFor(() => expect(MockWebSocket.instances).toHaveLength(1));
     const socket = MockWebSocket.instances[0];
@@ -116,5 +118,6 @@ describe("websocketService — Realtime Gateway contract", () => {
     socket.emitMessage(alertFrame);
 
     expect(onUpdate).toHaveBeenCalledWith(alertFrame);
+    expect(onSecondUpdate).toHaveBeenCalledWith(alertFrame);
   });
 });

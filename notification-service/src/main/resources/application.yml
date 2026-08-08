@@ -59,6 +59,9 @@ aquashield:
     project:
       target: ${PROJECT_GRPC_TARGET:localhost:9092}
       in-process-name: ${PROJECT_GRPC_INPROCESS:}
+    ingestion:
+      target: ${INGESTION_GRPC_TARGET:localhost:9095}
+      in-process-name: ${INGESTION_GRPC_INPROCESS:}
   events:
     enabled: ${EVENTS_ENABLED:true}
     source: notification-service

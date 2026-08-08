@@ -10,7 +10,9 @@ interface PondGridProps {
 
 export function PondGrid({ ponds, liveReadings }: PondGridProps) {
   // Count statuses
-  const healthyCount = ponds.filter((p) => p.healthStatus === 'healthy').length;
+  const healthyCount = ponds.filter(
+    (pond) => calculatePondStatus(liveReadings?.get(pond.pond_id)) === 'healthy',
+  ).length;
   const allHealthy = ponds.length > 0 && healthyCount === ponds.length;
 
   return (

@@ -1,5 +1,8 @@
 package com.aquashield.project;
 
+import com.aquashield.api.ingestion.v1.EnergyHourlyReading;
+import com.aquashield.api.ingestion.v1.GetEnergyHourlyReadingsRequest;
+import com.aquashield.api.ingestion.v1.GetEnergyHourlyReadingsResponse;
 import com.aquashield.api.ingestion.v1.GetReadingsRequest;
 import com.aquashield.api.ingestion.v1.GetReadingsResponse;
 import com.aquashield.api.ingestion.v1.IngestionReadServiceGrpc;
@@ -59,10 +62,14 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -120,6 +127,35 @@ class ProjectApiIT {
           resp.addRows(row);
         }
       }
+      obs.onNext(resp.build());
+      obs.onCompleted();
+    }
+
+    @Override
+    public void getEnergyHourlyReadings(GetEnergyHourlyReadingsRequest req,
+                                        io.grpc.stub.StreamObserver<GetEnergyHourlyReadingsResponse> obs) {
+      Instant from = Instant.parse(req.getStart());
+      Instant to = Instant.parse(req.getEnd());
+      ZoneId zone = req.getTimezone().isBlank()
+          ? ZoneId.of("Asia/Singapore")
+          : ZoneId.of(req.getTimezone());
+      Map<Instant, Double> hourly = new TreeMap<>();
+      for (ReadingRow row : READINGS.getOrDefault(req.getProjectId(), java.util.List.of())) {
+        Instant at = Instant.parse(row.getMeasuredAt());
+        Double kwh = row.getValuesMap().get("electricity");
+        if (kwh == null || at.isBefore(from) || at.isAfter(to)) {
+          continue;
+        }
+        LocalDateTime localHour = ZonedDateTime.ofInstant(at, zone).toLocalDateTime()
+            .withMinute(0).withSecond(0).withNano(0);
+        Instant bucket = localHour.atZone(zone).toInstant();
+        hourly.merge(bucket, kwh, Double::sum);
+      }
+      GetEnergyHourlyReadingsResponse.Builder resp = GetEnergyHourlyReadingsResponse.newBuilder()
+          .setProjectId(req.getProjectId());
+      hourly.forEach((hour, total) -> resp.addRows(EnergyHourlyReading.newBuilder()
+          .setHourStart(hour.toString())
+          .setKwh(total)));
       obs.onNext(resp.build());
       obs.onCompleted();
     }
@@ -417,7 +453,7 @@ class ProjectApiIT {
       assertThat(kpis.get("peakHourLabel").asText()).isEqualTo("14:00"); // local +08
       assertThat(kpis.get("changeVsPreviousPct").asDouble()).isEqualTo(200.0);
       assertThat(kpis.get("costChange").asDouble()).isEqualTo(0.5);
-      assertThat(kpis.get("compareLabel").asText()).isEqualTo("vs previous 1 day");
+      assertThat(kpis.get("compareLabel").asText()).isEqualTo("previous 1 day");
 
       assertThat(b.get("trend")).hasSize(1);
       assertThat(b.at("/trend/0/label").asText()).isEqualTo("Jun 03");

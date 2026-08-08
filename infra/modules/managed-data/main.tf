@@ -58,6 +58,8 @@ locals {
     for subscription in local.pubsub_subscriptions : subscription.name => subscription
   }
 
+  bigtable_telemetry_families = toset(var.enable_bigtable ? ["raw", "parsed", "meta"] : [])
+
   runtime_service_accounts = {
     identity = {
       account_id = "aq-identity-dev"
@@ -297,6 +299,20 @@ resource "google_bigtable_table" "telemetry_readings" {
   }
 }
 
+resource "google_bigtable_gc_policy" "telemetry_readings_max_version" {
+  for_each = local.bigtable_telemetry_families
+
+  project         = var.project_id
+  instance_name   = google_bigtable_instance.telemetry[0].name
+  table           = google_bigtable_table.telemetry_readings[0].name
+  column_family   = each.key
+  deletion_policy = "ABANDON"
+
+  max_version {
+    number = 1
+  }
+}
+
 resource "google_bigquery_dataset" "analytics" {
   count = var.enable_bigquery ? 1 : 0
 
@@ -307,7 +323,7 @@ resource "google_bigquery_dataset" "analytics" {
   location                   = var.bigquery_location
   delete_contents_on_destroy = true
 
-  default_table_expiration_ms = 1000 * 60 * 60 * 24 * 90
+  default_table_expiration_ms = 1000 * 60 * 60 * 24 * 365
 
   labels = {
     app         = "aquashield"
@@ -327,7 +343,7 @@ resource "google_bigquery_table" "readings" {
   time_partitioning {
     type          = "DAY"
     field         = "event_ts"
-    expiration_ms = 1000 * 60 * 60 * 24 * 90
+    expiration_ms = 1000 * 60 * 60 * 24 * 365
   }
 
   clustering = ["project_id", "pond_id", "parameter_key"]
@@ -357,7 +373,7 @@ resource "google_bigquery_table" "alerts" {
   time_partitioning {
     type          = "DAY"
     field         = "event_ts"
-    expiration_ms = 1000 * 60 * 60 * 24 * 90
+    expiration_ms = 1000 * 60 * 60 * 24 * 365
   }
 
   clustering = ["project_id", "pond_id", "severity"]

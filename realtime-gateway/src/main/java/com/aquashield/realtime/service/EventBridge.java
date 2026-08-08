@@ -80,7 +80,7 @@ public class EventBridge implements SmartLifecycle {
     ObjectNode frame = mapper.createObjectNode();
     frame.put("type", "sensor.reading"); // parity frame type
     frame.put("project_id", envelope.path("projectId").asText());
-    frame.put("pond_id", envelope.path("pondId").asText());
+    putNullableText(frame, "pond_id", envelope.get("pondId"));
     frame.put("measured_at", payload.path("measuredAt").asText());
     frame.set("values", payload.path("values"));
     return mapper.writeValueAsString(frame);
@@ -91,7 +91,7 @@ public class EventBridge implements SmartLifecycle {
     frame.put("type", "alert"); // parity: ProjectConsumer.alert_message shape
     frame.set("alert", envelope.get("payload"));
     frame.put("project_id", envelope.path("projectId").asText());
-    frame.put("pond_id", envelope.path("pondId").asText());
+    putNullableText(frame, "pond_id", envelope.get("pondId"));
     return mapper.writeValueAsString(frame);
   }
 
@@ -99,9 +99,17 @@ public class EventBridge implements SmartLifecycle {
     ObjectNode frame = mapper.createObjectNode();
     frame.put("type", "alert_resolved"); // new-arch frame (no monolith analog)
     frame.put("project_id", envelope.path("projectId").asText());
-    frame.put("pond_id", envelope.path("pondId").asText());
+    putNullableText(frame, "pond_id", envelope.get("pondId"));
     frame.put("parameter", envelope.at("/payload/parameter").asText());
     return mapper.writeValueAsString(frame);
+  }
+
+  private void putNullableText(ObjectNode frame, String field, JsonNode value) {
+    if (value == null || value.isNull() || value.asText().isBlank()) {
+      frame.putNull(field);
+    } else {
+      frame.put(field, value.asText());
+    }
   }
 
   @Override

@@ -109,7 +109,7 @@ public final class SensorDtos {
   }
 
   public record CreateMappingRequest(
-      @JsonProperty("pond_id") @NotNull UUID pondId,
+      @JsonProperty("pond_id") UUID pondId,
       @JsonProperty("sensor_type_id") @NotNull UUID sensorTypeId,
       @JsonProperty("device_code") String deviceCode,
       String port,

@@ -17,7 +17,7 @@ Included:
 Excluded:
 
 - GKE rollout and Argo CD sync. Those need the remaining network/GKE foundation.
-- Post-deploy smoke, DAST, and JMeter. Those need a live endpoint.
+- Post-deploy smoke, DAST, and performance evidence. Those need a live endpoint.
 
 ## Target
 

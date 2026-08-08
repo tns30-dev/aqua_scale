@@ -12,15 +12,30 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { hasProjectAccess, KV } from '../auth/auth';
 import { buildHistoricalChartPackage, ChartConfigEntry, Reading, resolveGrouping, timezoneSuffix } from '../charts/engine';
-import type { Backends } from '../grpc/backends';
+import type { Backends, BucketAverage } from '../grpc/backends';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const CHART_PACKAGE_TTL_MS = 30_000;
+const CHART_PACKAGE_CACHE_MAX = 128;
+const CHART_TIMEZONE = 'Asia/Singapore';
+const CHART_AGGREGATE_PARAMETERS = [
+  'temperature',
+  'ph',
+  'dissolved_oxygen',
+  'turbidity',
+  'ammonia',
+  'salinity',
+  'nitrite',
+  'nitrate',
+  'ammonium',
+  'tan',
+];
 
 export interface ChartsDeps {
   backends: Backends;
   kv: KV;
-  /** chart METADATA cache TTL — readings are NEVER cached (main/analytics_service.md) */
+  /** chart METADATA cache TTL; raw readings are not written to Redis. */
   chartConfigTtlSeconds: number;
 }
 
@@ -39,6 +54,12 @@ function parseIsoDate(value: string): Date | null {
 }
 
 const CONFIG_CACHE_PREFIX = 'analytics:chart-config:';
+type ChartPackage = ReturnType<typeof buildHistoricalChartPackage>;
+
+interface ChartPackageCacheEntry {
+  expiresAt: number;
+  promise: Promise<ChartPackage>;
+}
 
 async function loadChartConfig(
   deps: ChartsDeps, projectId: string): Promise<ChartConfigEntry[] | null> {
@@ -66,8 +87,78 @@ async function loadChartConfig(
   }
 }
 
+function chartAggregateParameters(config: ChartConfigEntry[]): string[] {
+  const params = new Set(CHART_AGGREGATE_PARAMETERS);
+  for (const entry of config) {
+    for (const code of entry.yParameterCodes) {
+      params.add(code);
+    }
+  }
+  return [...params];
+}
+
+function bucketAveragesToReadings(rows: BucketAverage[]): Reading[] {
+  const byTimestamp = new Map<number, Record<string, number>>();
+  for (const row of rows) {
+    if (row.sampleCount <= 0) {
+      continue;
+    }
+    const timestamp = row.bucketStart.getTime();
+    let values = byTimestamp.get(timestamp);
+    if (!values) {
+      values = {};
+      byTimestamp.set(timestamp, values);
+    }
+    values[row.parameter] = row.average;
+  }
+  return [...byTimestamp.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([timestamp, values]) => ({ timestamp: new Date(timestamp), values }));
+}
+
 export function chartsRouter(deps: ChartsDeps): Router {
   const router = Router({ mergeParams: true });
+  const packageCache = new Map<string, ChartPackageCacheEntry>();
+
+  function prunePackageCache(now: number): void {
+    for (const [key, entry] of packageCache) {
+      if (entry.expiresAt <= now) {
+        packageCache.delete(key);
+      }
+    }
+    while (packageCache.size > CHART_PACKAGE_CACHE_MAX) {
+      const oldest = packageCache.keys().next().value;
+      if (oldest === undefined) break;
+      packageCache.delete(oldest);
+    }
+  }
+
+  function packageCacheKey(
+    projectId: string,
+    pondId: string,
+    startDate: string,
+    endDate: string,
+    grouping: string): string {
+    return [projectId, pondId, startDate, endDate, grouping].join('|');
+  }
+
+  async function getChartPackage(
+    key: string,
+    load: () => Promise<ChartPackage>): Promise<ChartPackage> {
+    const now = Date.now();
+    const cached = packageCache.get(key);
+    if (cached && cached.expiresAt > now) {
+      return cached.promise;
+    }
+
+    prunePackageCache(now);
+    const promise = load().catch((err) => {
+      packageCache.delete(key);
+      throw err;
+    });
+    packageCache.set(key, { expiresAt: now + CHART_PACKAGE_TTL_MS, promise });
+    return promise;
+  }
 
   router.get('/api/projects/:projectId/charts/', async (req: Request, res: Response) => {
     const principal = req.principal!;
@@ -116,14 +207,39 @@ export function chartsRouter(deps: ChartsDeps): Router {
       // monolith get_readings window: [start 00:00:00, end 23:59:59.999999] in the
       // ACTIVE timezone (Asia/Singapore — config/settings/base.py)
       const tz = timezoneSuffix();
+      const startLocalIso = `${startDateStr}T00:00:00${tz}`;
+      const endLocalIso = `${endDateStr}T23:59:59.999999${tz}`;
+      const startInstantIso = new Date(startLocalIso).toISOString();
+      const endInstantIso = new Date(`${endDateStr}T23:59:59.999${tz}`).toISOString();
+
+      if (config !== null) {
+        const key = packageCacheKey(projectId, pondId, startDateStr, endDateStr, resolvedGrouping);
+        const body = await getChartPackage(key, async () => {
+          let readings: Reading[] = [];
+          try {
+            const buckets = await deps.backends.getPondParameterBucketAverages(
+              pondId,
+              startInstantIso,
+              endInstantIso,
+              CHART_TIMEZONE,
+              resolvedGrouping,
+              chartAggregateParameters(config));
+            readings = bucketAveragesToReadings(buckets);
+          } catch {
+            packageCache.delete(key);
+          }
+          return buildHistoricalChartPackage(readings, config, resolvedGrouping);
+        });
+        res.json(body);
+        return;
+      }
+
       let readings: Reading[];
       try {
-        readings = await deps.backends.getReadings(
-          pondId, `${startDateStr}T00:00:00${tz}`, `${endDateStr}T23:59:59.999999${tz}`);
+        readings = await deps.backends.getReadings(pondId, startLocalIso, endLocalIso);
       } catch {
         readings = []; // PARITY: get_readings swallows errors -> [] -> empty package
       }
-
       res.json(buildHistoricalChartPackage(readings, config, resolvedGrouping));
     } catch (err) {
       // pond service transport failure — no monolith equivalent (in-process there)

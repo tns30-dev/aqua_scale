@@ -110,7 +110,7 @@ flowchart TB
 | App to data | Private IP/PSC, IAM, DB users, Kubernetes Secrets/External Secrets. |
 | Event ingress | AWS IoT Core to Lambda bridge to Google Pub/Sub. |
 | Build to deploy | GitHub Actions pushes images to Artifact Registry and updates GitOps manifests; Argo CD deploys to GKE. |
-| Performance testing | JMeter load/stress testing runs from the `performance-test` branch against deployed dev/staging endpoints. |
+| Performance testing | k6 performance evidence runs from a Kubernetes Job or GitHub Actions manual/performance-test workflow against deployed dev/staging endpoints. |
 
 ## Documentation Checklist
 

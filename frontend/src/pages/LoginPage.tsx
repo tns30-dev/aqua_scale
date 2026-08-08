@@ -6,7 +6,7 @@ import { useAuth } from "../hooks/useAuth";
 
 /**
  * Login flow:
- *   submit → api.login() stores bearer tokens in sessionStorage
+ *   submit → api.login() sets HttpOnly auth cookies
  *   → hydrate SessionContext from the response
  *   → set theme from projects[0]
  *   → navigate to /overview (or ?next= if present)
@@ -86,7 +86,7 @@ export function LoginPage() {
           <Input
             type="email"
             label="Email"
-            placeholder="demo@aquaculture.com"
+            placeholder="admin@aquashield.local"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -131,11 +131,11 @@ export function LoginPage() {
         {/* Demo credentials hint */}
         <div className="mt-4 p-3 bg-gray-50 rounded-lg">
           <p className="text-xs text-gray-600 text-center">
-            <strong>Demo credentials:</strong>
+            <strong>Local demo credentials:</strong>
             <br />
-            Email: demo@aquaculture.com
+            Email: admin@aquashield.local
             <br />
-            Password: demo123
+            Password: AdminBoot123!
           </p>
         </div>
       </Card>

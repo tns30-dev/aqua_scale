@@ -7,10 +7,9 @@
  * - `currentProjectId`     — the project selected in the UI
  * - `currentProfileType`   — derived from current project
  *
- * Java Identity currently returns bearer tokens in the response body. Until the
- * backend moves refresh tokens to HttpOnly cookies, the SPA keeps them in
- * sessionStorage so a tab refresh can recover the session without localStorage.
- * Identity + projects + permissions still live in `SessionContext`.
+ * Browser authentication is carried by HttpOnly cookies. The SPA never stores
+ * access or refresh tokens in web storage; a tab refresh rehydrates through
+ * `/api/auth/me` and cookie refresh handled by api.service.ts.
  * Auth state is not synchronously readable — consumers should use
  * `useSession()` and gate on `loading` + `!!user`.
  */
@@ -18,6 +17,7 @@
 // localStorage key constants — single source of truth
 const KEY_CURRENT_PROJECT_ID = 'currentProjectId';
 const KEY_CURRENT_PROFILE_TYPE = 'currentProfileType';
+// Legacy bearer-storage keys kept only so logout can remove old first-round data.
 const KEY_ACCESS_TOKEN = 'aquashieldAccessToken';
 const KEY_REFRESH_TOKEN = 'aquashieldRefreshToken';
 
@@ -45,16 +45,15 @@ export function setCurrentProfileType(profileType: string): void {
 }
 
 export function getAccessToken(): string | null {
-  return sessionStorage.getItem(KEY_ACCESS_TOKEN);
+  return null;
 }
 
 export function getRefreshToken(): string | null {
-  return sessionStorage.getItem(KEY_REFRESH_TOKEN);
+  return null;
 }
 
-export function setAuthTokens(accessToken: string, refreshToken: string): void {
-  sessionStorage.setItem(KEY_ACCESS_TOKEN, accessToken);
-  sessionStorage.setItem(KEY_REFRESH_TOKEN, refreshToken);
+export function setAuthTokens(_accessToken: string, _refreshToken: string): void {
+  clearAuthTokens();
 }
 
 export function clearAuthTokens(): void {

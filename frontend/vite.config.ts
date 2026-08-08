@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      // Proxy /api and /ws to the Django backend so the browser sees everything
+      // Proxy /api and /ws to the local microservice gateway so the browser sees everything
       // as same-origin. Eliminates cross-port cookie quirks (Safari especially)
       // and avoids CORS preflights in dev. In production a real reverse proxy
       // (nginx, ALB, …) fills the same role.

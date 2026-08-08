@@ -366,7 +366,10 @@ function PondPanel({
 }: PondPanelProps) {
   // Active treatments — sorted DESC by startedAt; row omitted entirely when empty.
   const sortedTreatments = useMemo(
-    () => (pond ? [...pond.treatments].sort((a, b) => b.startedAt.localeCompare(a.startedAt)) : []),
+    () =>
+      pond
+        ? [...(pond.treatments ?? [])].sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+        : [],
     [pond],
   );
 

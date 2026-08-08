@@ -1,5 +1,6 @@
 package com.aquashield.identity.config;
 
+import com.aquashield.common.security.BrowserAuth;
 import com.aquashield.identity.service.TokenRevocationService;
 import com.aquashield.identity.service.TokenService;
 import io.jsonwebtoken.Claims;
@@ -37,10 +38,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
   @Override
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                   FilterChain chain) throws ServletException, IOException {
-    String header = request.getHeader("Authorization");
-    if (header != null && header.startsWith("Bearer ")) {
+    var token = BrowserAuth.bearerOrCookie(
+        request.getHeader("Authorization"), request.getHeader("Cookie"));
+    if (token.isPresent() && !isPublicAuthPath(request)) {
+      if (token.get().fromCookie() && BrowserAuth.isUnsafeMethod(request.getMethod())
+          && !BrowserAuth.csrfMatches(csrfHeader(request), request.getHeader("Cookie"))) {
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setContentType("application/json");
+        response.getWriter().write("{\"detail\":\"CSRF verification failed.\"}");
+        return;
+      }
       try {
-        Claims claims = tokens.validate(header.substring(7));
+        Claims claims = tokens.validate(token.get().token());
         if (!revocations.isRevoked(claims.getId())) {
           var principal = new Principal(
               UUID.fromString(claims.getSubject()),
@@ -58,5 +67,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
       }
     }
     chain.doFilter(request, response);
+  }
+
+  private static boolean isPublicAuthPath(HttpServletRequest request) {
+    String path = request.getRequestURI();
+    return "/api/auth/login".equals(path)
+        || "/api/auth/refresh".equals(path)
+        || "/api/csrf".equals(path);
+  }
+
+  private static String csrfHeader(HttpServletRequest request) {
+    String header = request.getHeader(BrowserAuth.CSRF_HEADER);
+    return header != null ? header : request.getHeader(BrowserAuth.CSRF_ALT_HEADER);
   }
 }

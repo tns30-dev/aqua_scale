@@ -105,6 +105,8 @@ services:
     environment:
       <<: *java-env
       JWT_PRIVATE_KEY_PEM: ${JWT_PRIVATE_KEY_PEM:-}
+      LOGIN_RATE_LIMIT: ${LOGIN_RATE_LIMIT:-10}
+      LOGIN_RATE_WINDOW: ${LOGIN_RATE_WINDOW:-PT15M}
       BOOTSTRAP_ADMIN_EMAIL: admin@aquashield.local
       BOOTSTRAP_ADMIN_PASSWORD: AdminBoot123!
     healthcheck: &java-health
@@ -181,6 +183,7 @@ services:
       <<: *java-env
       PROJECT_GRPC_TARGET: project-service:9092
       INGESTION_GRPC_TARGET: ingestion-service:9095
+      NOTIFICATION_GRPC_TARGET: notification-service:9096
     healthcheck:
       <<: *java-health
       test: ["CMD", "wget", "-qO-", "http://localhost:8089/actuator/health"]

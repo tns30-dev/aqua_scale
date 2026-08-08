@@ -6,6 +6,7 @@ resources:
   - services/identity-access-service
   - services/project-service
   - services/pond-service
+  - jobs/pond-daily-health
   - services/sensor-service
   - services/ingestion-service
   - services/notification-service

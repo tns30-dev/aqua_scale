@@ -48,10 +48,14 @@
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
 
-    <!-- Data (demo/parsed store; Bigtable is the cloud raw-telemetry target) -->
+    <!-- Data (Cloud SQL business/demo seam + Bigtable telemetry target) -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-bigtable</artifactId>
     </dependency>
     <dependency>
       <groupId>org.postgresql</groupId>

@@ -9,7 +9,7 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app';
 import { JwtVerifier, KV } from '../src/auth/auth';
-import type { Backends } from '../src/grpc/backends';
+import type { Backends, BucketAverage } from '../src/grpc/backends';
 import type { ChartConfigEntry, Reading } from '../src/charts/engine';
 
 const ISSUER = 'aquashield-local';
@@ -48,18 +48,23 @@ class MemoryKV implements KV {
 interface FakeBackends extends Backends {
   chartConfigCalls: number;
   readingsCalls: number;
+  bucketCalls: number;
   lastReadingsArgs: string[];
+  lastBucketArgs: unknown[];
 }
 
 function fakeBackends(opts: {
   config?: ChartConfigEntry[] | 'error';
   readings?: Reading[] | 'error';
+  buckets?: BucketAverage[] | 'error';
   pondValid?: boolean;
 }): FakeBackends {
   const backends: FakeBackends = {
     chartConfigCalls: 0,
     readingsCalls: 0,
+    bucketCalls: 0,
     lastReadingsArgs: [],
+    lastBucketArgs: [],
     async getChartConfig(_projectId: string): Promise<ChartConfigEntry[]> {
       backends.chartConfigCalls += 1;
       if (opts.config === 'error') {
@@ -78,6 +83,20 @@ function fakeBackends(opts: {
       }
       return opts.readings ?? [];
     },
+    async getPondParameterBucketAverages(
+      pondId: string,
+      startIso: string,
+      endIso: string,
+      timezone: string,
+      grouping: string,
+      parameters: string[]): Promise<BucketAverage[]> {
+      backends.bucketCalls += 1;
+      backends.lastBucketArgs = [pondId, startIso, endIso, timezone, grouping, parameters];
+      if (opts.buckets === 'error') {
+        throw new Error('UNAVAILABLE');
+      }
+      return opts.buckets ?? BUCKETS;
+    },
   };
   return backends;
 }
@@ -95,6 +114,21 @@ function snapshotJson(userId: string, version: number, projectIds: string[]): st
 const READINGS: Reading[] = [
   { timestamp: new Date('2026-03-17T08:00:00+08:00'), values: { temperature: 28.0, ph: 7.8 } },
   { timestamp: new Date('2026-03-17T20:00:00+08:00'), values: { temperature: 29.0, ph: 7.9 } },
+];
+
+const BUCKETS: BucketAverage[] = [
+  {
+    bucketStart: new Date('2026-03-17T00:00:00+08:00'),
+    parameter: 'temperature',
+    average: 28.5,
+    sampleCount: 2,
+  },
+  {
+    bucketStart: new Date('2026-03-17T00:00:00+08:00'),
+    parameter: 'ph',
+    average: 7.85,
+    sampleCount: 2,
+  },
 ];
 
 const CONFIG: ChartConfigEntry[] = [
@@ -143,6 +177,13 @@ describe('auth — platform model (fail closed)', () => {
     const stranger = await mintToken(randomUUID());
     await request(app).get(`${CHARTS}?${QS}`)
       .set('Authorization', `Bearer ${stranger}`).expect(401);
+  });
+
+  it('valid JWT in access_token cookie -> authenticated', async () => {
+    const { app } = build();
+    const token = await mintToken(USER);
+    await request(app).get(`${CHARTS}?${QS}`)
+      .set('Cookie', [`access_token=${token}`]).expect(200);
   });
 
   it('project outside snapshot scope -> 404 (parity: filtered queryset)', async () => {
@@ -198,7 +239,7 @@ describe('validation order + exact monolith error bodies (views.py:95-143)', () 
 });
 
 describe('chart package responses', () => {
-  it('happy path: only enabled keys; stub chart []; readings window is end-of-day inclusive', async () => {
+  it('happy path: only enabled keys; stub chart []; aggregate window is end-of-day inclusive', async () => {
     const { app, backends } = build();
     const token = await mintToken(USER);
     const resp = await request(app).get(`${CHARTS}?${QS}&grouping=daily`)
@@ -208,12 +249,18 @@ describe('chart package responses', () => {
     expect(resp.body.multiParameterTrends).toEqual([
       { date: '2026-03-17', label: 'Mar 17', temperature: 28.5, ph: 7.85 },
     ]);
-    expect(backends.lastReadingsArgs).toEqual(
-      [POND, '2026-03-17T00:00:00+08:00', '2026-03-18T23:59:59.999999+08:00']);
+    expect(backends.lastBucketArgs).toEqual([
+      POND,
+      '2026-03-16T16:00:00.000Z',
+      '2026-03-18T15:59:59.999Z',
+      'Asia/Singapore',
+      'daily',
+      expect.arrayContaining(['temperature', 'ph', 'dissolved_oxygen', 'turbidity']),
+    ]);
   });
 
   it('no readings -> full 8-key empty package, HTTP 200', async () => {
-    const { app } = build({ readings: [] });
+    const { app } = build({ buckets: [] });
     const token = await mintToken(USER);
     const resp = await request(app).get(`${CHARTS}?${QS}`)
       .set('Authorization', `Bearer ${token}`).expect(200);
@@ -222,8 +269,8 @@ describe('chart package responses', () => {
       .toEqual({ parameters: [], parameterLabels: {}, matrix: [] });
   });
 
-  it('ingestion error behaves like the monolith get_readings catch -> empty package', async () => {
-    const { app } = build({ readings: 'error' });
+  it('ingestion aggregate error behaves like the monolith get_readings catch -> empty package', async () => {
+    const { app } = build({ buckets: 'error' });
     const token = await mintToken(USER);
     const resp = await request(app).get(`${CHARTS}?${QS}`)
       .set('Authorization', `Bearer ${token}`).expect(200);
@@ -240,8 +287,8 @@ describe('chart package responses', () => {
   });
 });
 
-describe('Redis usage rules (main/analytics_service.md cache checklist)', () => {
-  it('chart METADATA is cached: second request skips the project gRPC call', async () => {
+describe('cache usage rules (main/analytics_service.md cache checklist)', () => {
+  it('chart metadata uses Redis and identical chart packages are coalesced in process', async () => {
     const { app, backends } = build();
     const token = await mintToken(USER);
     await request(app).get(`${CHARTS}?${QS}`)
@@ -249,10 +296,11 @@ describe('Redis usage rules (main/analytics_service.md cache checklist)', () => 
     await request(app).get(`${CHARTS}?${QS}`)
       .set('Authorization', `Bearer ${token}`).expect(200);
     expect(backends.chartConfigCalls).toBe(1);
-    expect(backends.readingsCalls).toBe(2); // readings are re-fetched every time
+    expect(backends.bucketCalls).toBe(1);
+    expect(backends.readingsCalls).toBe(0);
   });
 
-  it('raw readings are NEVER written to Redis', async () => {
+  it('raw readings are never written to Redis', async () => {
     const { app, kv } = build();
     const token = await mintToken(USER);
     await request(app).get(`${CHARTS}?${QS}`)

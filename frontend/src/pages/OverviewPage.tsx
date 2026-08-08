@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
 import { AppShell } from '../components/layout/AppShell';
 import { PageContainer } from '../components/layout/PageContainer';
-import { AlertBanner } from '../components/overview/AlertBanner';
 import { PondGrid } from '../components/overview/PondGrid';
 import { SummaryCards } from '../components/overview/SummaryCards';
 import { apiService } from '../services/api.service';
 import { getCurrentProjectId } from '../utils/auth';
-import type { Alert, ProjectSummary } from '../types';
+import type { ProjectSummary } from '../types';
 import { usePondStore } from '../stores/pondStore';
 import { calculatePondStatus } from '../utils/pondStatusCalculator';
-import { Toast } from '../design-system';
 import { useProfile } from '../context/ProfileContext';
+import { useAlerts } from '../context/AlertsContext';
 
 export function OverviewPage() {
   // Get current profile type for filtering — userProfiles is now derived
@@ -20,12 +19,12 @@ export function OverviewPage() {
 
   // Get ponds and readings from global store
   const { ponds: storePonds, liveReadings, lastUpdated, setPonds: setStorePonds, getProfilePonds } = usePondStore();
+  const { alerts: globalAlerts } = useAlerts();
 
   // Filter ponds by current profile
   const profilePonds = getProfilePonds(currentProfile);
   
   const [ponds, setPonds] = useState(profilePonds);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [summary, setSummary] = useState<ProjectSummary>({
     totalPonds: 0,
     activeAlerts: 0,
@@ -34,9 +33,23 @@ export function OverviewPage() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [ackToastOpen, setAckToastOpen] = useState(false);
-  const [ackToastMsg, setAckToastMsg] = useState('Alert acknowledged');
-  const [resolvingIds, setResolvingIds] = useState<Set<string>>(new Set());
+  const readablePondCount = ponds.filter((pond) => liveReadings.has(pond.pond_id)).length;
+  const healthyPondCount = ponds.filter(
+    (pond) => calculatePondStatus(liveReadings.get(pond.pond_id)) === 'healthy',
+  ).length;
+  const displayedAverageQuality =
+    ponds.length > 0 && readablePondCount > 0
+      ? Math.round((healthyPondCount / ponds.length) * 100)
+      : summary.averageQuality;
+  const displayedForecast =
+    displayedAverageQuality >= 80 ? 'good' : displayedAverageQuality >= 60 ? 'fair' : 'poor';
+  const displayedSummary: ProjectSummary = {
+    ...summary,
+    totalPonds: ponds.length,
+    activeAlerts: globalAlerts.length,
+    averageQuality: displayedAverageQuality,
+    forecast: displayedForecast,
+  };
 
   // Update ponds when profile changes or store updates
   useEffect(() => {
@@ -95,10 +108,10 @@ export function OverviewPage() {
     fetchData();
   }, []);
 
-  // Refresh alerts and summary when readings update
+  // Refresh summary when readings update
   useEffect(() => {
     if (liveReadings.size > 0) {
-      refreshAlertsAndSummary();
+      refreshSummary();
     }
   }, [liveReadings]);
 
@@ -113,7 +126,7 @@ export function OverviewPage() {
   // Also refresh alerts and summary every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      refreshAlertsAndSummary();
+      refreshSummary();
     }, 30000);
 
     return () => clearInterval(interval);
@@ -127,13 +140,8 @@ export function OverviewPage() {
       const projectId = getCurrentProjectId();
       if (!projectId) throw new Error('No project selected');
 
-      // Fetch alerts and summary (ponds come from global store)
-      const [alertsData, summaryData] = await Promise.all([
-        apiService.getAlerts(projectId),
-        apiService.getProjectSummary(projectId),
-      ]);
-
-      setAlerts(alertsData.alerts);
+      // Summary only; alerts are handled globally by AlertCenter.
+      const summaryData = await apiService.getProjectSummary(projectId);
       setSummary(summaryData);
     } catch (err) {
       console.error('Failed to fetch overview data:', err);
@@ -143,53 +151,15 @@ export function OverviewPage() {
     }
   };
 
-  const refreshAlertsAndSummary = async () => {
+  const refreshSummary = async () => {
     try {
       const projectId = getCurrentProjectId();
       if (!projectId) return;
 
-      const [alertsData, summaryData] = await Promise.all([
-        apiService.getAlerts(projectId),
-        apiService.getProjectSummary(projectId),
-      ]);
-
-      setAlerts(alertsData.alerts);
+      const summaryData = await apiService.getProjectSummary(projectId);
       setSummary(summaryData);
     } catch (err) {
-      console.error('Failed to refresh alerts and summary:', err);
-    }
-  };
-
-  const handleResolveAlert = async (alertId: string) => {
-    try {
-      const userId = localStorage.getItem('userId') || '';
-      // Mark as resolving to show green state before removal
-      setResolvingIds(prev => new Set(prev).add(alertId));
-      
-      await apiService.acknowledgeAlert(alertId, userId);
-      setAckToastMsg('Alert acknowledged');
-      setAckToastOpen(true);
-
-      // Let the green state show briefly, then remove and refresh
-      setTimeout(async () => {
-        setAlerts(prev => prev.filter(a => a.alertId !== alertId));
-        setResolvingIds(prev => {
-          const next = new Set(prev);
-          next.delete(alertId);
-          return next;
-        });
-        await refreshAlertsAndSummary();
-      }, 1000);
-    } catch (err) {
-      console.error('Failed to resolve alert:', err);
-      setAckToastMsg('Failed to acknowledge alert');
-      setAckToastOpen(true);
-      // Rollback resolving state on failure
-      setResolvingIds(prev => {
-        const next = new Set(prev);
-        next.delete(alertId);
-        return next;
-      });
+      console.error('Failed to refresh summary:', err);
     }
   };
 
@@ -227,9 +197,6 @@ export function OverviewPage() {
     );
   }
 
-  const criticalAlerts = alerts.filter(a => a.severity === 'critical');
-  const warningAlerts = alerts.filter(a => a.severity === 'warning');
-
   return (
     <AppShell>
       <PageContainer>
@@ -246,46 +213,9 @@ export function OverviewPage() {
             )}
           </div>
 
-          {/* Alert Banners */}
-          {criticalAlerts.length > 0 && (
-            <div className="space-y-3">
-              {criticalAlerts.map(alert => (
-                <div key={alert.alertId} className="animate-slide-in">
-                  <AlertBanner
-                    alert={alert}
-                    onResolve={handleResolveAlert}
-                    resolving={resolvingIds.has(alert.alertId)}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-          {warningAlerts.length > 0 && (
-            <div className="space-y-3">
-              {warningAlerts.map(alert => (
-                <div key={alert.alertId} className="animate-slide-in">
-                  <AlertBanner
-                    alert={alert}
-                    onResolve={handleResolveAlert}
-                    resolving={resolvingIds.has(alert.alertId)}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-
-          <SummaryCards summary={summary} />
+          <SummaryCards summary={displayedSummary} />
           <PondGrid ponds={ponds} liveReadings={liveReadings} />
         </div>
-        
-        {/* Toast for acknowledge feedback */}
-        <Toast
-          message={ackToastMsg}
-          open={ackToastOpen}
-          onClose={() => setAckToastOpen(false)}
-          severity={ackToastMsg.startsWith('Failed') ? 'error' : 'success'}
-          duration={2000}
-        />
       </PageContainer>
     </AppShell>
   );

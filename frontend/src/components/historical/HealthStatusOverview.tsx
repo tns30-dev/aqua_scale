@@ -89,6 +89,18 @@ export function HealthStatusOverview() {
     return currentCycle.stageMetrics[selectedStage];
   }, [currentCycle, selectedStage]);
 
+  // True only when at least one of this profile's key indicators actually has
+  // a recorded value. Empty metrics should render an explicit state instead of
+  // making the stage panel look broken.
+  const hasStageMetrics = useMemo(
+    () =>
+      Boolean(
+        stageMetrics &&
+          profileTemplate?.keyIndicators?.some((indicator) => stageMetrics[indicator]),
+      ),
+    [stageMetrics, profileTemplate],
+  );
+
   // Filter daily health for current stage
   const stageDailyHealth = useMemo(() => {
     if (!currentCycle || !selectedStage) return [];
@@ -345,10 +357,22 @@ export function HealthStatusOverview() {
         style={{ backgroundColor: colors.light }}
       >
         {/* Key Indicator Cards */}
-        {stageMetrics && (
+        {!hasStageMetrics && (
+          <div className="rounded-lg border border-dashed border-gray-300 bg-white/60 p-4 text-center">
+            <p className="text-sm font-medium text-gray-700">
+              No growth measurements recorded for this stage yet
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              Body weight, growth rate and mortality are measured by sampling the pond,
+              then entered by an administrator.
+            </p>
+          </div>
+        )}
+
+        {hasStageMetrics && (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             {profileTemplate.keyIndicators.map((indicator) => {
-              const metric = stageMetrics[indicator];
+              const metric = stageMetrics?.[indicator];
               if (!metric) return null;
 
               const labels: Record<string, { label: string; unit: string }> = {

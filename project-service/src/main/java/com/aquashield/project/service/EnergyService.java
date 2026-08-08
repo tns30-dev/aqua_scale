@@ -1,8 +1,8 @@
 package com.aquashield.project.service;
 
-import com.aquashield.api.ingestion.v1.GetReadingsRequest;
+import com.aquashield.api.ingestion.v1.EnergyHourlyReading;
+import com.aquashield.api.ingestion.v1.GetEnergyHourlyReadingsRequest;
 import com.aquashield.api.ingestion.v1.IngestionReadServiceGrpc;
-import com.aquashield.api.ingestion.v1.ReadingRow;
 import com.aquashield.common.util.PyRound;
 import com.aquashield.project.api.dto.ProjectDtos.EnergySettingsDto;
 import com.aquashield.project.api.dto.ProjectDtos.PutEnergySettingsRequest;
@@ -14,14 +14,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.WeekFields;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -29,13 +31,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Energy settings + dashboard (PARITY: module_project/services/energy_dashboard.py,
  * line-for-line port — formerly the [XSVC] zero-data stub).
  *
- * Readings come through Ingestion GetReadings (project-wide selector, electricity only —
- * the monolith filtered sensor_readings by project_id + electricity__isnull=False).
+ * Readings come through Ingestion GetEnergyHourlyReadings (project-wide electricity
+ * aggregate; the monolith filtered sensor_readings by project_id + electricity__isnull=False).
  * Electricity is PER-INTERVAL consumption: SUMMED per local hour, never diffed.
  *
  * TIMEZONE: Asia/Singapore (config/settings/base.py) for all bucketing/labels/bounds.
@@ -59,11 +63,15 @@ public class EnergyService {
       DateTimeFormatter.ofPattern("MMM dd HH:mm", Locale.ENGLISH);
   private static final DateTimeFormatter MON_DD_COMMA_HHMM =
       DateTimeFormatter.ofPattern("MMM dd, HH:mm", Locale.ENGLISH);
+  private static final DateTimeFormatter MON_YYYY =
+      DateTimeFormatter.ofPattern("MMM yyyy", Locale.ENGLISH);
   private static final DateTimeFormatter HHMM = DateTimeFormatter.ofPattern("HH:mm");
 
   private final ProjectEnergySettingRepository energySettings;
   private final IngestionReadServiceGrpc.IngestionReadServiceBlockingStub ingestion;
   private final ZoneId zone;
+
+  public record ExportFile(String filename, byte[] content) {}
 
   public EnergyService(ProjectEnergySettingRepository energySettings,
                        IngestionReadServiceGrpc.IngestionReadServiceBlockingStub ingestion,
@@ -111,6 +119,61 @@ public class EnergyService {
     return EnergySettingsDto.from(energySettings.save(setting));
   }
 
+  @Transactional(readOnly = true)
+  public ExportFile exportXlsx(UUID projectId, String projectName,
+                               String startDate, String endDate) {
+    LocalDate end = parseDate(endDate, LocalDate.now(zone));
+    LocalDate start = parseDate(startDate, end.minusDays(6));
+    if (end.isBefore(start)) {
+      throw new ProjectAppService.BadRequestException("endDate must be on or after startDate");
+    }
+    EnergySettingsDto settings = getSettings(projectId, "electricity");
+    String symbol = CURRENCY_SYMBOLS.getOrDefault(settings.currency(), settings.currency());
+    double tariff = settings.tariffPerUnit();
+    long days = end.toEpochDay() - start.toEpochDay() + 1;
+    LocalDate prevEnd = start.minusDays(1);
+    LocalDate prevStart = prevEnd.minusDays(days - 1);
+    Map<LocalDateTime, Double> all = hourly(projectId, prevStart, end);
+    Map<LocalDateTime, Double> cur = slice(all, start, end);
+    Map<LocalDateTime, Double> prev = slice(all, prevStart, prevEnd);
+    double curTotal = PyRound.round(cur.values().stream().mapToDouble(Double::doubleValue).sum(), 3);
+    double prevTotal = PyRound.round(prev.values().stream().mapToDouble(Double::doubleValue).sum(), 3);
+
+    List<List<Object>> summaryRows = new ArrayList<>();
+    summaryRows.add(List.of("Energy Consumption - " + projectName));
+    summaryRows.add(List.of("Selected period", rangeLabel(start, end)));
+    summaryRows.add(List.of("Generated", pyIso(ZonedDateTime.now(zone))));
+    summaryRows.add(List.of());
+    summaryRows.add(List.of("Metric", "Current Period"));
+    for (Map<String, Object> row : summary(cur, prev, curTotal, prevTotal, days, tariff, symbol)) {
+      summaryRows.add(List.of(row.get("metric"), row.get("current")));
+    }
+
+    Map<LocalDate, double[]> daily = dailyTotals(cur);
+    List<List<Object>> dailyRows = new ArrayList<>();
+    dailyRows.add(List.of("Daily records (" + rangeLabel(start, end) + ")"));
+    dailyRows.add(List.of("Date", "Total Electricity (kWh)", "Average kWh per Hour"));
+    daily.entrySet().stream()
+        .sorted(Map.Entry.comparingByKey())
+        .forEach(entry -> dailyRows.add(List.of(entry.getKey().toString(),
+            PyRound.round(entry.getValue()[0], 3),
+            PyRound.round(entry.getValue()[0] / entry.getValue()[1], 2))));
+
+    List<List<Object>> alertRows = new ArrayList<>();
+    alertRows.add(List.of("High consumption alerts (" + rangeLabel(start, end) + ")"));
+    alertRows.add(List.of("Alert", "When", "Value", "Status"));
+    for (Map<String, Object> alert : alerts(cur, settings)) {
+      alertRows.add(List.of(alert.get("title"), alert.get("when"), alert.get("value"), "Computed"));
+    }
+
+    String slug = slug(projectName);
+    String filename = "energy_" + slug + "_" + start + "_" + end + ".xlsx";
+    return new ExportFile(filename, xlsx(List.of(
+        new Sheet("Summary", summaryRows),
+        new Sheet("Daily Records", dailyRows),
+        new Sheet("Alerts", alertRows))));
+  }
+
   // ---------- dashboard (energy_dashboard.py port) ----------
 
   @Transactional(readOnly = true)
@@ -134,21 +197,22 @@ public class EnergyService {
     LocalDate prevEnd = start.minusDays(1);
     LocalDate prevStart = prevEnd.minusDays(days - 1);
 
-    Map<LocalDateTime, Double> cur = hourly(projectId, start, end);
-    Map<LocalDateTime, Double> prev = hourly(projectId, prevStart, prevEnd);
+    Map<LocalDateTime, Double> all = hourly(projectId, prevStart, end);
+    Map<LocalDateTime, Double> cur = slice(all, start, end);
+    Map<LocalDateTime, Double> prev = slice(all, prevStart, prevEnd);
     double curTotal = PyRound.round(cur.values().stream().mapToDouble(Double::doubleValue).sum(), 3);
     double prevTotal = PyRound.round(prev.values().stream().mapToDouble(Double::doubleValue).sum(), 3);
 
     Map<String, Object> body = new LinkedHashMap<>();
     body.put("lastUpdated", pyIso(ZonedDateTime.now(zone)));
     body.put("dateRangeLabel", rangeLabel(start, end));
-    body.put("kpis", kpis(cur, curTotal, prevTotal, days, tariff, symbol));
-    body.put("trend", trend(cur, prev, groupBy));
+    body.put("kpis", kpis(cur, prev, curTotal, prevTotal, days, tariff, symbol));
+    body.put("trend", trend(cur, prev, groupBy, start, end, prevStart, prevEnd));
     body.put("trendCurrentLabel", "Current period");
     body.put("trendPreviousLabel", "Previous period");
     body.put("heatmap", heatmap(cur, start, end));
     body.put("summary", summary(cur, prev, curTotal, prevTotal, days, tariff, symbol));
-    body.put("byPeriod", byPeriod(cur, groupBy));
+    body.put("byPeriod", byPeriod(cur, groupBy, start, end));
     body.put("alerts", alerts(cur, settings));
     body.put("dataQuality", dataQuality(cur, days));
     body.put("compareInfo", Map.of(
@@ -163,21 +227,17 @@ public class EnergyService {
     try {
       Instant from = start.atStartOfDay(zone).toInstant();
       Instant to = end.atTime(23, 59, 59, 999_999_000).atZone(zone).toInstant();
-      var resp = ingestion.getReadings(GetReadingsRequest.newBuilder()
+      var resp = ingestion.getEnergyHourlyReadings(GetEnergyHourlyReadingsRequest.newBuilder()
           .setProjectId(projectId.toString())
           .setStart(from.toString())
           .setEnd(to.toString())
-          .addParameters("electricity")
+          .setTimezone(zone.getId())
           .build());
-      for (ReadingRow row : resp.getRowsList()) {
-        Double kwh = row.getValuesMap().get("electricity");
-        if (kwh == null) {
-          continue; // electricity__isnull=False parity
-        }
+      for (EnergyHourlyReading row : resp.getRowsList()) {
         LocalDateTime hour = ZonedDateTime
-            .ofInstant(Instant.parse(row.getMeasuredAt()), zone)
-            .toLocalDateTime().withMinute(0).withSecond(0).withNano(0);
-        buckets.merge(hour, kwh, Double::sum);
+            .ofInstant(Instant.parse(row.getHourStart()), zone)
+            .toLocalDateTime();
+        buckets.merge(hour, row.getKwh(), Double::sum);
       }
     } catch (Exception e) {
       log.warn("Energy readings fetch failed project={} — serving empty: {}",
@@ -186,12 +246,27 @@ public class EnergyService {
     return buckets;
   }
 
-  private Map<String, Object> kpis(Map<LocalDateTime, Double> cur, double curTotal,
-                                   double prevTotal, long days, double tariff, String symbol) {
+  private static Map<LocalDateTime, Double> slice(Map<LocalDateTime, Double> hourly,
+                                                  LocalDate start, LocalDate end) {
+    Map<LocalDateTime, Double> out = new LinkedHashMap<>();
+    for (Map.Entry<LocalDateTime, Double> entry : hourly.entrySet()) {
+      LocalDate day = entry.getKey().toLocalDate();
+      if (!day.isBefore(start) && !day.isAfter(end)) {
+        out.put(entry.getKey(), entry.getValue());
+      }
+    }
+    return out;
+  }
+
+  private Map<String, Object> kpis(Map<LocalDateTime, Double> cur,
+                                   Map<LocalDateTime, Double> prev,
+                                   double curTotal, double prevTotal, long days,
+                                   double tariff, String symbol) {
     long hours = days * 24;
-    Peak peak = peak(cur);
+    Peak peak = peak(cur, days > 1);
+    Peak previousPeak = peak(prev, false);
     double pct = prevTotal != 0
-        ? PyRound.round((curTotal - prevTotal) / prevTotal * 100, 1) : 0.0;
+        ? PyRound.round((curTotal - prevTotal) / prevTotal * 100, 1) : Double.NaN;
     Map<String, Object> kpis = new LinkedHashMap<>();
     kpis.put("totalKwh", curTotal);
     kpis.put("estimatedCost", PyRound.round(curTotal * tariff, 2));
@@ -201,16 +276,21 @@ public class EnergyService {
     kpis.put("avgKwhPerHour", hours != 0 ? PyRound.round(curTotal / hours, 2) : 0.0);
     kpis.put("peakHourKwh", peak.value());
     kpis.put("peakHourLabel", peak.label());
-    kpis.put("changeVsPreviousPct", pct);
+    kpis.put("changeVsPreviousPct", Double.isNaN(pct) ? null : pct);
     kpis.put("costChange", PyRound.round((curTotal - prevTotal) * tariff, 2));
-    kpis.put("compareLabel", "vs previous " + days + " day" + (days != 1 ? "s" : ""));
+    kpis.put("compareLabel", "previous " + days + " day" + (days != 1 ? "s" : ""));
+    kpis.put("previousTotalKwh", prevTotal);
+    kpis.put("previousEstimatedCost", PyRound.round(prevTotal * tariff, 2));
+    kpis.put("previousAvgKwhPerDay", days != 0 ? PyRound.round(prevTotal / days, 2) : 0.0);
+    kpis.put("previousAvgKwhPerHour", hours != 0 ? PyRound.round(prevTotal / hours, 2) : 0.0);
+    kpis.put("previousPeakHourKwh", previousPeak.value());
     return kpis;
   }
 
   private record Peak(String label, double value) {}
 
   /** _peak: first max in insertion order (monolith dict order); empty -> ('—', 0.0). */
-  private static Peak peak(Map<LocalDateTime, Double> hourly) {
+  private static Peak peak(Map<LocalDateTime, Double> hourly, boolean withDate) {
     if (hourly.isEmpty()) {
       return new Peak("—", 0.0);
     }
@@ -222,24 +302,22 @@ public class EnergyService {
         bestHour = e.getKey();
       }
     }
-    return new Peak(bestHour.format(HHMM), PyRound.round(best, 2));
+    return new Peak(bestHour.format(withDate ? MON_DD_COMMA_HHMM : HHMM), PyRound.round(best, 2));
   }
 
   private record Bucket(String key, String label) {}
 
   /** _bucket: (sort_key, label) for a local hour datetime under group_by. */
-  private static Bucket bucket(LocalDateTime dt, String groupBy) {
+  private static Bucket bucket(LocalDateTime dt, String groupBy, LocalDate periodStart) {
     return switch (groupBy) {
       case "hour" -> new Bucket(
           dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH")), dt.format(MON_DD_HHMM));
       case "week" -> {
-        int week = dt.get(WeekFields.ISO.weekOfWeekBasedYear());
-        int year = dt.get(WeekFields.ISO.weekBasedYear());
-        yield new Bucket(String.format("%d-W%02d", year, week), "W" + week);
+        long idx = (dt.toLocalDate().toEpochDay() - periodStart.toEpochDay()) / 7 + 1;
+        yield new Bucket(String.format("%03d", idx), "Week " + idx);
       }
       case "month" -> new Bucket(dt.format(DateTimeFormatter.ofPattern("yyyy-MM")),
-          dt.getMonth().getDisplayName(java.time.format.TextStyle.SHORT, Locale.ENGLISH)
-              + " " + dt.getYear());
+          dt.format(MON_YYYY));
       default -> new Bucket(dt.format(DateTimeFormatter.ISO_LOCAL_DATE), dt.format(MON_DD));
     };
   }
@@ -247,11 +325,12 @@ public class EnergyService {
   private record SeriesEntry(String key, String label, double total) {}
 
   /** _series: chronological hours -> first-seen bucket order, totals rounded 3dp. */
-  private static List<SeriesEntry> series(Map<LocalDateTime, Double> hourly, String groupBy) {
+  private static List<SeriesEntry> series(Map<LocalDateTime, Double> hourly, String groupBy,
+                                          LocalDate periodStart) {
     Map<String, double[]> agg = new LinkedHashMap<>();
     Map<String, String> labels = new LinkedHashMap<>();
     for (Map.Entry<LocalDateTime, Double> e : new TreeMap<>(hourly).entrySet()) {
-      Bucket b = bucket(e.getKey(), groupBy);
+      Bucket b = bucket(e.getKey(), groupBy, periodStart);
       labels.putIfAbsent(b.key(), b.label());
       agg.computeIfAbsent(b.key(), k -> new double[1])[0] += e.getValue();
     }
@@ -263,20 +342,64 @@ public class EnergyService {
     return out;
   }
 
-  /** _trend: current buckets zipped with previous BY INDEX; labels from current. */
+  private static String weekSpan(LocalDate periodStart, LocalDate periodEnd, int idx) {
+    LocalDate s = periodStart.plusDays((long) (idx - 1) * 7);
+    LocalDate e = s.plusDays(6).isAfter(periodEnd) ? periodEnd : s.plusDays(6);
+    return s.format(MON_DD) + " – " + e.format(MON_DD);
+  }
+
+  /** _trend: current and previous buckets paired by offset from each period start. */
   private List<Map<String, Object>> trend(Map<LocalDateTime, Double> cur,
-                                          Map<LocalDateTime, Double> prev, String groupBy) {
-    List<SeriesEntry> curS = series(cur, groupBy);
-    List<SeriesEntry> prevS = series(prev, groupBy);
+                                          Map<LocalDateTime, Double> prev, String groupBy,
+                                          LocalDate startDate, LocalDate endDate,
+                                          LocalDate prevStart, LocalDate prevEnd) {
+    List<SeriesEntry> curS = series(cur, groupBy, startDate);
+    List<SeriesEntry> prevS = series(prev, groupBy, prevStart);
+    Map<Integer, Double> prevByOffset = new LinkedHashMap<>();
+    for (SeriesEntry entry : prevS) {
+      prevByOffset.put(offset(entry.key(), groupBy, prevStart), entry.total());
+    }
     List<Map<String, Object>> out = new ArrayList<>();
-    for (int i = 0; i < curS.size(); i++) {
+    for (SeriesEntry entry : curS) {
+      int offset = offset(entry.key(), groupBy, startDate);
       Map<String, Object> row = new LinkedHashMap<>();
-      row.put("label", curS.get(i).label());
-      row.put("current", curS.get(i).total());
-      row.put("previous", i < prevS.size() ? prevS.get(i).total() : 0.0);
+      row.put("label", entry.label());
+      row.put("current", entry.total());
+      row.put("previous", prevByOffset.get(offset));
+      row.put("currentLabel", "week".equals(groupBy)
+          ? weekSpan(startDate, endDate, Integer.parseInt(entry.key())) : entry.label());
+      row.put("previousLabel", previousLabelFor(offset, groupBy, prevStart, prevEnd));
       out.add(row);
     }
     return out;
+  }
+
+  private static int offset(String key, String groupBy, LocalDate periodStart) {
+    return switch (groupBy) {
+      case "hour" -> {
+        LocalDateTime dt = LocalDate.parse(key.substring(0, 10)).atTime(
+            Integer.parseInt(key.substring(11, 13)), 0);
+        yield (int) java.time.Duration.between(periodStart.atStartOfDay(), dt).toHours();
+      }
+      case "week" -> Integer.parseInt(key);
+      case "month" -> {
+        String[] parts = key.split("-");
+        int year = Integer.parseInt(parts[0]);
+        int month = Integer.parseInt(parts[1]);
+        yield (year * 12 + month) - (periodStart.getYear() * 12 + periodStart.getMonthValue());
+      }
+      default -> (int) (LocalDate.parse(key).toEpochDay() - periodStart.toEpochDay());
+    };
+  }
+
+  private static String previousLabelFor(int offset, String groupBy,
+                                         LocalDate prevStart, LocalDate prevEnd) {
+    return switch (groupBy) {
+      case "hour" -> prevStart.atStartOfDay().plusHours(offset).format(MON_DD_HHMM);
+      case "week" -> weekSpan(prevStart, prevEnd, offset);
+      case "month" -> prevStart.plusMonths(offset).withDayOfMonth(1).format(MON_YYYY);
+      default -> prevStart.plusDays(offset).format(MON_DD);
+    };
   }
 
   /** _heatmap: 24 hour-rows x day-columns; cells null until data; 3dp. */
@@ -314,8 +437,8 @@ public class EnergyService {
                                             Map<LocalDateTime, Double> prev,
                                             double curTotal, double prevTotal, long days,
                                             double tariff, String symbol) {
-    double curPeak = peak(cur).value();
-    double prevPeak = peak(prev).value();
+    double curPeak = peak(cur, false).value();
+    double prevPeak = peak(prev, false).value();
     double curAvg = days != 0 ? PyRound.round(curTotal / days, 2) : 0.0;
     double prevAvg = days != 0 ? PyRound.round(prevTotal / days, 2) : 0.0;
     return List.of(
@@ -356,14 +479,16 @@ public class EnergyService {
     return row;
   }
 
-  private Map<String, Object> byPeriod(Map<LocalDateTime, Double> cur, String groupBy) {
+  private Map<String, Object> byPeriod(Map<LocalDateTime, Double> cur, String groupBy,
+                                       LocalDate start, LocalDate end) {
     Map<String, String> titles = Map.of(
         "hour", "Consumption by Hour", "day", "Consumption by Day",
         "week", "Consumption by Week", "month", "Consumption by Month");
     List<Map<String, Object>> rows = new ArrayList<>();
-    for (SeriesEntry entry : series(cur, groupBy)) {
+    for (SeriesEntry entry : series(cur, groupBy, start)) {
       Map<String, Object> row = new LinkedHashMap<>();
-      row.put("label", entry.label());
+      row.put("label", "week".equals(groupBy)
+          ? weekSpan(start, end, Integer.parseInt(entry.key())) : entry.label());
       row.put("kwh", entry.total());
       rows.add(row);
     }
@@ -426,6 +551,141 @@ public class EnergyService {
             .format(MON_DD_COMMA_HHMM));
     out.put("source", "Energy Meter");
     return out;
+  }
+
+  private static Map<LocalDate, double[]> dailyTotals(Map<LocalDateTime, Double> hourly) {
+    Map<LocalDate, double[]> daily = new TreeMap<>();
+    for (Map.Entry<LocalDateTime, Double> entry : hourly.entrySet()) {
+      double[] totalAndCount = daily.computeIfAbsent(entry.getKey().toLocalDate(),
+          ignored -> new double[2]);
+      totalAndCount[0] += entry.getValue();
+      totalAndCount[1] += 1;
+    }
+    return daily;
+  }
+
+  private record Sheet(String name, List<List<Object>> rows) {}
+
+  private static byte[] xlsx(List<Sheet> sheets) {
+    try {
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+      try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
+        put(zip, "[Content_Types].xml", contentTypes(sheets.size()));
+        put(zip, "_rels/.rels", """
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+              <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+            </Relationships>
+            """);
+        put(zip, "xl/workbook.xml", workbook(sheets));
+        put(zip, "xl/_rels/workbook.xml.rels", workbookRels(sheets.size()));
+        for (int i = 0; i < sheets.size(); i++) {
+          put(zip, "xl/worksheets/sheet" + (i + 1) + ".xml", worksheet(sheets.get(i)));
+        }
+      }
+      return out.toByteArray();
+    } catch (Exception e) {
+      throw new ProjectAppService.BadRequestException("Could not export energy data");
+    }
+  }
+
+  private static void put(ZipOutputStream zip, String name, String body) throws java.io.IOException {
+    zip.putNextEntry(new ZipEntry(name));
+    zip.write(body.getBytes(StandardCharsets.UTF_8));
+    zip.closeEntry();
+  }
+
+  private static String contentTypes(int sheetCount) {
+    StringBuilder xml = new StringBuilder("""
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+          <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+          <Default Extension="xml" ContentType="application/xml"/>
+          <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+        """);
+    for (int i = 1; i <= sheetCount; i++) {
+      xml.append("  <Override PartName=\"/xl/worksheets/sheet").append(i)
+          .append(".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>\n");
+    }
+    return xml.append("</Types>\n").toString();
+  }
+
+  private static String workbook(List<Sheet> sheets) {
+    StringBuilder xml = new StringBuilder("""
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+          <sheets>
+        """);
+    for (int i = 0; i < sheets.size(); i++) {
+      xml.append("    <sheet name=\"").append(escapeAttr(sheets.get(i).name()))
+          .append("\" sheetId=\"").append(i + 1).append("\" r:id=\"rId")
+          .append(i + 1).append("\"/>\n");
+    }
+    return xml.append("  </sheets>\n</workbook>\n").toString();
+  }
+
+  private static String workbookRels(int sheetCount) {
+    StringBuilder xml = new StringBuilder("""
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+        """);
+    for (int i = 1; i <= sheetCount; i++) {
+      xml.append("  <Relationship Id=\"rId").append(i)
+          .append("\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet")
+          .append(i).append(".xml\"/>\n");
+    }
+    return xml.append("</Relationships>\n").toString();
+  }
+
+  private static String worksheet(Sheet sheet) {
+    StringBuilder xml = new StringBuilder("""
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+          <sheetData>
+        """);
+    for (int r = 0; r < sheet.rows().size(); r++) {
+      xml.append("    <row r=\"").append(r + 1).append("\">");
+      List<Object> row = sheet.rows().get(r);
+      for (int c = 0; c < row.size(); c++) {
+        Object value = row.get(c);
+        if (value == null) {
+          continue;
+        }
+        String ref = col(c) + (r + 1);
+        if (value instanceof Number) {
+          xml.append("<c r=\"").append(ref).append("\"><v>").append(value).append("</v></c>");
+        } else {
+          xml.append("<c r=\"").append(ref).append("\" t=\"inlineStr\"><is><t>")
+              .append(escapeText(String.valueOf(value))).append("</t></is></c>");
+        }
+      }
+      xml.append("</row>\n");
+    }
+    return xml.append("  </sheetData>\n</worksheet>\n").toString();
+  }
+
+  private static String col(int index) {
+    StringBuilder out = new StringBuilder();
+    int n = index;
+    do {
+      out.insert(0, (char) ('A' + (n % 26)));
+      n = n / 26 - 1;
+    } while (n >= 0);
+    return out.toString();
+  }
+
+  private static String escapeText(String value) {
+    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+  }
+
+  private static String escapeAttr(String value) {
+    return escapeText(value).replace("\"", "&quot;");
+  }
+
+  private static String slug(String value) {
+    String slug = value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-")
+        .replaceAll("(^-+|-+$)", "");
+    return slug.isBlank() ? "project" : slug;
   }
 
   /** _range_label: en-dash; year on the right (both sides when years differ). */

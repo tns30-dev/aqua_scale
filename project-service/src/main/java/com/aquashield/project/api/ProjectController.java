@@ -3,6 +3,7 @@ package com.aquashield.project.api;
 import com.aquashield.project.api.dto.ProjectDtos.CreateProjectRequest;
 import com.aquashield.project.api.dto.ProjectDtos.EnergySettingsDto;
 import com.aquashield.project.api.dto.ProjectDtos.ParameterSettingDto;
+import com.aquashield.project.api.dto.ProjectDtos.ProjectParameterDto;
 import com.aquashield.project.api.dto.ProjectDtos.ProjectAdminItem;
 import com.aquashield.project.api.dto.ProjectDtos.ProjectDto;
 import com.aquashield.project.api.dto.ProjectDtos.ProjectSummaryDto;
@@ -14,7 +15,10 @@ import com.aquashield.project.service.EnergyService;
 import com.aquashield.project.service.ProjectAppService;
 import com.aquashield.project.service.SummaryService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -104,6 +108,12 @@ public class ProjectController {
     return projectsService.getSettings(projectId, principal.hasProjectAccess(projectId));
   }
 
+  @GetMapping({"/{projectId}/parameters", "/{projectId}/parameters/"})
+  public List<ProjectParameterDto> getProjectParameters(
+      @PathVariable UUID projectId, @AuthenticationPrincipal SnapshotPrincipal principal) {
+    return projectsService.getProjectParameters(projectId, principal.hasProjectAccess(projectId));
+  }
+
   @PutMapping("/{projectId}/parameter-settings")
   public List<ParameterSettingDto> putParameterSettings(
       @PathVariable UUID projectId,
@@ -123,6 +133,23 @@ public class ProjectController {
       @AuthenticationPrincipal SnapshotPrincipal principal) {
     requireMembership(principal, projectId);
     return energy.dashboard(projectId, groupBy, startDate, endDate);
+  }
+
+  @GetMapping({"/{projectId}/energy/export", "/{projectId}/energy/export/"})
+  public ResponseEntity<byte[]> energyExport(
+      @PathVariable UUID projectId,
+      @RequestParam(required = false) String startDate,
+      @RequestParam(required = false) String endDate,
+      @AuthenticationPrincipal SnapshotPrincipal principal) {
+    requireMembership(principal, projectId);
+    ProjectDto project = projectsService.getAccessible(projectId, true);
+    EnergyService.ExportFile export = energy.exportXlsx(projectId, project.name(), startDate, endDate);
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION,
+            "attachment; filename=\"" + export.filename() + "\"")
+        .contentType(MediaType.parseMediaType(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+        .body(export.content());
   }
 
   @GetMapping({"/{projectId}/energy/settings", "/{projectId}/energy/settings/"})

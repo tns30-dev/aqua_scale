@@ -8,9 +8,9 @@ import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
@@ -45,6 +45,12 @@ public class Cycle {
 
   @Column(nullable = false)
   private String status = "ongoing";
+
+  @Column(name = "stocking_biomass_kg", precision = 10, scale = 2)
+  private BigDecimal stockingBiomassKg;
+
+  @Column(name = "harvest_biomass_kg", precision = 10, scale = 2)
+  private BigDecimal harvestBiomassKg;
 
   @CreationTimestamp
   @Column(name = "created_at", updatable = false)
@@ -120,5 +126,13 @@ public class Cycle {
   public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
   public String getStatus() { return status; }
   public void setStatus(String status) { this.status = status; }
+  public BigDecimal getStockingBiomassKg() { return stockingBiomassKg; }
+  public void setStockingBiomassKg(BigDecimal stockingBiomassKg) {
+    this.stockingBiomassKg = stockingBiomassKg;
+  }
+  public BigDecimal getHarvestBiomassKg() { return harvestBiomassKg; }
+  public void setHarvestBiomassKg(BigDecimal harvestBiomassKg) {
+    this.harvestBiomassKg = harvestBiomassKg;
+  }
   public void setUpdatedBy(UUID updatedBy) { this.updatedBy = updatedBy; }
 }

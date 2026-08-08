@@ -227,12 +227,43 @@ export interface PondMetadata {
 // Treatment catalogue — matches BE TreatmentSerializer 1:1 (snake_case).
 export interface Treatment {
   treatment_id: string;
+  project?: string | null;
   code: string;
   name: string;
   description?: string | null;
+  target_parameters: string[];
+  unit_price: number | string;
+  price_unit: "kg" | "l";
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface CreateTreatmentRequest {
+  project: string;
+  name: string;
+  description?: string | null;
+  target_parameters: string[];
+  unit_price?: number | string;
+  price_unit?: "kg" | "l";
+  is_active?: boolean;
+}
+
+export interface UpdateTreatmentRequest {
+  project?: string;
+  name?: string;
+  description?: string | null;
+  target_parameters?: string[];
+  unit_price?: number | string;
+  price_unit?: "kg" | "l";
+  is_active?: boolean;
+}
+
+export interface ProjectParameterOption {
+  code: string;
+  name: string;
+  unit: string;
+  hasLimits: boolean;
 }
 
 // Per-pond treatment assignment — matches BE PondTreatmentSerializer. The
@@ -242,15 +273,92 @@ export interface PondTreatment {
   pond_treatment_id: string;
   pond: string;
   treatment: string;
+  pond_id?: string;
+  treatment_id?: string;
   treatment_name: string;
   treatment_code: string;
   treatment_description?: string | null;
   started_at: string;
   ended_at?: string | null;
   notes?: string | null;
+  amount?: number | string | null;
+  unit?: "g" | "kg" | "ml" | "l" | null;
+  unit_price?: number | string | null;
+  price_unit?: "kg" | "l" | null;
+  cost?: number | string | null;
   is_active: boolean;
+  cycles?: PondTreatmentCycle[];
   created_at: string;
   updated_at: string;
+}
+
+export interface PondTreatmentCycle {
+  cycle_id: string;
+  name: string;
+  start_date: string;
+  end_date: string | null;
+}
+
+export interface CreatePondTreatmentRequest {
+  pond: string;
+  treatment: string;
+  started_at: string;
+  ended_at?: string | null;
+  notes?: string | null;
+  amount?: number | string | null;
+  unit?: "g" | "kg" | "ml" | "l" | null;
+}
+
+export interface UpdatePondTreatmentRequest {
+  pond?: string;
+  treatment?: string;
+  started_at?: string;
+  ended_at?: string | null;
+  notes?: string | null;
+  amount?: number | string | null;
+  unit?: "g" | "kg" | "ml" | "l" | null;
+}
+
+export interface TreatmentStabilityParam {
+  code: string;
+  name: string;
+  safe: number;
+  total: number;
+  pct: number;
+  declaredBy: string[];
+}
+
+export interface TreatmentCostRow {
+  name: string;
+  amount: number | string;
+  unit: string;
+  cost: number | string;
+}
+
+export interface TreatmentStabilityResponse {
+  overlap: boolean;
+  window?: {
+    start: string;
+    end: string;
+    days: number;
+  };
+  params?: TreatmentStabilityParam[];
+  overall?: {
+    safe: number;
+    total: number;
+    pct: number;
+  };
+  electricity?: {
+    kwh: number | string;
+    cost: number | string;
+    tariff: number | string;
+    currency: string;
+  };
+  treatmentCost?: {
+    courses: TreatmentCostRow[];
+    total: number | string;
+    currency: string;
+  };
 }
 
 // Sensor Readings
@@ -297,12 +405,16 @@ export interface AlertInfo {
 // Alerts
 export interface Alert {
   alertId: string;
-  pondId: string;
+  /** null = project-level alert, such as the electricity meter. */
+  pondId: string | null;
   pondName: string;
   severity: "critical" | "warning" | "info";
   message: string;
   timestamp: string;
   acknowledged: boolean;
+  resolved?: boolean;
+  parameter?: string | null;
+  readingTimestamp?: string | null;
 }
 
 // Project Summary
@@ -377,13 +489,19 @@ export interface PondTreatmentInfo {
   startedAt: string;  // ISO date
 }
 
+/** Courses overlapping the compared window, with real unclipped ranges. */
+export interface PondWindowTreatment extends PondTreatmentInfo {
+  endedAt: string | null;
+}
+
 /** Options endpoint payload. */
 export interface PondComparisonPondOption {
   pondId: string;
   name: string;
   companyName: string;
   gpsLocation: string;
-  treatments: PondTreatmentInfo[];   // active only (ended_at IS NULL)
+  /** Active courses may still be returned by the compatibility options endpoint. */
+  treatments?: PondTreatmentInfo[];
   hasSensorData: boolean;
   firstReadingAt: string | null;     // ISO datetime
   lastReadingAt: string | null;
@@ -393,23 +511,27 @@ export interface PondComparisonOptionsResponse {
   ponds: PondComparisonPondOption[];
 }
 
-/** Compare endpoint — metric card payload. Always length 4, fixed order. */
+/** Compare endpoint - metric card payload. Parameters are dynamic. */
 export interface PondComparisonMetric {
-  parameter: string;             // 'ammonium' | 'dissolved_oxygen' | 'turbidity' | 'electricity'
+  parameter: string;
   label: string;
   unit: string;
-  pondAValue: number;            // 0 if missing per Rule 2
+  watchedBy: string[];
+  pondAValue: number;
   pondBValue: number;
+  pondAHasReadings: boolean;
+  pondBHasReadings: boolean;
   difference: number;
   percentDifference: number;
-  lowerIsBetter: boolean;
+  /** null = no better/worse judgment for this parameter, for example pH. */
+  lowerIsBetter: boolean | null;
 }
 
-/** Compare endpoint — chart payload. Always length 4, fixed order, shared X-axis. */
+/** Compare endpoint - shared X-axis; empty buckets are null, not zero. */
 export interface PondComparisonChartPoint {
   label: string;
-  seriesA: number;
-  seriesB: number;
+  seriesA: number | null;
+  seriesB: number | null;
 }
 export interface PondComparisonChart {
   parameter: string;
@@ -423,7 +545,13 @@ export interface PondComparisonChart {
 export interface PondComparisonPondSummary {
   pondId: string;
   name: string;
-  treatments: PondTreatmentInfo[];
+  treatments: PondWindowTreatment[];
+}
+
+export interface PondComparisonAvailableParameter {
+  parameter: string;
+  label: string;
+  unit: string;
 }
 
 export interface PondComparisonResponse {
@@ -435,6 +563,8 @@ export interface PondComparisonResponse {
     endDate: string;
     grouping: 'hourly' | 'daily' | 'weekly' | 'monthly';  // server resolves 'auto'
   };
+  parameterSource: 'treatments' | 'default' | 'custom';
+  availableParameters: PondComparisonAvailableParameter[];
   metrics: PondComparisonMetric[];
   charts: PondComparisonChart[];
 }
@@ -526,6 +656,7 @@ export interface UserAccess {
   email: string;
   firstName: string;
   lastName: string;
+  mobileNumber: string | null;
   role: string;
   featureActionAssigned: FeatureActionAssigned;
   projects: Project[];
@@ -537,10 +668,115 @@ export interface UpdateUserAccessRequest {
   projectIds?: string[];
 }
 
-/** Phase 4 new endpoint: PUT /api/users/<id>/profile (admin-edits-other). */
+/** Admin edits another user through PATCH /api/users/<id>. */
 export interface AdminUpdateUserProfileRequest {
   firstName?: string;
   lastName?: string;
   mobileNumber?: string;
   role?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Energy Consumption (dashboard, settings, export)
+// Mirrors /api/projects/{id}/energy/* payloads.
+// ---------------------------------------------------------------------------
+
+export type GroupBy = "hour" | "day" | "week" | "month";
+export type QuickRange = "today" | "7d" | "30d" | "90d" | "custom";
+export type CompareMode = "previous" | "none";
+
+export interface EnergyKpis {
+  totalKwh: number;
+  estimatedCost: number;
+  tariffPerKwh: number;
+  currencySymbol: string;
+  avgKwhPerDay: number;
+  avgKwhPerHour: number;
+  peakHourKwh: number;
+  peakHourLabel: string;
+  changeVsPreviousPct: number | null;
+  costChange: number;
+  compareLabel: string;
+  previousTotalKwh: number;
+  previousEstimatedCost: number;
+  previousAvgKwhPerDay: number;
+  previousAvgKwhPerHour: number;
+  previousPeakHourKwh: number;
+}
+
+export interface TrendPoint {
+  label: string;
+  current: number;
+  previous: number | null;
+  currentLabel: string | null;
+  previousLabel: string | null;
+}
+
+export interface HeatmapData {
+  dateLabels: string[];
+  hourLabels: string[];
+  matrix: (number | null)[][];
+  maxValue: number;
+}
+
+export interface SummaryRow {
+  metric: string;
+  current: string;
+  previous: string;
+  change: string;
+  improved: boolean;
+}
+
+export interface ByPeriodRow {
+  label: string;
+  kwh: number;
+}
+
+export interface EnergyConsumptionAlert {
+  title: string;
+  when: string;
+  value: string;
+}
+
+export interface EnergyDataQuality {
+  completenessPct: number;
+  availableRecords: number;
+  expectedRecords: number;
+  missingHours: number;
+  missingPct: number;
+  lastReceived: string;
+  source: string;
+}
+
+export interface CompareInfo {
+  currentRange: string;
+  previousRange: string;
+}
+
+export interface EnergySettings {
+  type: string;
+  unit: string;
+  tariffPerUnit: number;
+  currency: string;
+  highHourlyThreshold: number | null;
+  highDailyThreshold: number | null;
+  notes: string | null;
+  exists: boolean;
+}
+
+export type EnergySettingsUpdate = Omit<EnergySettings, "type" | "exists">;
+
+export interface EnergyDashboardData {
+  lastUpdated: string;
+  dateRangeLabel: string;
+  kpis: EnergyKpis;
+  trend: TrendPoint[];
+  trendCurrentLabel: string;
+  trendPreviousLabel: string;
+  heatmap: HeatmapData;
+  summary: SummaryRow[];
+  byPeriod: { title: string; rows: ByPeriodRow[] };
+  alerts: EnergyConsumptionAlert[];
+  dataQuality: EnergyDataQuality;
+  compareInfo: CompareInfo;
 }

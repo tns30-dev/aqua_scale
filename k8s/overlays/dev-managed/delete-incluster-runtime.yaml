@@ -11,6 +11,12 @@ metadata:
 $patch: delete
 ---
 apiVersion: v1
+kind: Secret
+metadata:
+  name: jwt-verifier-public-key
+$patch: delete
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: postgres-init

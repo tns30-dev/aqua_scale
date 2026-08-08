@@ -30,7 +30,7 @@ import { UpdateUserProfileDialog } from "./UpdateUserProfileDialog";
  *   Onboard  — POST /api/users        (OnboardUserDialog — checkboxes dropped;
  *                                      server applies Phase 5 defaults)
  *   Access   — PUT  /api/users/<id>/access   (AccessManagementDialog — two-pane)
- *   Profile  — PUT  /api/users/<id>/profile  (UpdateUserProfileDialog — Phase 4)
+ *   Profile  — PATCH /api/users/<id>          (UpdateUserProfileDialog)
  *
  * Each user row now has TWO buttons — Access Management + Update Profile —
  * because Phase 4 split the "manage" surface into projects/access vs profile.

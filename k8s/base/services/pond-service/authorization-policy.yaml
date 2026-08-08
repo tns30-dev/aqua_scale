@@ -21,6 +21,8 @@ spec:
               - /api/treatments/*
               - /api/pond-treatments
               - /api/pond-treatments/*
+              - /api/feed-types
+              - /api/feed-types/*
               - /api/projects/*
               - /actuator/health
               - /actuator/health/*

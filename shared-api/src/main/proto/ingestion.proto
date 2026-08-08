@@ -18,6 +18,77 @@ service IngestionReadService {
   // First/last measured_at per pond (Pond comparison options: hasSensorData,
   // firstReadingAt, lastReadingAt — the monolith's batched Min/Max aggregate).
   rpc GetReadingWindows (GetReadingWindowsRequest) returns (GetReadingWindowsResponse);
+
+  // Latest numeric reading payload per pond for UI bootstrapping before WebSocket
+  // messages arrive. Used by Overview/Digital Twin to avoid a stale "No Readings"
+  // state when persisted telemetry already exists.
+  rpc GetLatestReadings (GetLatestReadingsRequest) returns (GetLatestReadingsResponse);
+
+  // Project-wide electricity aggregation for the Energy dashboard. This keeps
+  // high-volume time bucketing beside the telemetry store instead of sending raw
+  // readings across the Project/Ingestion service boundary.
+  rpc GetEnergyHourlyReadings (GetEnergyHourlyReadingsRequest) returns (GetEnergyHourlyReadingsResponse);
+
+  // Pond-scoped parameter averages for comparison charts/cards. This avoids moving
+  // high-volume raw telemetry across the Pond/Ingestion service boundary.
+  rpc GetPondParameterBucketAverages (GetPondParameterBucketAveragesRequest) returns (GetPondParameterBucketAveragesResponse);
+}
+
+message GetLatestReadingsRequest {
+  string project_id = 1;
+  // Optional; empty = all ponds in the project that have readings.
+  repeated string pond_ids = 2;
+}
+
+message LatestReadingRow {
+  string pond_id = 1;
+  string measured_at = 2;        // ISO-8601 instant
+  string project_sensor_id = 3;
+  string port = 4;
+  map<string, double> values = 5;
+}
+
+message GetLatestReadingsResponse {
+  repeated LatestReadingRow readings = 1;
+}
+
+message GetEnergyHourlyReadingsRequest {
+  string project_id = 1;
+  string start = 2;              // ISO-8601 instant (inclusive)
+  string end = 3;                // ISO-8601 instant (inclusive)
+  string timezone = 4;           // IANA zone, e.g. Asia/Singapore
+}
+
+message EnergyHourlyReading {
+  string hour_start = 1;         // ISO-8601 instant at local-hour bucket start
+  double kwh = 2;
+}
+
+message GetEnergyHourlyReadingsResponse {
+  string project_id = 1;
+  repeated EnergyHourlyReading rows = 2;
+}
+
+message GetPondParameterBucketAveragesRequest {
+  string pond_id = 1;
+  string start = 2;              // ISO-8601 instant (inclusive)
+  string end = 3;                // ISO-8601 instant (inclusive)
+  string timezone = 4;           // IANA zone, e.g. Asia/Singapore
+  string grouping = 5;           // hourly, daily, weekly, monthly
+  repeated string parameters = 6;
+}
+
+message PondParameterBucketAverage {
+  string pond_id = 1;
+  string parameter = 2;
+  string bucket_start = 3;       // ISO-8601 instant at local bucket start
+  double average = 4;
+  int64 sample_count = 5;
+}
+
+message GetPondParameterBucketAveragesResponse {
+  string pond_id = 1;
+  repeated PondParameterBucketAverage rows = 2;
 }
 
 message GetReadingWindowsRequest {

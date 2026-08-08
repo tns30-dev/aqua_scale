@@ -3,11 +3,10 @@ import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { config } from '../config/env';
 import {
   clearAuth,
-  getAccessToken,
-  getRefreshToken,
+  getCurrentProfileType,
+  getCurrentProjectId,
   setCurrentProfileType,
   setCurrentProjectId,
-  setAuthTokens,
 } from '../utils/auth';
 import type {
   LoginCredentials,
@@ -35,8 +34,18 @@ import type {
   PondComparisonOptionsResponse,
   PondComparisonResponse,
   Treatment,
+  CreateTreatmentRequest,
+  UpdateTreatmentRequest,
   PondTreatment,
+  CreatePondTreatmentRequest,
+  UpdatePondTreatmentRequest,
+  TreatmentStabilityResponse,
+  EnergyDashboardData,
+  EnergySettings,
+  EnergySettingsUpdate,
+  GroupBy,
   ProjectParameterSetting,
+  ProjectParameterOption,
   PutProjectParameterSetting,
   SensorType,
   CreateSensorTypeRequest,
@@ -46,14 +55,25 @@ import type {
   ProjectSensor,
   CreateProjectSensorRequest,
   UpdateProjectSensorRequest,
+  SensorReading,
+  SensorParameters,
+  AlertInfo,
 } from '../types';
 import type { ProfileConfig } from '../types/profile';
-import type { EnergyDashboardData, GroupBy } from '../components/energy/types';
+import type {
+  FeedEntryWrite,
+  FeedingDashboardResponse,
+  FeedingOptionsResponse,
+  FeedTypeRecord,
+} from '../types/feeding';
 
 // URLs the response interceptor must NOT refresh-and-retry:
 //   /auth/refresh → would loop on its own 401.
 //   /auth/login   → a 401 here means bad credentials; the caller wants it.
-const NO_REFRESH_URLS = ['/api/auth/refresh', '/api/auth/login'];
+const NO_REFRESH_URLS = ['/api/csrf', '/api/auth/refresh', '/api/auth/login'];
+const CSRF_COOKIE = 'csrftoken';
+const CSRF_HEADER = 'X-CSRFToken';
+const SAFE_METHODS = new Set(['get', 'head', 'options', 'trace']);
 
 // Internal flag we tack onto an axios config after one refresh attempt so a
 // second 401 on the retried request propagates instead of looping.
@@ -89,6 +109,11 @@ interface LoginApiResponse extends MeApiResponse {
   refreshToken: string;
 }
 
+interface CsrfResponse {
+  ok: boolean;
+  csrfToken?: string;
+}
+
 interface ProjectDtoApiRow {
   project_id: string;
   name: string;
@@ -107,6 +132,7 @@ interface UserAccessApiResponse {
   email?: string;
   firstName?: string;
   lastName?: string;
+  mobileNumber?: string | null;
   role: string;
   featureActionAssigned: UserAccess['featureActionAssigned'];
   projectIds?: string[];
@@ -115,6 +141,45 @@ interface UserAccessApiResponse {
 
 type HistoricalDataResponse = Record<string, unknown>;
 type ChartDataPoint = Record<string, string | number | null>;
+
+interface LatestReadingApiRow {
+  pond_id: string;
+  timestamp: string;
+  parameters?: Record<string, unknown>;
+  alerts?: AlertInfo[];
+}
+
+interface LatestReadingsApiResponse {
+  readings: LatestReadingApiRow[];
+}
+
+export interface LatestPondReading {
+  pond_id: string;
+  reading: SensorReading;
+}
+
+function readCookie(name: string): string | null {
+  if (typeof document === 'undefined' || !document.cookie) {
+    return null;
+  }
+  const prefix = `${name}=`;
+  const item = document.cookie
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix));
+  if (!item) {
+    return null;
+  }
+  try {
+    return decodeURIComponent(item.slice(prefix.length));
+  } catch {
+    return null;
+  }
+}
+
+function isUnsafeMethod(method?: string): boolean {
+  return !SAFE_METHODS.has((method ?? 'get').toLowerCase());
+}
 
 export interface HistoricalChartsResponse {
   multiParameterTrends?: ChartDataPoint[];
@@ -249,6 +314,22 @@ function mapProjectAdminItem(raw: ProjectAdminApiRow): Project {
   };
 }
 
+function normalizeSensorParameters(raw: Record<string, unknown> = {}): SensorParameters {
+  const parameters: SensorParameters = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const numericValue =
+      typeof value === 'number'
+        ? value
+        : typeof value === 'string'
+          ? Number(value)
+          : Number.NaN;
+    if (Number.isFinite(numericValue)) {
+      (parameters as Record<string, number>)[key] = numericValue;
+    }
+  }
+  return parameters;
+}
+
 function accessProjectFromId(projectId: string): Project {
   return {
     projectId,
@@ -281,6 +362,7 @@ function mapUserAccessResponse(
     email: raw.email ?? profile?.email ?? '',
     firstName: raw.firstName ?? profile?.firstName ?? '',
     lastName: raw.lastName ?? profile?.lastName ?? '',
+    mobileNumber: raw.mobileNumber ?? profile?.mobileNumber ?? null,
     role: raw.role ?? profile?.role ?? '',
     featureActionAssigned: raw.featureActionAssigned ?? [],
     projects: raw.projects ?? raw.projectIds?.map(accessProjectFromId) ?? [],
@@ -289,6 +371,7 @@ function mapUserAccessResponse(
 
 class ApiService {
   private api: AxiosInstance;
+  private csrfToken: string | null = null;
   // In-flight refresh promise. Concurrent 401s share this so only ONE POST
   // /api/auth/refresh fires per expiry event. Resets when the call settles.
   private refreshPromise: Promise<void> | null = null;
@@ -296,15 +379,21 @@ class ApiService {
   constructor() {
     this.api = axios.create({
       baseURL: config.apiBaseUrl,
+      withCredentials: true,
       headers: {
         'Content-Type': 'application/json',
       },
     });
 
-    this.api.interceptors.request.use((cfg) => {
-      const token = getAccessToken();
-      if (token) {
-        cfg.headers.Authorization = `Bearer ${token}`;
+    this.api.interceptors.request.use(async (cfg) => {
+      if (isUnsafeMethod(cfg.method)) {
+        if (!readCookie(CSRF_COOKIE)) {
+          await this.bootstrapCsrf();
+        }
+        const csrfToken = readCookie(CSRF_COOKIE) ?? this.csrfToken;
+        if (csrfToken) {
+          cfg.headers[CSRF_HEADER] = csrfToken;
+        }
       }
       return cfg;
     });
@@ -342,25 +431,23 @@ class ApiService {
    * callers await the same in-flight promise; the slot clears when settled. */
   private ensureRefresh(): Promise<void> {
     if (!this.refreshPromise) {
-      const refreshToken = getRefreshToken();
-      if (!refreshToken) {
-        return Promise.reject(new Error('No refresh token available'));
-      }
-      this.refreshPromise = this.api
-        .post<RefreshResponse>('/api/auth/refresh', { refreshToken })
-        .then((response) => {
-          setAuthTokens(response.data.token, response.data.refreshToken);
-        })
-        .finally(() => {
-          this.refreshPromise = null;
-        });
+      this.refreshPromise = (async () => {
+        if (!readCookie(CSRF_COOKIE)) {
+          await this.bootstrapCsrf();
+        }
+        await this.api.post<RefreshResponse>('/api/auth/refresh');
+      })().finally(() => {
+        this.refreshPromise = null;
+      });
     }
     return this.refreshPromise;
   }
 
-  /** Backward-compatible no-op. Java Identity uses bearer auth, not CSRF cookies. */
   async bootstrapCsrf(): Promise<void> {
-    return undefined;
+    const response = await this.api.get<CsrfResponse>('/api/csrf');
+    if (typeof response.data.csrfToken === 'string' && response.data.csrfToken) {
+      this.csrfToken = response.data.csrfToken;
+    }
   }
 
   private async enrichSessionProjects(payload: MeApiResponse): Promise<MeResponse> {
@@ -399,11 +486,11 @@ class ApiService {
 
   // Authentication
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
+    await this.bootstrapCsrf();
     const response = await this.api.post<LoginApiResponse>(
       '/api/auth/login',
       credentials,
     );
-    setAuthTokens(response.data.token, response.data.refreshToken);
     const data = await this.normalizeLogin(response.data);
 
     // Pre-select the first project so the dashboard has something to show.
@@ -417,10 +504,13 @@ class ApiService {
   }
 
   async logout(): Promise<void> {
-    const refreshToken = getRefreshToken();
     try {
-      await this.api.post('/api/auth/logout', refreshToken ? { refreshToken } : {});
+      if (!readCookie(CSRF_COOKIE)) {
+        await this.bootstrapCsrf();
+      }
+      await this.api.post('/api/auth/logout');
     } finally {
+      this.csrfToken = null;
       clearAuth();
     }
   }
@@ -430,7 +520,57 @@ class ApiService {
     const response = await this.api.get<{ ponds: Pond[] }>('/api/ponds', {
       params: { projectId },
     });
-    return response.data;
+
+    let profileType =
+      getCurrentProjectId() === projectId ? getCurrentProfileType() ?? '' : '';
+    if (!profileType) {
+      try {
+        profileType =
+          (await this.getProjects()).find((project) => project.projectId === projectId)
+            ?.profileType ?? '';
+      } catch {
+        profileType = '';
+      }
+    }
+
+    return {
+      ...response.data,
+      ponds: response.data.ponds.map((pond) => ({
+        ...pond,
+        project_id: pond.project_id ?? projectId,
+        profile_type: pond.profile_type ?? profileType,
+      })),
+    };
+  }
+
+  async getLatestPondReadings(
+    projectId: string,
+    pondIds: string[] = [],
+  ): Promise<{ readings: LatestPondReading[] }> {
+    const response = await this.api.get<LatestReadingsApiResponse>('/api/ponds/latest-readings', {
+      params: {
+        projectId,
+        ponds: pondIds.length > 0 ? pondIds.join(',') : undefined,
+      },
+    });
+
+    return {
+      readings: response.data.readings.flatMap((row) => {
+        if (!row.pond_id || !row.timestamp) {
+          return [];
+        }
+        const parameters = normalizeSensorParameters(row.parameters);
+        return [{
+          pond_id: row.pond_id,
+          reading: {
+            type: 'reading',
+            timestamp: row.timestamp,
+            parameters,
+            alerts: row.alerts ?? [],
+          },
+        }];
+      }),
+    };
   }
 
   async getHistoricalData(
@@ -538,15 +678,64 @@ class ApiService {
   }
 
   // Treatments
-  async getTreatments(): Promise<Treatment[]> {
-    const response = await this.api.get<Treatment[]>('/api/treatments');
+  async getTreatments(projectId?: string): Promise<Treatment[]> {
+    const response = await this.api.get<Treatment[]>('/api/treatments/', {
+      params: projectId ? { project: projectId } : undefined,
+    });
     return response.data;
   }
 
+  async createTreatment(body: CreateTreatmentRequest): Promise<Treatment> {
+    const response = await this.api.post<Treatment>('/api/treatments/', body);
+    return response.data;
+  }
+
+  async updateTreatment(treatmentId: string, body: UpdateTreatmentRequest): Promise<Treatment> {
+    const response = await this.api.patch<Treatment>(`/api/treatments/${treatmentId}/`, body);
+    return response.data;
+  }
+
+  async deleteTreatment(treatmentId: string): Promise<void> {
+    await this.api.delete(`/api/treatments/${treatmentId}/`);
+  }
+
   async getPondTreatments(pondId: string): Promise<PondTreatment[]> {
-    const response = await this.api.get<PondTreatment[]>('/api/pond-treatments', {
+    const response = await this.api.get<PondTreatment[]>('/api/pond-treatments/', {
       params: { pond: pondId },
     });
+    return response.data;
+  }
+
+  async startPondTreatment(body: CreatePondTreatmentRequest): Promise<PondTreatment> {
+    const response = await this.api.post<PondTreatment>('/api/pond-treatments/', body);
+    return response.data;
+  }
+
+  async updatePondTreatment(
+    pondTreatmentId: string,
+    body: UpdatePondTreatmentRequest,
+  ): Promise<PondTreatment> {
+    const response = await this.api.patch<PondTreatment>(
+      `/api/pond-treatments/${pondTreatmentId}/`,
+      body,
+    );
+    return response.data;
+  }
+
+  async deletePondTreatment(pondTreatmentId: string): Promise<void> {
+    await this.api.delete(`/api/pond-treatments/${pondTreatmentId}/`);
+  }
+
+  async getTreatmentStability(
+    pondId: string,
+    courseIds: string[],
+  ): Promise<TreatmentStabilityResponse> {
+    const response = await this.api.get<TreatmentStabilityResponse>(
+      '/api/pond-treatments/stability/',
+      {
+        params: { pond: pondId, courses: courseIds.join(',') },
+      },
+    );
     return response.data;
   }
 
@@ -622,11 +811,7 @@ class ApiService {
     return response.data;
   }
 
-  /**
-   * The Apply call. Always returns 4 metrics + 4 charts in fixed order
-   * (ammonium, dissolved_oxygen, turbidity, electricity). Missing values
-   * come back as 0; no missingParameters array.
-   */
+  /** Apply a comparison. Omit parameters for treatment-derived/default selection. */
   async getPondComparison(args: {
     projectId: string;
     pondAId: string;
@@ -634,13 +819,89 @@ class ApiService {
     startDate: string;        // YYYY-MM-DD
     endDate: string;          // YYYY-MM-DD
     grouping?: 'auto' | 'hourly' | 'daily' | 'weekly' | 'monthly';
+    parameters?: string[];
   }): Promise<PondComparisonResponse> {
-    const { projectId, ...params } = args;
+    const { projectId, parameters, ...params } = args;
+    const requestParams: Record<string, string> = { grouping: 'auto', ...params };
+    if (parameters && parameters.length > 0) {
+      requestParams.parameters = parameters.join(',');
+    }
     const response = await this.api.get<PondComparisonResponse>(
       `/api/projects/${projectId}/pond-comparison`,
-      { params: { grouping: 'auto', ...params } },
+      { params: requestParams },
     );
     return response.data;
+  }
+
+  async getFeedingOptions(projectId: string): Promise<FeedingOptionsResponse> {
+    const response = await this.api.get<FeedingOptionsResponse>(
+      `/api/projects/${projectId}/feeding/options/`,
+    );
+    return response.data;
+  }
+
+  async getFeedTypes(projectId: string): Promise<FeedTypeRecord[]> {
+    const response = await this.api.get<FeedTypeRecord[]>('/api/feed-types/', {
+      params: { project: projectId },
+    });
+    return response.data;
+  }
+
+  async createFeedType(body: {
+    project: string;
+    name: string;
+    pack_kg: string;
+    pack_price: string;
+  }): Promise<FeedTypeRecord> {
+    const response = await this.api.post<FeedTypeRecord>('/api/feed-types/', body);
+    return response.data;
+  }
+
+  async updateFeedType(
+    feedTypeId: string,
+    body: Partial<{ name: string; pack_kg: string; pack_price: string; active: boolean }>,
+  ): Promise<FeedTypeRecord> {
+    const response = await this.api.patch<FeedTypeRecord>(
+      `/api/feed-types/${feedTypeId}/`,
+      body,
+    );
+    return response.data;
+  }
+
+  async deleteFeedType(feedTypeId: string): Promise<void> {
+    await this.api.delete(`/api/feed-types/${feedTypeId}/`);
+  }
+
+  async getFeedingDashboard(args: {
+    projectId: string;
+    cycleId: string;
+    compareId?: string | null;
+  }): Promise<FeedingDashboardResponse> {
+    const { projectId, cycleId, compareId } = args;
+    const response = await this.api.get<FeedingDashboardResponse>(
+      `/api/projects/${projectId}/feeding/dashboard/`,
+      { params: { cycle: cycleId, ...(compareId ? { compare: compareId } : {}) } },
+    );
+    return response.data;
+  }
+
+  async saveFeedDay(args: {
+    pondId: string;
+    date: string;
+    entries: FeedEntryWrite[];
+  }): Promise<void> {
+    await this.api.put(`/api/ponds/${args.pondId}/feed-days/${args.date}/`, {
+      entries: args.entries,
+    });
+  }
+
+  async saveCycleBiomass(args: {
+    cycleId: string;
+    stockingBiomassKg?: number | null;
+    harvestBiomassKg?: number | null;
+  }): Promise<void> {
+    const { cycleId, ...body } = args;
+    await this.api.patch(`/api/cycles/${cycleId}/biomass/`, body);
   }
 
   async getEnergyDashboard(args: {
@@ -655,6 +916,64 @@ class ApiService {
       { params },
     );
     return response.data;
+  }
+
+  async getEnergyAlerts(args: {
+    projectId: string;
+    all?: boolean;
+    startDate?: string;       // YYYY-MM-DD
+    endDate?: string;         // YYYY-MM-DD
+  }): Promise<{ alerts: Alert[] }> {
+    const { projectId, all, ...range } = args;
+    const response = await this.api.get<{ alerts: Alert[] }>('/api/alerts', {
+      params: {
+        projectId,
+        parameterPrefix: 'electricity',
+        ...(all ? { all: 'true', ...range } : {}),
+      },
+    });
+    return response.data;
+  }
+
+  async getEnergySettings(args: { projectId: string; type?: string }): Promise<EnergySettings> {
+    const { projectId, ...params } = args;
+    const response = await this.api.get<EnergySettings>(
+      `/api/projects/${projectId}/energy/settings/`,
+      { params },
+    );
+    return response.data;
+  }
+
+  async updateEnergySettings(args: {
+    projectId: string;
+    type?: string;
+    settings: EnergySettingsUpdate;
+  }): Promise<EnergySettings> {
+    const { projectId, type, settings } = args;
+    const response = await this.api.put<EnergySettings>(
+      `/api/projects/${projectId}/energy/settings/`,
+      settings,
+      { params: type ? { type } : undefined },
+    );
+    return response.data;
+  }
+
+  async downloadEnergyExport(args: {
+    projectId: string;
+    startDate?: string;       // YYYY-MM-DD
+    endDate?: string;         // YYYY-MM-DD
+  }): Promise<{ blob: Blob; filename: string }> {
+    const { projectId, ...params } = args;
+    const response = await this.api.get<Blob>(
+      `/api/projects/${projectId}/energy/export/`,
+      { params, responseType: 'blob' },
+    );
+    const disposition = String(response.headers['content-disposition'] ?? '');
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    return {
+      blob: response.data,
+      filename: match?.[1] ?? `energy_${params.startDate}_${params.endDate}.xlsx`,
+    };
   }
 
 
@@ -781,6 +1100,13 @@ class ApiService {
   async getProjectParameterSettings(projectId: string): Promise<ProjectParameterSetting[]> {
     const response = await this.api.get<ProjectParameterSetting[]>(
       `/api/projects/${projectId}/parameter-settings`,
+    );
+    return response.data;
+  }
+
+  async getProjectParameters(projectId: string): Promise<ProjectParameterOption[]> {
+    const response = await this.api.get<ProjectParameterOption[]>(
+      `/api/projects/${projectId}/parameters/`,
     );
     return response.data;
   }

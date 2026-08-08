@@ -97,6 +97,7 @@ public class AlertLog {
   public OffsetDateTime getTimestamp() { return timestamp; }
   public String getLogType() { return logType; }
   public String getMessage() { return message; }
+  public void setMessage(String message) { this.message = message; }
   public String getSeverity() { return severity; }
   public boolean isAcknowledged() { return acknowledged; }
   public void acknowledge(UUID userId, OffsetDateTime at) {
@@ -107,4 +108,7 @@ public class AlertLog {
   public boolean isResolved() { return resolved; }
   public String getParameter() { return parameter; }
   public OffsetDateTime getReadingTimestamp() { return readingTimestamp; }
+  public void setReadingTimestamp(OffsetDateTime readingTimestamp) {
+    this.readingTimestamp = readingTimestamp;
+  }
 }

@@ -28,11 +28,8 @@ flowchart LR
   Registry --> GitOps[Update GitOps Manifest]
   GitOps --> Summary[CI Evidence Summary]
 
-  Branch -->|performance-test branch| JMeterLoad[JMeter Load Test]
-  JMeterLoad --> LoadReport[Load Test Report]
-
-  Branch -->|performance-test branch| JMeterStress[JMeter Stress Test]
-  JMeterStress --> StressReport[Stress Test Report]
+  Branch -->|performance-test branch or manual dispatch| K6Perf[k6 Performance Evidence]
+  K6Perf --> PerfReport[k6 Summary JSON and CI Artifact]
 ```
 
 ## Workflow Checklist
@@ -52,8 +49,8 @@ flowchart LR
 | [ ] | `container-scan` | Image vulnerability result |
 | [ ] | `push-image` | Image pushed to Artifact Registry |
 | [ ] | `update-gitops-manifest` | Kustomize image tag updated |
-| [ ] | `jmeter-load-test` | Load test report on performance-test branch only |
-| [ ] | `jmeter-stress-test` | Stress test report on performance-test branch only |
+| [ ] | `k6-performance-test` | k6 summary JSON and report artifact from performance-test branch or manual dispatch |
+| [ ] | `pubsub-backlog-drain` | Ingestion backlog drain evidence when the deployed target is ready |
 | [ ] | `post-build-summary` | Build evidence summary |
 
 ## Path Filter Checklist
@@ -80,21 +77,23 @@ flowchart LR
 |---|---|---|
 | [ ] | `main` or protected integration branch | Normal CI, image build, security scan, GitOps handoff |
 | [ ] | `feature/*` | Changed-service lint/test/contract/security checks |
-| [ ] | `performance-test` | Run JMeter load and stress tests only when explicitly pushed or manually dispatched |
-| [ ] | Manual workflow dispatch | Allow controlled JMeter runs without blocking daily development |
+| [ ] | `performance-test` | Run k6 performance scenarios only when explicitly pushed or manually dispatched |
+| [ ] | Manual workflow dispatch | Allow controlled k6 runs without blocking daily development |
 
-## JMeter Load And Stress Test Checklist
+## k6 Load, Stress, And Growth Test Checklist
 
 | Status | Task | Output |
 |---|---|---|
-| [ ] | Store JMeter test plans | `jmeter/*.jmx` |
-| [ ] | Parameterize base URL, users, ramp-up, duration | Reusable test plans |
-| [ ] | Run load test from `performance-test` branch | Normal expected-traffic result |
-| [ ] | Run stress test from `performance-test` branch | Breaking-point or saturation result |
-| [ ] | Upload JMeter `.jtl` result | Raw performance evidence |
-| [ ] | Generate HTML report | Human-readable report artifact |
+| [ ] | Store k6 scripts | `loadtests/k6/*.js` |
+| [ ] | Parameterize base URL, users, ramp-up, hold, duration, and scenario | Reusable k6 scripts |
+| [ ] | Run busy-day load test from `performance-test` branch or manual dispatch | Normal expected-traffic result |
+| [ ] | Run endpoint herd tests from `performance-test` branch or manual dispatch | Focused endpoint saturation result |
+| [ ] | Run growth probe against approved data volumes | Query scaling result |
+| [ ] | Run WebSocket fanout test | Realtime connection evidence |
+| [ ] | Upload k6 summary JSON result | Raw performance evidence |
+| [ ] | Generate Markdown summary | Human-readable report artifact |
 | [ ] | Record throughput, p95, p99, error rate | Performance summary |
-| [ ] | Keep JMeter jobs out of normal service CI | Fast daily CI |
+| [ ] | Keep k6 jobs out of normal service CI | Fast daily CI |
 
 ## Service Build Matrix
 
@@ -131,15 +130,15 @@ flowchart LR
 | [ ] | Scan output | SAST/SCA/container scan visible |
 | [ ] | GitOps manifest commit | Only Identity image tag changed |
 | [ ] | CI summary artifact | Pipeline result captured |
-| [ ] | JMeter load report | Captured from `performance-test` branch |
-| [ ] | JMeter stress report | Captured from `performance-test` branch |
+| [ ] | k6 local performance report | Captured from Docker Compose rehearsal |
+| [ ] | k6 cloud-native performance report | Captured from Kubernetes Job or GitHub Actions runner |
 
 ## Considerations
 
 | Topic | Guidance |
 |---|---|
 | Artifact Registry | CI still owns image build, image scan, and image push to GCP Artifact Registry. Argo CD deploys the image referenced by the GitOps manifest. |
-| Load and stress tests | JMeter load and stress tests are intentionally separated from normal CI because they are slow and resource-intensive. |
+| Load and stress tests | k6 performance scenarios are intentionally separated from normal CI because they are slow and resource-intensive. |
 | Branch isolation | Use one `performance-test` branch or manual workflow dispatch so performance jobs do not block normal feature/service pipelines. |
-| Evidence | Keep JMeter raw `.jtl`, generated HTML report, and summary metrics as CI artifacts for the final report and demo evidence. |
-| Deployment target | Run JMeter against a deployed dev/staging environment, not against unit-test containers inside the CI runner. |
+| Evidence | Keep k6 summary JSON, generated Markdown summaries, and key metrics as CI artifacts for the final report and demo evidence. |
+| Deployment target | Run k6 against a deployed dev/staging environment, not against unit-test containers inside the CI runner. |

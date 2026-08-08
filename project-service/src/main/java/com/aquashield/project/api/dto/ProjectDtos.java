@@ -130,6 +130,19 @@ public final class ProjectDtos {
       @JsonProperty("max_threshold") Double maxThreshold,
       @JsonProperty("is_key_parameter") Boolean isKeyParameter) {}
 
+  public record ProjectParameterDto(
+      String code,
+      String name,
+      String unit,
+      boolean hasLimits) {
+
+    public static ProjectParameterDto from(ProjectParameterSetting s) {
+      return new ProjectParameterDto(s.getParameter().getParameterCode(),
+          s.getParameter().getParameterName(), s.getParameter().getUnit(),
+          s.getMinThreshold() != null || s.getMaxThreshold() != null);
+    }
+  }
+
   // ---------- energy (camelCase) ----------
 
   public record EnergySettingsDto(

@@ -84,7 +84,7 @@ interface ProjectSubscription {
 class WebSocketService {
   private socket: WebSocket | null = null;
   private pondSubscriptions: Map<string, PondSubscription> = new Map();
-  private projectSubscriptions: Map<string, ProjectSubscription> = new Map();
+  private projectSubscriptions: Map<string, Set<ProjectSubscription>> = new Map();
   private maxReconnectAttempts = 5;
   private reconnectAttempts = 0;
   private reconnectDelay = 3000;
@@ -137,13 +137,26 @@ class WebSocketService {
     onUpdate: ProjectCallback,
     onError?: ErrorCallback
   ): () => void {
-    this.projectSubscriptions.set(projectId, { onUpdate, onError });
+    const subscription = { onUpdate, onError };
+    const subscriptions = this.projectSubscriptions.get(projectId) ?? new Set<ProjectSubscription>();
+    subscriptions.add(subscription);
+    this.projectSubscriptions.set(projectId, subscriptions);
     void this.ensureGatewayConnection();
-    return () => this.disconnectFromProject(projectId);
+    return () => this.disconnectProjectSubscription(projectId, subscription);
   }
 
   disconnectFromProject(projectId: string): void {
     this.projectSubscriptions.delete(projectId);
+    this.closeIfUnused();
+  }
+
+  private disconnectProjectSubscription(projectId: string, subscription: ProjectSubscription): void {
+    const subscriptions = this.projectSubscriptions.get(projectId);
+    if (!subscriptions) return;
+    subscriptions.delete(subscription);
+    if (subscriptions.size === 0) {
+      this.projectSubscriptions.delete(projectId);
+    }
     this.closeIfUnused();
   }
 
@@ -305,12 +318,16 @@ class WebSocketService {
   private dispatchProjectFrame(message: WebSocketMessage): void {
     const projectId = message.project_id;
     if (projectId) {
-      this.projectSubscriptions.get(projectId)?.onUpdate(message);
+      for (const subscription of this.projectSubscriptions.get(projectId) ?? []) {
+        subscription.onUpdate(message);
+      }
       return;
     }
 
-    for (const subscription of this.projectSubscriptions.values()) {
-      subscription.onUpdate(message);
+    for (const subscriptions of this.projectSubscriptions.values()) {
+      for (const subscription of subscriptions) {
+        subscription.onUpdate(message);
+      }
     }
   }
 
@@ -362,8 +379,10 @@ class WebSocketService {
     for (const subscription of this.pondSubscriptions.values()) {
       subscription.onError?.(error);
     }
-    for (const subscription of this.projectSubscriptions.values()) {
-      subscription.onError?.(error);
+    for (const subscriptions of this.projectSubscriptions.values()) {
+      for (const subscription of subscriptions) {
+        subscription.onError?.(error);
+      }
     }
   }
 

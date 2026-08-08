@@ -3,9 +3,9 @@
  *
  * User-management forms (Part 3):
  * - onboardFormSchema             — POST /api/users
- * - profileUpdateSchema           — PUT  /api/auth/profile (self)
+ * - profileUpdateSchema           — PATCH /api/auth/me (self)
  * - updateUserAccessSchema        — PUT  /api/users/{id}/access (projects + access only)
- * - adminUpdateUserProfileSchema  — PUT  /api/users/{id}/profile (admin edits other)
+ * - adminUpdateUserProfileSchema  — PATCH /api/users/{id} (admin edits other)
  */
 import { z } from "zod";
 
@@ -112,7 +112,7 @@ export type OnboardFormValues = z.infer<typeof onboardFormSchema>;
 
 // ---------------------------------------------------------------------------
 // Profile Update — user updates their own profile
-// Used by: ProfilePage / ProfileDropdown → PUT /api/auth/profile
+// Used by: ProfilePage / ProfileDropdown → PATCH /api/auth/me
 // All fields optional — backend supports partial updates.
 // ---------------------------------------------------------------------------
 
@@ -153,7 +153,7 @@ export type UpdateUserAccessValues = z.infer<typeof updateUserAccessSchema>;
 // ---------------------------------------------------------------------------
 // Admin Update User Profile — admin edits another user's firstName/lastName/
 // mobileNumber/role. Distinct from profileUpdateSchema (which is the self-
-// update path). Phase 4 new endpoint: PUT /api/users/{id}/profile.
+// update path). Admin endpoint: PATCH /api/users/{id}.
 // ---------------------------------------------------------------------------
 
 export const adminUpdateUserProfileSchema = z.object({

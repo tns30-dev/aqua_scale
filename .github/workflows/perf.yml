@@ -1,8 +1,11 @@
-# JMeter load/stress lane — DELIBERATELY separated from daily CI (spec: main/ci.md):
-# slow, resource-hungry, and must target a DEPLOYED environment, never CI containers.
-# Triggers: the dedicated performance-test branch, or manual dispatch with a target URL.
+# k6 performance evidence lane.
+#
+# Deliberately separated from daily CI: it targets a deployed microservice
+# environment through the public/internal gateway, never disposable CI containers.
+# Timing is evidence, not a normal PR gate. Deterministic failures still fail:
+# failed requests, missing auth, or broken WebSocket upgrades.
 
-name: Performance Test Evidence - JMeter
+name: Performance Test Evidence - k6
 
 on:
   push:
@@ -11,49 +14,106 @@ on:
     inputs:
       base_url:
         description: Target base URL (deployed dev/staging)
-        required: true
+        required: false
+      ws_url:
+        description: WebSocket URL, defaults from base_url
+        required: false
+      scenario:
+        description: busy-day, herd, websocket, or growth
+        default: busy-day
       users:
         description: Concurrent users
         default: '50'
       duration:
-        description: Test duration seconds
-        default: '120'
+        description: k6 duration for herd/websocket, for example 2m
+        default: '2m'
+      herd_target:
+        description: summary, comparison, alerts, energy, or charts
+        default: summary
+      runs:
+        description: Growth-probe iterations
+        default: '20'
 
 permissions:
   contents: read
 
 jobs:
-  jmeter:
-    name: JMeter Load Test
+  k6:
+    name: k6 ${{ inputs.scenario || 'busy-day' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check JMeter test plans
-        id: plans
+
+      - name: Resolve target
+        id: target
         run: |
-          if ls jmeter/*.jmx >/dev/null 2>&1; then
-            echo "found=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::No JMeter plans in jmeter/ yet — lane is wired, plans pending (tracked)."
+          BASE_URL="${{ inputs.base_url || vars.PERF_BASE_URL }}"
+          if [ -z "$BASE_URL" ]; then
+            echo "::error::Set workflow input base_url or repository variable PERF_BASE_URL."
+            exit 1
           fi
-      - name: Run JMeter load test
-        if: steps.plans.outputs.found == 'true'
+          echo "base_url=$BASE_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Run k6
+        env:
+          BASE_URL: ${{ steps.target.outputs.base_url }}
+          WS_URL: ${{ inputs.ws_url }}
+          SCENARIO: ${{ inputs.scenario || 'busy-day' }}
+          VUS: ${{ inputs.users || '50' }}
+          DURATION: ${{ inputs.duration || '2m' }}
+          HERD_TARGET: ${{ inputs.herd_target || 'summary' }}
+          RUNS: ${{ inputs.runs || '20' }}
+          LOADTEST_EMAIL: ${{ secrets.LOADTEST_EMAIL }}
+          LOADTEST_EMAIL_TEMPLATE: ${{ secrets.LOADTEST_EMAIL_TEMPLATE }}
+          LOADTEST_ACCOUNT_COUNT: ${{ vars.LOADTEST_ACCOUNT_COUNT || '50' }}
+          LOADTEST_PASSWORD: ${{ secrets.LOADTEST_PASSWORD }}
         run: |
-          sudo apt-get update -q && sudo apt-get install -yq jmeter
-          mkdir -p results
-          for plan in jmeter/*.jmx; do
-            name=$(basename "$plan" .jmx)
-            jmeter -n -t "$plan" \
-              -JbaseUrl="${{ inputs.base_url }}" \
-              -Jusers="${{ inputs.users || '50' }}" \
-              -Jduration="${{ inputs.duration || '120' }}" \
-              -l "results/${name}.jtl" -e -o "results/${name}-report"
-          done
+          mkdir -p loadtests/results
+
+          case "$SCENARIO" in
+            busy-day)
+              SCRIPT=loadtests/k6/busy-day.js
+              EXPORT=loadtests/results/k6-busy-day-summary.json
+              EXTRA=(-e "HOLD=${DURATION}")
+              ;;
+            herd)
+              SCRIPT=loadtests/k6/thundering-herd.js
+              EXPORT=loadtests/results/k6-herd-${HERD_TARGET}-summary.json
+              EXTRA=(-e "HERD_TARGET=${HERD_TARGET}" -e "DURATION=${DURATION}")
+              ;;
+            websocket)
+              SCRIPT=loadtests/k6/websocket-fanout.js
+              EXPORT=loadtests/results/k6-websocket-summary.json
+              EXTRA=(-e "DURATION=${DURATION}")
+              ;;
+            growth)
+              SCRIPT=loadtests/k6/growth-probe.js
+              EXPORT=loadtests/results/k6-growth-summary.json
+              EXTRA=(-e "RUNS=${RUNS}")
+              ;;
+            *)
+              echo "::error::Unknown scenario: ${SCENARIO}"
+              exit 1
+              ;;
+          esac
+
+          docker run --rm \
+            -v "$PWD:/work" -w /work \
+            -e "BASE_URL=${BASE_URL}" \
+            -e "WS_URL=${WS_URL}" \
+            -e "VUS=${VUS}" \
+            -e "LOADTEST_EMAIL=${LOADTEST_EMAIL}" \
+            -e "LOADTEST_EMAIL_TEMPLATE=${LOADTEST_EMAIL_TEMPLATE}" \
+            -e "LOADTEST_ACCOUNT_COUNT=${LOADTEST_ACCOUNT_COUNT}" \
+            -e "LOADTEST_PASSWORD=${LOADTEST_PASSWORD}" \
+            "${EXTRA[@]}" \
+            grafana/k6:0.54.0 run "$SCRIPT" --summary-export "$EXPORT"
+
       - name: Publish performance evidence
-        if: steps.plans.outputs.found == 'true'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Performance Evidence - JMeter Report
-          path: results/
+          name: performance-evidence-k6-${{ inputs.scenario || 'busy-day' }}
+          path: loadtests/results/
           retention-days: 30
+          if-no-files-found: ignore

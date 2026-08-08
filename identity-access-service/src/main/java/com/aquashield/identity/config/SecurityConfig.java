@@ -16,8 +16,8 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * Stateless bearer-JWT security. Public: login, refresh, health probes.
- * Everything else requires a valid (non-revoked) access token.
+ * Stateless JWT security. Browser clients use HttpOnly cookies plus CSRF;
+ * scripts and load tools can continue to send Authorization: Bearer.
  */
 @Configuration
 @EnableWebSecurity
@@ -28,12 +28,12 @@ public class SecurityConfig {
   SecurityFilterChain filterChain(HttpSecurity http, TokenService tokens,
                                   TokenRevocationService revocations) throws Exception {
     http
-        .csrf(csrf -> csrf.disable()) // bearer model: no cookies -> no CSRF surface
+        .csrf(csrf -> csrf.disable()) // CSRF is enforced only for cookie-auth requests.
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(auth -> auth
             // error dispatch must pass or 403s get rewritten to 401 by the entry point
             .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
-            .requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
+            .requestMatchers("/api/csrf", "/api/auth/login", "/api/auth/refresh").permitAll()
             .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
             .anyRequest().authenticated())
         .exceptionHandling(e -> e.authenticationEntryPoint(

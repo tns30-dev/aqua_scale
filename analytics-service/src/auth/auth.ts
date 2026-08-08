@@ -79,6 +79,46 @@ export async function loadSnapshot(
   }
 }
 
+type AuthToken = { token: string; fromCookie: boolean };
+
+export function cookieValue(cookieHeader: string | undefined, name: string): string | null {
+  if (!cookieHeader) return null;
+  const prefix = `${name}=`;
+  for (const part of cookieHeader.split(';')) {
+    const cookie = part.trim();
+    if (cookie.startsWith(prefix)) {
+      const value = cookie.slice(prefix.length).trim();
+      if (!value) return null;
+      try {
+        return decodeURIComponent(value);
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+function bearerOrCookie(req: Request): AuthToken | null {
+  const header = req.headers.authorization;
+  if (header?.startsWith('Bearer ')) {
+    const token = header.slice(7).trim();
+    return token ? { token, fromCookie: false } : null;
+  }
+  const cookieToken = cookieValue(req.headers.cookie, 'access_token');
+  return cookieToken ? { token: cookieToken, fromCookie: true } : null;
+}
+
+function unsafeMethod(method: string): boolean {
+  return !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method.toUpperCase());
+}
+
+function csrfMatches(req: Request): boolean {
+  const header = req.header('X-CSRFToken') ?? req.header('X-CSRF-Token');
+  const cookie = cookieValue(req.headers.cookie, 'csrftoken');
+  return !!header && !!cookie && header === cookie;
+}
+
 declare module 'express-serve-static-core' {
   interface Request {
     principal?: Principal;
@@ -87,13 +127,17 @@ declare module 'express-serve-static-core' {
 
 export function authMiddleware(verifier: JwtVerifier, kv: KV) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const header = req.headers.authorization;
-    if (!header || !header.startsWith('Bearer ')) {
+    const authToken = bearerOrCookie(req);
+    if (!authToken) {
       res.status(401).json({ detail: 'Authentication credentials were not provided.' });
       return;
     }
+    if (authToken.fromCookie && unsafeMethod(req.method) && !csrfMatches(req)) {
+      res.status(403).json({ detail: 'CSRF verification failed.' });
+      return;
+    }
     try {
-      const claims = await verifier.verify(header.substring(7));
+      const claims = await verifier.verify(authToken.token);
       const snapshot = await loadSnapshot(kv, claims.sub, claims.authzVersion);
       if (snapshot === null) {
         // fail closed: client refreshes (Identity rebuilds the snapshot) and retries

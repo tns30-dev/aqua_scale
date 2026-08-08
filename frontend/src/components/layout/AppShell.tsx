@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { TopNav } from './TopNav';
+import { AlertCenter } from '../alerts/AlertCenter';
 
 interface AppShellProps {
   children: ReactNode;
@@ -16,6 +17,8 @@ export function AppShell({ children }: AppShellProps) {
       <div className="flex min-h-dvh flex-col md:pl-64">
         {/* Top Navigation (UNCHANGED) */}
         <TopNav />
+
+        <AlertCenter />
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto">{children}</main>

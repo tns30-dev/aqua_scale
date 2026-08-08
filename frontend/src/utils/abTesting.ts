@@ -22,7 +22,7 @@ export interface ChangeResult {
 export function calculateChange(
   pondAValue: number,
   pondBValue: number,
-  lowerIsBetter: boolean,
+  lowerIsBetter: boolean | null,
   unit: string,
 ): ChangeResult {
   if (pondBValue === 0) return { text: "No comparison", type: "neutral" };
@@ -38,6 +38,12 @@ export function calculateChange(
   const direction = isLower ? "lower" : "higher";
   const arrow = isLower ? "v" : "^";
   const sign = isLower ? "-" : "+";
+  if (lowerIsBetter === null) {
+    return {
+      text: `${arrow} ${absPercent}% ${direction} (${sign}${absDiff} ${unit})`,
+      type: "neutral",
+    };
+  }
   const isGood = lowerIsBetter ? isLower : !isLower;
 
   return {

@@ -1,8 +1,10 @@
 package com.aquashield.project.grpc;
 
 import com.aquashield.api.project.v1.ChartConfigEntry;
+import com.aquashield.api.project.v1.EnergySettings;
 import com.aquashield.api.project.v1.GetChartConfigRequest;
 import com.aquashield.api.project.v1.GetChartConfigResponse;
+import com.aquashield.api.project.v1.GetEnergySettingsRequest;
 import com.aquashield.api.project.v1.GetParameterCatalogueRequest;
 import com.aquashield.api.project.v1.GetParameterCatalogueResponse;
 import com.aquashield.api.project.v1.GetParameterSettingsRequest;
@@ -18,6 +20,7 @@ import com.aquashield.api.project.v1.ValidateProjectAccessRequest;
 import com.aquashield.api.project.v1.ValidateProjectAccessResponse;
 import com.aquashield.project.repo.Repositories.ParameterTypeRepository;
 import com.aquashield.project.repo.Repositories.ProfileTypeRepository;
+import com.aquashield.project.repo.Repositories.ProjectEnergySettingRepository;
 import com.aquashield.project.repo.Repositories.ProjectParameterSettingRepository;
 import com.aquashield.project.repo.Repositories.ProjectRepository;
 import com.aquashield.project.repo.Repositories.ProjectVisualisationRepository;
@@ -41,16 +44,19 @@ public class ProjectGrpcService extends ProjectServiceGrpc.ProjectServiceImplBas
   private final ProfileTypeRepository profileTypes;
   private final ParameterTypeRepository parameterTypes;
   private final ProjectParameterSettingRepository settings;
+  private final ProjectEnergySettingRepository energySettings;
   private final ProjectVisualisationRepository visualisations;
 
   public ProjectGrpcService(ProjectRepository projects, ProfileTypeRepository profileTypes,
                             ParameterTypeRepository parameterTypes,
                             ProjectParameterSettingRepository settings,
+                            ProjectEnergySettingRepository energySettings,
                             ProjectVisualisationRepository visualisations) {
     this.projects = projects;
     this.profileTypes = profileTypes;
     this.parameterTypes = parameterTypes;
     this.settings = settings;
+    this.energySettings = energySettings;
     this.visualisations = visualisations;
   }
 
@@ -199,6 +205,40 @@ public class ProjectGrpcService extends ProjectServiceGrpc.ProjectServiceImplBas
       }
       resp.addCharts(entry);
     }
+    observer.onNext(resp.build());
+    observer.onCompleted();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public void getEnergySettings(GetEnergySettingsRequest request,
+                                StreamObserver<EnergySettings> observer) {
+    UUID id = parseUuid(request.getProjectId(), observer);
+    if (id == null) {
+      return;
+    }
+    String type = request.getType().isBlank() ? "electricity" : request.getType();
+    EnergySettings.Builder resp = EnergySettings.newBuilder()
+        .setProjectId(request.getProjectId())
+        .setType(type)
+        .setUnit("kWh")
+        .setTariffPerUnit(0.0)
+        .setCurrency("USD")
+        .setExists(false);
+    energySettings.findByProjectIdAndType(id, type).ifPresent(s -> {
+      resp.setUnit(nullSafe(s.getUnit()))
+          .setTariffPerUnit(s.getTariffPerUnit().doubleValue())
+          .setCurrency(nullSafe(s.getCurrency()))
+          .setExists(true);
+      if (s.getHighHourlyThreshold() != null) {
+        resp.setHasHighHourlyThreshold(true)
+            .setHighHourlyThreshold(s.getHighHourlyThreshold().doubleValue());
+      }
+      if (s.getHighDailyThreshold() != null) {
+        resp.setHasHighDailyThreshold(true)
+            .setHighDailyThreshold(s.getHighDailyThreshold().doubleValue());
+      }
+    });
     observer.onNext(resp.build());
     observer.onCompleted();
   }

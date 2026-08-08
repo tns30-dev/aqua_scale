@@ -10,8 +10,11 @@ import com.aquashield.api.sensor.v1.GetDeviceValidationMetadataRequest;
 import com.aquashield.api.sensor.v1.ResolveDevicePortRequest;
 import com.aquashield.api.sensor.v1.SensorServiceGrpc;
 import com.aquashield.common.security.PayloadHmac;
+import com.aquashield.ingestion.domain.Entities.SensorMessage;
+import com.aquashield.ingestion.domain.Entities.SensorReadingRow;
 import com.aquashield.ingestion.repo.Repos.SensorMessageRepository;
 import com.aquashield.ingestion.repo.Repos.SensorReadingRepository;
+import com.aquashield.ingestion.service.ReadingStore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -53,6 +56,7 @@ import org.testcontainers.utility.DockerImageName;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -204,6 +208,7 @@ class IngestionIT {
   @Autowired ObjectMapper json;
   @Autowired SensorMessageRepository messages;
   @Autowired SensorReadingRepository readings;
+  @Autowired ReadingStore store;
 
   // ---------- helpers ----------
 
@@ -412,6 +417,92 @@ class IngestionIT {
           .addParameters("ph")
           .build());
       assertThat(filtered.getRows(0).getValuesMap()).containsOnlyKeys("ph");
+
+      ObjectNode electricityA = json.createObjectNode().put("electricity", 1.5);
+      ObjectNode electricityB = json.createObjectNode().put("electricity", 1.0);
+      ObjectNode electricityNextHour = json.createObjectNode().put("electricity", 0.5);
+      store.persist(DEVICE_ID, DEVICE, 10_000,
+          json.createObjectNode().put("fixture", "energy-hourly-a"),
+          OffsetDateTime.parse("2026-06-03T06:00:00Z"),
+          List.of(new ReadingStore.Row(PROJECT_ID, POND_ID, MAPPING_ID, "A1", electricityA)));
+      store.persist(DEVICE_ID, DEVICE, 10_001,
+          json.createObjectNode().put("fixture", "energy-hourly-b"),
+          OffsetDateTime.parse("2026-06-03T06:20:00Z"),
+          List.of(new ReadingStore.Row(PROJECT_ID, POND_ID, MAPPING_ID, "A1", electricityB)));
+      store.persist(DEVICE_ID, DEVICE, 10_002,
+          json.createObjectNode().put("fixture", "energy-hourly-next"),
+          OffsetDateTime.parse("2026-06-03T08:00:00Z"),
+          List.of(new ReadingStore.Row(PROJECT_ID, POND_ID, MAPPING_ID, "A1", electricityNextHour)));
+
+      var hourly = stub.getEnergyHourlyReadings(
+          com.aquashield.api.ingestion.v1.GetEnergyHourlyReadingsRequest.newBuilder()
+              .setProjectId(PROJECT_ID.toString())
+              .setStart("2026-06-03T00:00:00Z")
+              .setEnd("2026-06-03T23:59:59Z")
+              .setTimezone("Asia/Singapore")
+              .build());
+      assertThat(hourly.getRowsList())
+          .extracting(
+              com.aquashield.api.ingestion.v1.EnergyHourlyReading::getHourStart,
+              com.aquashield.api.ingestion.v1.EnergyHourlyReading::getKwh)
+          .containsExactly(
+              org.assertj.core.groups.Tuple.tuple("2026-06-03T06:00:00Z", 2.5),
+              org.assertj.core.groups.Tuple.tuple("2026-06-03T08:00:00Z", 0.5));
+
+      var bucketed = stub.getPondParameterBucketAverages(
+          com.aquashield.api.ingestion.v1.GetPondParameterBucketAveragesRequest.newBuilder()
+              .setPondId(POND_ID.toString())
+              .setStart("2026-06-03T00:00:00Z")
+              .setEnd("2026-06-03T23:59:59Z")
+              .setTimezone("Asia/Singapore")
+              .setGrouping("hourly")
+              .addParameters("electricity")
+              .build());
+      assertThat(bucketed.getRowsList())
+          .extracting(
+              com.aquashield.api.ingestion.v1.PondParameterBucketAverage::getParameter,
+              com.aquashield.api.ingestion.v1.PondParameterBucketAverage::getBucketStart,
+              com.aquashield.api.ingestion.v1.PondParameterBucketAverage::getAverage,
+              com.aquashield.api.ingestion.v1.PondParameterBucketAverage::getSampleCount)
+          .containsExactly(
+              org.assertj.core.groups.Tuple.tuple("electricity", "2026-06-03T06:00:00Z", 1.25, 2L),
+              org.assertj.core.groups.Tuple.tuple("electricity", "2026-06-03T08:00:00Z", 0.5, 1L));
+
+      ObjectNode commonA = json.createObjectNode()
+          .put("ammonia", 0.5)
+          .put("dissolved_oxygen", 5.0)
+          .put("alkalinity", 100.0);
+      ObjectNode commonB = json.createObjectNode()
+          .put("ammonia", 1.5)
+          .put("alkalinity", 120.0);
+      UUID commonMessageId = messages.save(new SensorMessage(DEVICE_ID, DEVICE, 10_003,
+          json.createObjectNode().put("fixture", "comparison-buckets"))).getSensorMessageId();
+      readings.save(new SensorReadingRow(commonMessageId, PROJECT_ID, POND_ID, MAPPING_ID,
+          "A1", OffsetDateTime.parse("2026-06-04T06:00:00Z"), commonA));
+      readings.save(new SensorReadingRow(commonMessageId, PROJECT_ID, POND_ID, MAPPING_ID,
+          "A1", OffsetDateTime.parse("2026-06-04T06:30:00Z"), commonB));
+
+      var commonBucketed = stub.getPondParameterBucketAverages(
+          com.aquashield.api.ingestion.v1.GetPondParameterBucketAveragesRequest.newBuilder()
+              .setPondId(POND_ID.toString())
+              .setStart("2026-06-04T00:00:00Z")
+              .setEnd("2026-06-04T23:59:59Z")
+              .setTimezone("Asia/Singapore")
+              .setGrouping("hourly")
+              .addParameters("ammonia")
+              .addParameters("dissolved_oxygen")
+              .addParameters("alkalinity")
+              .build());
+      assertThat(commonBucketed.getRowsList())
+          .extracting(
+              com.aquashield.api.ingestion.v1.PondParameterBucketAverage::getParameter,
+              com.aquashield.api.ingestion.v1.PondParameterBucketAverage::getBucketStart,
+              com.aquashield.api.ingestion.v1.PondParameterBucketAverage::getAverage,
+              com.aquashield.api.ingestion.v1.PondParameterBucketAverage::getSampleCount)
+          .containsExactly(
+              org.assertj.core.groups.Tuple.tuple("ammonia", "2026-06-04T06:00:00Z", 1.0, 2L),
+              org.assertj.core.groups.Tuple.tuple("dissolved_oxygen", "2026-06-04T06:00:00Z", 5.0, 1L),
+              org.assertj.core.groups.Tuple.tuple("alkalinity", "2026-06-04T06:00:00Z", 110.0, 2L));
 
       // invalid args -> INVALID_ARGUMENT
       org.assertj.core.api.Assertions.assertThatThrownBy(() ->

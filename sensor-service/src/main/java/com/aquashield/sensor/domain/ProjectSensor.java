@@ -37,7 +37,7 @@ public class ProjectSensor {
   @Column(name = "project_id", nullable = false)
   private UUID projectId;
 
-  @Column(name = "pond_id", nullable = false)
+  @Column(name = "pond_id")
   private UUID pondId;
 
   @ManyToOne(fetch = FetchType.EAGER, optional = false)

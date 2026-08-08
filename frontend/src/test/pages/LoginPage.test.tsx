@@ -130,7 +130,7 @@ describe("LoginPage", () => {
     it("renders login form with email and password inputs", () => {
       render(<LoginPage />);
       expect(
-        screen.getByPlaceholderText("demo@aquaculture.com"),
+        screen.getByPlaceholderText("admin@aquashield.local"),
       ).toBeInTheDocument();
       expect(
         screen.getByPlaceholderText("Enter your password"),
@@ -179,7 +179,7 @@ describe("LoginPage", () => {
     it("does not submit when password is empty", async () => {
       render(<LoginPage />);
       await userEvent.type(
-        screen.getByPlaceholderText("demo@aquaculture.com"),
+        screen.getByPlaceholderText("admin@aquashield.local"),
         "test@example.com",
       );
       await userEvent.click(
@@ -199,7 +199,7 @@ describe("LoginPage", () => {
     it("calls useAuth.login with the entered credentials", async () => {
       render(<LoginPage />);
       await userEvent.type(
-        screen.getByPlaceholderText("demo@aquaculture.com"),
+        screen.getByPlaceholderText("admin@aquashield.local"),
         "demo@aquaculture.com",
       );
       await userEvent.type(
@@ -220,7 +220,7 @@ describe("LoginPage", () => {
     it("sets theme from the first project's profileType", async () => {
       render(<LoginPage />);
       await userEvent.type(
-        screen.getByPlaceholderText("demo@aquaculture.com"),
+        screen.getByPlaceholderText("admin@aquashield.local"),
         "demo@aquaculture.com",
       );
       await userEvent.type(
@@ -238,7 +238,7 @@ describe("LoginPage", () => {
     it("does NOT write projects to localStorage (Phase 6.5 moved session to context + HttpOnly cookies)", async () => {
       render(<LoginPage />);
       await userEvent.type(
-        screen.getByPlaceholderText("demo@aquaculture.com"),
+        screen.getByPlaceholderText("admin@aquashield.local"),
         "demo@aquaculture.com",
       );
       await userEvent.type(
@@ -268,7 +268,7 @@ describe("LoginPage", () => {
     it("navigates to /overview by default after a short delay", async () => {
       render(<LoginPage />);
       await userEvent.type(
-        screen.getByPlaceholderText("demo@aquaculture.com"),
+        screen.getByPlaceholderText("admin@aquashield.local"),
         "demo@aquaculture.com",
       );
       await userEvent.type(
@@ -292,7 +292,7 @@ describe("LoginPage", () => {
       );
       render(<LoginPage />);
       await userEvent.type(
-        screen.getByPlaceholderText("demo@aquaculture.com"),
+        screen.getByPlaceholderText("admin@aquashield.local"),
         "demo@aquaculture.com",
       );
       await userEvent.type(
@@ -325,7 +325,7 @@ describe("LoginPage", () => {
 
       render(<LoginPage />);
       await userEvent.type(
-        screen.getByPlaceholderText("demo@aquaculture.com"),
+        screen.getByPlaceholderText("admin@aquashield.local"),
         "wrong@example.com",
       );
       await userEvent.type(

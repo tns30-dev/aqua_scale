@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { http, HttpResponse } from "msw";
 
 import { apiService } from "../../services/api.service";
-import { setAuthTokens } from "../../utils/auth";
 import { server } from "../msw/server";
 import {
   ADMIN_SENTINEL,
@@ -17,6 +16,7 @@ import {
 
 beforeEach(() => {
   sessionStorage.clear();
+  document.cookie = "csrftoken=test-csrf-token; path=/";
 });
 
 describe("apiService — session bootstrap", () => {
@@ -341,13 +341,14 @@ describe("apiService — analytics and historical adapters", () => {
   });
 });
 
-describe("apiService — bearer auth interceptor", () => {
-  it("attaches Authorization header on POST when an access token exists", async () => {
-    setAuthTokens("test-access-token", "test-refresh-token");
-    let captured: string | null = null;
+describe("apiService — cookie auth interceptor", () => {
+  it("attaches X-CSRFToken on unsafe POST and does not attach Authorization", async () => {
+    let csrf: string | null = null;
+    let authorization: string | null = null;
     server.use(
       http.post("*/api/users", ({ request }) => {
-        captured = request.headers.get("Authorization");
+        csrf = request.headers.get("X-CSRFToken");
+        authorization = request.headers.get("Authorization");
         return HttpResponse.json(mockOnboardResponse, { status: 201 });
       }),
     );
@@ -359,34 +360,40 @@ describe("apiService — bearer auth interceptor", () => {
       role: "user",
       projectIds: [],
     });
-    expect(captured).toBe("Bearer test-access-token");
+    expect(csrf).toBe("test-csrf-token");
+    expect(authorization).toBeNull();
   });
 
-  it("attaches Authorization header on PUT when an access token exists", async () => {
-    setAuthTokens("test-access-token", "test-refresh-token");
-    let captured: string | null = null;
+  it("attaches X-CSRFToken on unsafe PUT and does not attach Authorization", async () => {
+    let csrf: string | null = null;
+    let authorization: string | null = null;
     server.use(
       http.put("*/api/users/:userId/access", ({ request }) => {
-        captured = request.headers.get("Authorization");
+        csrf = request.headers.get("X-CSRFToken");
+        authorization = request.headers.get("Authorization");
         return HttpResponse.json(mockUserAccess);
       }),
     );
     await apiService.updateUserAccess("user-2", {
       featureActionAssigned: [],
     });
-    expect(captured).toBe("Bearer test-access-token");
+    expect(csrf).toBe("test-csrf-token");
+    expect(authorization).toBeNull();
   });
 
-  it("does not attach Authorization when no access token exists", async () => {
-    let captured: string | null = "sentinel";
+  it("does not attach auth transport headers on safe GET", async () => {
+    let csrf: string | null = "sentinel";
+    let authorization: string | null = "sentinel";
     server.use(
       http.get("*/api/users", ({ request }) => {
-        captured = request.headers.get("Authorization");
+        csrf = request.headers.get("X-CSRFToken");
+        authorization = request.headers.get("Authorization");
         return HttpResponse.json(mockUsers);
       }),
     );
     await apiService.getUsers();
-    expect(captured).toBeNull();
+    expect(csrf).toBeNull();
+    expect(authorization).toBeNull();
   });
 });
 

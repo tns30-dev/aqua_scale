@@ -27,7 +27,7 @@ core on Pub/Sub, GitOps delivery (Kustomize + Argo CD), and DevSecOps throughout
 | `shared-api/` | gRPC contracts (`proto/`) + versioned event schemas (`events/*.v1.json`) |
 | `k8s/` | Kustomize `base/` + `overlays/{dev,staging}` — synced by Argo CD |
 | `infra/` | Terraform (GCS remote state) — GCP + AWS IoT modules |
-| `jmeter/` | load/stress test plans (`performance-test` branch only) |
+| `loadtests/` | k6 load/stress scripts plus Pub/Sub backlog tooling |
 | `.github/workflows/` | path-aware CI, security gates, GitOps handoff |
 | `scripts/` · `local/` | local dev tooling (compose init, Pub/Sub bootstrap) |
 | `docs/evidence/` | assessment evidence (reports, screenshots, scan results) |
@@ -83,5 +83,5 @@ docker compose up -d              # JUST postgres + redis + emulators (no servic
 
 Path-aware CI (GitHub Actions, OIDC/WIF → GCP) → Artifact Registry → Kustomize tag bump →
 Argo CD sync to GKE (`aquashield-dev` auto / staging approved). Security gates: SAST, SCA,
-secret scan, SBOM, container scan; post-deploy smoke + OWASP ZAP; JMeter on
-`performance-test` branch.
+secret scan, SBOM, container scan; post-deploy smoke + OWASP ZAP; k6 performance runs
+from a manual cloud-native job or CI runner.

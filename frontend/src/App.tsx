@@ -5,9 +5,13 @@ import { DigitalTwinPage } from "./pages/DigitalTwinPage";
 import { ForecastPage } from "./pages/ForecastPage";
 import { HistoricalDataPage } from "./pages/HistoricalDataPage";
 import { EnergyConsumptionPage } from "./pages/EnergyConsumptionPage";
-import { ABTestingPage } from "./pages/ABTestingPage";
+import { EnergyHubPage } from "./pages/EnergyHubPage";
+import { FeedingGrowthPage } from "./pages/FeedingGrowthPage";
+import { TreatmentsPage } from "./pages/TreatmentsPage";
+import { PondComparisonPage } from "./pages/PondComparisonPage";
 import { useGlobalWebSocket } from "./hooks/useGlobalWebSocket";
 import { ProfileProvider } from "./context/ProfileContext";
+import { AlertsProvider } from "./context/AlertsContext";
 import { SessionProvider, useSession } from "./context/SessionContext";
 import { UsersPage } from "./pages/UsersPage";
 
@@ -75,7 +79,34 @@ function AppContent() {
         path="/energy"
         element={
           <ProtectedRoute>
+            <EnergyHubPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/energy/electricity"
+        element={
+          <ProtectedRoute>
             <EnergyConsumptionPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/treatments"
+        element={
+          <ProtectedRoute>
+            <TreatmentsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/feeding-growth"
+        element={
+          <ProtectedRoute>
+            <FeedingGrowthPage />
           </ProtectedRoute>
         }
       />
@@ -84,7 +115,7 @@ function AppContent() {
         path="/pond-comparison"
         element={
           <ProtectedRoute>
-            <ABTestingPage />
+            <PondComparisonPage />
           </ProtectedRoute>
         }
       />
@@ -117,9 +148,11 @@ function App() {
   return (
     <SessionProvider>
       <ProfileProvider>
-        <BrowserRouter>
-          <AppContent />
-        </BrowserRouter>
+        <AlertsProvider>
+          <BrowserRouter>
+            <AppContent />
+          </BrowserRouter>
+        </AlertsProvider>
       </ProfileProvider>
     </SessionProvider>
   );

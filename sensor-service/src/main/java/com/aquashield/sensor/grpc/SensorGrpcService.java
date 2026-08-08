@@ -106,10 +106,12 @@ public class SensorGrpcService extends SensorServiceGrpc.SensorServiceImplBase {
             .setFound(true)
             .setProjectSensorId(ps.getProjectSensorId().toString())
             .setProjectId(ps.getProjectId().toString())
-            .setPondId(ps.getPondId().toString())
             .setSensorTypeId(ps.getSensorType().getSensorTypeId().toString())
             .setSensorTypeName(ps.getSensorType().getName())
             .setActive(true);
+        if (ps.getPondId() != null) {
+          entry.setPondId(ps.getPondId().toString());
+        }
         // PARITY (get_allowed_parameter_names): inactive sensor_type -> EMPTY param set
         if (ps.getSensorType().isActive() && ps.getSensorType().getParameterIds() != null) {
           ps.getSensorType().getParameterIds()
@@ -183,15 +185,17 @@ public class SensorGrpcService extends SensorServiceGrpc.SensorServiceImplBase {
         observer.onError(Status.NOT_FOUND.withDescription("ProjectSensor not found").asRuntimeException());
         return;
       }
-      observer.onNext(ProjectSensor.newBuilder()
+      ProjectSensor.Builder response = ProjectSensor.newBuilder()
           .setProjectSensorId(ps.getProjectSensorId().toString())
           .setProjectId(ps.getProjectId().toString())
-          .setPondId(ps.getPondId().toString())
           .setDeviceId(ps.getIotDevice() == null ? "" : ps.getIotDevice().getIotDeviceId().toString())
           .setSensorTypeId(ps.getSensorType().getSensorTypeId().toString())
           .setPort(ps.getPort() == null ? "" : ps.getPort())
-          .setActive("active".equals(ps.getStatus()))
-          .build());
+          .setActive("active".equals(ps.getStatus()));
+      if (ps.getPondId() != null) {
+        response.setPondId(ps.getPondId().toString());
+      }
+      observer.onNext(response.build());
       observer.onCompleted();
     } catch (IllegalArgumentException e) {
       observer.onError(Status.INVALID_ARGUMENT.withDescription("Invalid id").asRuntimeException());

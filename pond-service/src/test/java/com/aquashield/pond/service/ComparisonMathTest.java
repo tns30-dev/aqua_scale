@@ -31,6 +31,8 @@ class ComparisonMathTest {
     assertThat(ComparisonService.pctDiff(10, 5)).isEqualTo(100);
     assertThat(ComparisonService.safeAvg(List.of())).isEqualTo(0.0);
     assertThat(ComparisonService.safeAvg(Arrays.asList(null, 2.0, 4.0))).isEqualTo(3.0);
+    assertThat(ComparisonService.bucketAvg(Arrays.asList(null, null))).isNull();
+    assertThat(ComparisonService.bucketAvg(Arrays.asList(null, 2.0, 4.0))).isEqualTo(3.0);
   }
 
   // Oracle #14 partial — bucket grid: every bucket present, label formats, anchors
@@ -59,10 +61,15 @@ class ComparisonMathTest {
     assertThat(ComparisonService.safeAvg(List.of(0.10, 0.20))).isEqualTo(0.15);
   }
 
-  // frozen parameter contract
+  // second-round dynamic parameter contract
   @Test
-  void parameterCatalogue_frozenOrder() {
-    assertThat(ComparisonService.PARAMETERS).extracting(ComparisonService.ParameterDef::code)
-        .containsExactly("ammonium", "dissolved_oxygen", "turbidity", "electricity");
+  void parameterCatalogue_canonicalAndDefaultOrder() {
+    assertThat(ComparisonService.DEFAULT_PARAMETERS)
+        .containsExactly("ammonia", "dissolved_oxygen", "turbidity", "ph");
+    assertThat(ComparisonService.CANONICAL_ORDER)
+        .startsWith("ammonia", "dissolved_oxygen", "turbidity", "ph", "alkalinity")
+        .doesNotContain("electricity");
+    assertThat(ComparisonService.unknownParameters(List.of("ph", "unobtainium", "ammonia")))
+        .containsExactly("unobtainium");
   }
 }

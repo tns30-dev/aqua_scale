@@ -9,7 +9,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/tns30-dev/aqua_scale.git
+    repoURL: git@github.com:tns30-dev/aqua_scale.git
     targetRevision: main
     path: k8s/overlays/dev-managed-public
   destination:

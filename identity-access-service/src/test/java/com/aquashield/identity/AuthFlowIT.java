@@ -126,14 +126,16 @@ class AuthFlowIT {
   // ---------- helpers ----------
 
   private JsonNode post(String path, Object body, String bearer) {
+    return wrap(postRaw(path, body, bearer));
+  }
+
+  private ResponseEntity<String> postRaw(String path, Object body, String bearer) {
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
     if (bearer != null) {
       headers.setBearerAuth(bearer);
     }
-    ResponseEntity<String> resp =
-        http.exchange(path, HttpMethod.POST, new HttpEntity<>(body, headers), String.class);
-    return wrap(resp);
+    return http.exchange(path, HttpMethod.POST, new HttpEntity<>(body, headers), String.class);
   }
 
   private JsonNode call(String path, HttpMethod method, Object body, String bearer) {
@@ -161,15 +163,35 @@ class AuthFlowIT {
     return post("/api/auth/login", Map.of("email", ADMIN_EMAIL, "password", ADMIN_PASSWORD), null);
   }
 
+  private static String cookieValue(ResponseEntity<String> response, String name) {
+    String prefix = name + "=";
+    return response.getHeaders().getOrEmpty(HttpHeaders.SET_COOKIE).stream()
+        .filter(cookie -> cookie.startsWith(prefix))
+        .map(cookie -> {
+          String value = cookie.substring(prefix.length());
+          int end = value.indexOf(';');
+          return end >= 0 ? value.substring(0, end) : value;
+        })
+        .findFirst()
+        .orElseThrow();
+  }
+
   // ---------- tests (method-name ordered) ----------
 
   @Test
   void t01_login_success_returnsParityEnvelope() {
-    JsonNode r = loginAdmin();
+    ResponseEntity<String> raw = postRaw(
+        "/api/auth/login", Map.of("email", ADMIN_EMAIL, "password", ADMIN_PASSWORD), null);
+    JsonNode r = wrap(raw);
     assertThat(r.get("status").asInt()).isEqualTo(200);
     JsonNode b = r.get("body");
     assertThat(b.get("token").asText()).isNotBlank();
     assertThat(b.get("refreshToken").asText()).isNotBlank();
+    assertThat(raw.getHeaders().getOrEmpty(HttpHeaders.SET_COOKIE))
+        .anyMatch(cookie -> cookie.startsWith("access_token=")
+            && cookie.contains("HttpOnly") && cookie.contains("SameSite=Strict"))
+        .anyMatch(cookie -> cookie.startsWith("refresh_token=")
+            && cookie.contains("HttpOnly") && cookie.contains("SameSite=Strict"));
     // PARITY: username = computed full name; role string; projects top-level array
     assertThat(b.at("/user/username").asText()).isEqualTo("Platform Admin");
     assertThat(b.at("/user/role").asText()).isEqualTo("platform_admin");
@@ -267,6 +289,39 @@ class AuthFlowIT {
     // even the newest token of the family is now dead
     JsonNode afterRevoke = post("/api/auth/refresh", Map.of("refreshToken", refresh2), null);
     assertThat(afterRevoke.get("status").asInt()).isEqualTo(401);
+  }
+
+  @Test
+  void t07b_cookieRefresh_requiresCsrfAndRotates() {
+    ResponseEntity<String> login = postRaw(
+        "/api/auth/login", Map.of("email", ADMIN_EMAIL, "password", ADMIN_PASSWORD), null);
+    String refresh = cookieValue(login, "refresh_token");
+    ResponseEntity<String> csrfBootstrap = http.getForEntity("/api/csrf", String.class);
+    String csrf = cookieValue(csrfBootstrap, "csrftoken");
+    assertThat(wrap(csrfBootstrap).at("/body/csrfToken").asText()).isEqualTo(csrf);
+    String cookieHeader = "refresh_token=" + refresh + "; csrftoken=" + csrf;
+
+    HttpHeaders missingCsrfHeaders = new HttpHeaders();
+    missingCsrfHeaders.setContentType(MediaType.APPLICATION_JSON);
+    missingCsrfHeaders.add(HttpHeaders.COOKIE, cookieHeader);
+    JsonNode missingCsrf = wrap(http.exchange(
+        "/api/auth/refresh", HttpMethod.POST, new HttpEntity<>(null, missingCsrfHeaders),
+        String.class));
+    assertThat(missingCsrf.get("status").asInt()).isEqualTo(403);
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.add(HttpHeaders.COOKIE, cookieHeader);
+    headers.add("X-CSRFToken", csrf);
+    ResponseEntity<String> refreshed = http.exchange(
+        "/api/auth/refresh", HttpMethod.POST, new HttpEntity<>(null, headers), String.class);
+    JsonNode r = wrap(refreshed);
+    assertThat(r.get("status").asInt()).isEqualTo(200);
+    assertThat(r.at("/body/token").asText()).isNotBlank();
+    assertThat(r.at("/body/refreshToken").asText()).isNotEqualTo(refresh);
+    assertThat(refreshed.getHeaders().getOrEmpty(HttpHeaders.SET_COOKIE))
+        .anyMatch(cookie -> cookie.startsWith("access_token="))
+        .anyMatch(cookie -> cookie.startsWith("refresh_token="));
   }
 
   @Test

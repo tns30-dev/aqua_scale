@@ -16,6 +16,9 @@ spec:
     - matches:
         - path:
             type: PathPrefix
+            value: /api/csrf
+        - path:
+            type: PathPrefix
             value: /api/auth
         - path:
             type: PathPrefix
@@ -37,6 +40,9 @@ spec:
         - path:
             type: RegularExpression
             value: ^/api/projects/[^/]+/pond-comparison(/.*)?$
+        - path:
+            type: RegularExpression
+            value: ^/api/projects/[^/]+/feeding(/.*)?$
       backendRefs:
         - name: pond-service
           port: 8089
@@ -76,6 +82,9 @@ spec:
         - path:
             type: PathPrefix
             value: /api/pond-treatments
+        - path:
+            type: PathPrefix
+            value: /api/feed-types
       backendRefs:
         - name: pond-service
           port: 8089

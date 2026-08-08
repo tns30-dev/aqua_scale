@@ -83,5 +83,5 @@ Ownership rule from 2026-06-05: Codex owns every non-service track. The Claude f
 | [x] | Argo CD rollout | Argo CD sync and health evidence for the managed-backed public dev runtime, including the API edge CORS rollout | [cd.md](../main/cd.md) |
 | [x] | Smoke tests | Managed-backed business flow passed internally, through AWS IoT/Lambda, and through public `https://api.aquashield.live` across identity, project, pond, sensor, ingestion, notification, realtime, analytics, and audit surfaces | [cd.md](../main/cd.md) |
 | [ ] | DAST | OWASP ZAP or equivalent scan after deployment | [cd.md](../main/cd.md) |
-| [ ] | JMeter load and stress tests | Evidence from dedicated `performance-test` branch or manual dispatch | [ci.md](../main/ci.md) |
+| [ ] | k6 load, stress, growth, and WebSocket tests | Evidence from Kubernetes Job or GitHub Actions manual/performance-test run | [ci.md](../main/ci.md) |
 | [ ] | Demo evidence | Managed runtime rollout, direct Pub/Sub business smoke, AWS IoT/Lambda live smoke, public HTTPS edge live smoke, Firebase Hosting custom-domain live deploy, API edge CORS proof, and CI/SAST recovery evidence recorded; DAST and performance evidence remain | All docs |

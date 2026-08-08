@@ -1,0 +1,38 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "logs:*",
+      "Resource": "arn:aws:logs:ap-southeast-1:157466815831:log-group:/aws/lambda/aquashield-dev-iot-bridge*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "logs:DescribeLogGroups",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:*Role*",
+        "iam:PassRole"
+      ],
+      "Resource": "arn:aws:iam::157466815831:role/aquashield-dev-iot-bridge",
+      "Condition": {
+        "StringEqualsIfExists": {
+          "iam:PassedToService": "lambda.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "lambda:*",
+      "Resource": "arn:aws:lambda:ap-southeast-1:157466815831:function:aquashield-dev-iot-bridge"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:*",
+      "Resource": "*"
+    }
+  ]
+}

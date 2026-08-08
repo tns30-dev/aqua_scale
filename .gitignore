@@ -48,6 +48,8 @@ infra/environments/*/backend.tf
 # Test & evidence working files
 **/test-results/
 *.jtl
+loadtests/results/*
+!loadtests/results/.gitkeep
 
 # scratch
 temp.txt

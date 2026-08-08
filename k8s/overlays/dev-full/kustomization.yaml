@@ -12,6 +12,7 @@ resources:
   - ../../base/services/identity-access-service
   - ../../base/services/project-service
   - ../../base/services/pond-service
+  - ../../base/jobs/pond-daily-health
   - ../../base/services/sensor-service
   - ../../base/services/ingestion-service
   - ../../base/services/notification-service
@@ -202,6 +203,33 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/resources/limits/memory
         value: 768Mi
+  - target:
+      kind: CronJob
+      name: pond-daily-health
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          argocd.argoproj.io/sync-wave: "2"
+      - op: add
+        path: /spec/jobTemplate/spec/template/metadata/annotations
+        value:
+          sidecar.istio.io/proxyCPU: 25m
+          sidecar.istio.io/proxyMemory: 64Mi
+          sidecar.istio.io/proxyCPULimit: 250m
+          sidecar.istio.io/proxyMemoryLimit: 256Mi
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/name
+        value: dev-db-passwords
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/1/valueFrom/secretKeyRef/key
+        value: POND_DB_PASSWORD
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/2/valueFrom/secretKeyRef/name
+        value: jwt-verifier-public-key
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/2/valueFrom/secretKeyRef/key
+        value: JWT_PUBLIC_KEY_PEM
   - target:
       kind: Deployment
       name: sensor-service
@@ -612,29 +640,29 @@ patches:
 
 images:
   - name: analytics-service
-    newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/analytics-service/analytics-service
-    newTag: 783c78a16381
+    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/analytics-service/analytics-service
+    newTag: 20260808-1440-6fbd5a1c8557
   - name: audit-service
-    newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/audit-service/audit-service
-    newTag: bef15c6
+    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/audit-service/audit-service
+    newTag: 20260808-1440-6fbd5a1c8557
   - name: identity-access-service
-    newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/identity-access-service/identity-access-service
-    newTag: bef15c6
+    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/identity-access-service/identity-access-service
+    newTag: 20260808-1440-6fbd5a1c8557
   - name: ingestion-service
-    newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/ingestion-service/ingestion-service
-    newTag: bef15c6
+    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/ingestion-service/ingestion-service
+    newTag: 20260809-0131-bigtable-latest
   - name: notification-service
-    newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/notification-service/notification-service
-    newTag: bef15c6
+    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/notification-service/notification-service
+    newTag: 20260808-1440-6fbd5a1c8557
   - name: pond-service
-    newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/pond-service/pond-service
-    newTag: bef15c6
+    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/pond-service/pond-service
+    newTag: 20260808-1440-6fbd5a1c8557
   - name: project-service
-    newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/project-service/project-service
-    newTag: bef15c6
+    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/project-service/project-service
+    newTag: 20260808-1440-6fbd5a1c8557
   - name: realtime-gateway
-    newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/realtime-gateway/realtime-gateway
-    newTag: bef15c6
+    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/realtime-gateway/realtime-gateway
+    newTag: 20260808-1440-6fbd5a1c8557
   - name: sensor-service
-    newName: asia-southeast1-docker.pkg.dev/aerobic-guide-498413-u6/sensor-service/sensor-service
-    newTag: bef15c6
+    newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/sensor-service/sensor-service
+    newTag: 20260808-1440-6fbd5a1c8557
