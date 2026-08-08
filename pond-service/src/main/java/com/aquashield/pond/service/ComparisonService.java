@@ -1,8 +1,9 @@
 package com.aquashield.pond.service;
 
-import com.aquashield.api.ingestion.v1.GetReadingWindowsRequest;
+import com.aquashield.api.ingestion.v1.GetLatestReadingsRequest;
 import com.aquashield.api.ingestion.v1.GetPondParameterBucketAveragesRequest;
 import com.aquashield.api.ingestion.v1.IngestionReadServiceGrpc;
+import com.aquashield.api.ingestion.v1.LatestReadingRow;
 import com.aquashield.api.ingestion.v1.PondParameterBucketAverage;
 import com.aquashield.api.project.v1.GetParameterCatalogueRequest;
 import com.aquashield.api.project.v1.GetParameterSettingsRequest;
@@ -18,7 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -41,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Pond comparison, second-round contract. Parameters are now dynamic: explicit
@@ -95,6 +96,7 @@ public class ComparisonService {
   private final IngestionReadServiceGrpc.IngestionReadServiceBlockingStub ingestion;
   private final ProjectServiceGrpc.ProjectServiceBlockingStub projectStub;
   private final ZoneId zone;
+  private final long grpcDeadlineMs;
   private final ConcurrentMap<ComparisonCacheKey, ComparisonCacheEntry> comparisonCache =
       new ConcurrentHashMap<>();
   private final ConcurrentMap<ComparisonCacheKey, CompletableFuture<Map<String, Object>>> inflight =
@@ -113,12 +115,14 @@ public class ComparisonService {
   public ComparisonService(PondRepository ponds, PondTreatmentRepository treatments,
                            IngestionReadServiceGrpc.IngestionReadServiceBlockingStub ingestion,
                            ProjectServiceGrpc.ProjectServiceBlockingStub projectStub,
-                           @Value("${aquashield.timezone:Asia/Singapore}") String timezone) {
+                           @Value("${aquashield.timezone:Asia/Singapore}") String timezone,
+                           @Value("${aquashield.grpc.deadline-ms:2500}") long grpcDeadlineMs) {
     this.ponds = ponds;
     this.treatments = treatments;
     this.ingestion = ingestion;
     this.projectStub = projectStub;
     this.zone = ZoneId.of(timezone);
+    this.grpcDeadlineMs = grpcDeadlineMs;
   }
 
   /** Source parity: inclusive span days. */
@@ -253,7 +257,8 @@ public class ComparisonService {
       parameters.stream().distinct().forEach(req::addParameters);
       Map<String, Map<LocalDateTime, BucketStat>> out = new HashMap<>();
       for (PondParameterBucketAverage row :
-          ingestion.getPondParameterBucketAverages(req.build()).getRowsList()) {
+        ingestion.withDeadlineAfter(grpcDeadlineMs, TimeUnit.MILLISECONDS)
+            .getPondParameterBucketAverages(req.build()).getRowsList()) {
         LocalDateTime bucket = ZonedDateTime
             .ofInstant(Instant.parse(row.getBucketStart()), zone)
             .toLocalDateTime();
@@ -270,34 +275,35 @@ public class ComparisonService {
 
   // ---------- payloads ----------
 
-  @Transactional(readOnly = true)
   public Map<String, Object> listPondOptions(UUID projectId) {
     List<Pond> pondList = ponds.findByProjectIdOrderByNameAsc(projectId);
-    Map<String, com.aquashield.api.ingestion.v1.ReadingWindow> windows = new HashMap<>();
+    Map<String, LatestReadingRow> latest = new HashMap<>();
     try {
-      GetReadingWindowsRequest.Builder req = GetReadingWindowsRequest.newBuilder();
+      GetLatestReadingsRequest.Builder req = GetLatestReadingsRequest.newBuilder()
+          .setProjectId(projectId.toString());
       pondList.forEach(p -> req.addPondIds(p.getPondId().toString()));
       if (req.getPondIdsCount() > 0) {
-        ingestion.getReadingWindows(req.build()).getWindowsList()
-            .forEach(w -> windows.put(w.getPondId(), w));
+        ingestion.withDeadlineAfter(grpcDeadlineMs, TimeUnit.MILLISECONDS)
+            .getLatestReadings(req.build()).getReadingsList()
+            .forEach(row -> latest.put(row.getPondId(), row));
       }
     } catch (Exception e) {
-      log.warn("Reading windows fetch failed - options served without sensor flags: {}",
+      log.warn("Latest readings fetch failed - options served without sensor flags: {}",
           e.toString());
     }
 
     List<Map<String, Object>> options = new ArrayList<>();
     for (Pond pond : pondList) {
-      var window = windows.get(pond.getPondId().toString());
+      var row = latest.get(pond.getPondId().toString());
       Map<String, Object> entry = new LinkedHashMap<>();
       entry.put("pondId", pond.getPondId().toString());
       entry.put("name", pond.getName());
       entry.put("companyName", metaText(pond, "company_name"));
       entry.put("gpsLocation", metaText(pond, "gps_location"));
       entry.put("treatments", activeTreatments(pond.getPondId()));
-      entry.put("hasSensorData", window != null);
-      entry.put("firstReadingAt", window == null ? null : pyIso(window.getFirstAt()));
-      entry.put("lastReadingAt", window == null ? null : pyIso(window.getLastAt()));
+      entry.put("hasSensorData", row != null);
+      entry.put("firstReadingAt", null);
+      entry.put("lastReadingAt", row == null ? null : pyIso(row.getMeasuredAt()));
       options.add(entry);
     }
     Map<String, Object> body = new LinkedHashMap<>();
@@ -306,7 +312,6 @@ public class ComparisonService {
     return body;
   }
 
-  @Transactional(readOnly = true)
   public Map<String, Object> compare(UUID projectId, Pond pondA, Pond pondB,
                                      LocalDate start, LocalDate end, String grouping,
                                      List<String> explicitParameters) {
@@ -541,7 +546,8 @@ public class ComparisonService {
                                                         Map<String, ParameterMeta> meta) {
     try {
       Set<String> configured = new LinkedHashSet<>();
-      for (ParameterSetting setting : projectStub.getParameterSettings(
+      for (ParameterSetting setting : projectStub.withDeadlineAfter(grpcDeadlineMs, TimeUnit.MILLISECONDS)
+          .getParameterSettings(
           GetParameterSettingsRequest.newBuilder().setProjectId(projectId.toString()).build())
           .getSettingsList()) {
         configured.add(setting.getParameterCode());
@@ -568,7 +574,8 @@ public class ComparisonService {
   private Map<String, ParameterMeta> parameterMetadata() {
     try {
       Map<String, ParameterMeta> out = new HashMap<>();
-      for (ParameterTypeInfo row : projectStub.getParameterCatalogue(
+      for (ParameterTypeInfo row : projectStub.withDeadlineAfter(grpcDeadlineMs, TimeUnit.MILLISECONDS)
+          .getParameterCatalogue(
           GetParameterCatalogueRequest.newBuilder().build()).getParametersList()) {
         out.put(row.getCode(), new ParameterMeta(row.getName(), row.getUnit()));
       }

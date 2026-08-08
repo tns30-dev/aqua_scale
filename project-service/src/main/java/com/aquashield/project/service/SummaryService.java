@@ -8,9 +8,11 @@ import com.aquashield.project.api.dto.ProjectDtos.ProjectSummaryDto;
 import io.grpc.StatusRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class SummaryService {
@@ -19,11 +21,14 @@ public class SummaryService {
 
   private final PondServiceGrpc.PondServiceBlockingStub pondStub;
   private final NotificationServiceGrpc.NotificationServiceBlockingStub notificationStub;
+  private final long grpcDeadlineMs;
 
   public SummaryService(PondServiceGrpc.PondServiceBlockingStub pondStub,
-                        NotificationServiceGrpc.NotificationServiceBlockingStub notificationStub) {
+                        NotificationServiceGrpc.NotificationServiceBlockingStub notificationStub,
+                        @Value("${aquashield.grpc.deadline-ms:2500}") long grpcDeadlineMs) {
     this.pondStub = pondStub;
     this.notificationStub = notificationStub;
+    this.grpcDeadlineMs = grpcDeadlineMs;
   }
 
   public ProjectSummaryDto getSummary(UUID projectId) {
@@ -36,7 +41,8 @@ public class SummaryService {
 
   private int countPonds(UUID projectId) {
     try {
-      return pondStub.getPondsByProject(
+      return pondStub.withDeadlineAfter(grpcDeadlineMs, TimeUnit.MILLISECONDS)
+          .getPondsByProject(
           GetPondsByProjectRequest.newBuilder()
               .setProjectId(projectId.toString())
               .build()
@@ -49,7 +55,8 @@ public class SummaryService {
 
   private long countAlerts(UUID projectId) {
     try {
-      return notificationStub.getActiveAlertCount(
+      return notificationStub.withDeadlineAfter(grpcDeadlineMs, TimeUnit.MILLISECONDS)
+          .getActiveAlertCount(
           GetActiveAlertCountRequest.newBuilder()
               .setProjectId(projectId.toString())
               .build()

@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -70,15 +71,18 @@ public class EnergyService {
   private final ProjectEnergySettingRepository energySettings;
   private final IngestionReadServiceGrpc.IngestionReadServiceBlockingStub ingestion;
   private final ZoneId zone;
+  private final long grpcDeadlineMs;
 
   public record ExportFile(String filename, byte[] content) {}
 
   public EnergyService(ProjectEnergySettingRepository energySettings,
                        IngestionReadServiceGrpc.IngestionReadServiceBlockingStub ingestion,
-                       @Value("${aquashield.timezone:Asia/Singapore}") String timezone) {
+                       @Value("${aquashield.timezone:Asia/Singapore}") String timezone,
+                       @Value("${aquashield.grpc.deadline-ms:2500}") long grpcDeadlineMs) {
     this.energySettings = energySettings;
     this.ingestion = ingestion;
     this.zone = ZoneId.of(timezone);
+    this.grpcDeadlineMs = grpcDeadlineMs;
   }
 
   @Transactional(readOnly = true)
@@ -119,7 +123,6 @@ public class EnergyService {
     return EnergySettingsDto.from(energySettings.save(setting));
   }
 
-  @Transactional(readOnly = true)
   public ExportFile exportXlsx(UUID projectId, String projectName,
                                String startDate, String endDate) {
     LocalDate end = parseDate(endDate, LocalDate.now(zone));
@@ -176,7 +179,6 @@ public class EnergyService {
 
   // ---------- dashboard (energy_dashboard.py port) ----------
 
-  @Transactional(readOnly = true)
   public Map<String, Object> dashboard(UUID projectId, String groupBy,
                                        String startDate, String endDate) {
     if (!GROUP_BY.contains(groupBy)) {
@@ -227,7 +229,8 @@ public class EnergyService {
     try {
       Instant from = start.atStartOfDay(zone).toInstant();
       Instant to = end.atTime(23, 59, 59, 999_999_000).atZone(zone).toInstant();
-      var resp = ingestion.getEnergyHourlyReadings(GetEnergyHourlyReadingsRequest.newBuilder()
+      var resp = ingestion.withDeadlineAfter(grpcDeadlineMs, TimeUnit.MILLISECONDS)
+          .getEnergyHourlyReadings(GetEnergyHourlyReadingsRequest.newBuilder()
           .setProjectId(projectId.toString())
           .setStart(from.toString())
           .setEnd(to.toString())

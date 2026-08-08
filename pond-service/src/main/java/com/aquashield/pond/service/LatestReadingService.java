@@ -6,6 +6,7 @@ import com.aquashield.api.ingestion.v1.LatestReadingRow;
 import io.grpc.StatusRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class LatestReadingService {
@@ -26,6 +28,7 @@ public class LatestReadingService {
   private static final int CACHE_MAX = 128;
 
   private final IngestionReadServiceGrpc.IngestionReadServiceBlockingStub ingestionStub;
+  private final long grpcDeadlineMs;
   private final ConcurrentMap<LatestCacheKey, LatestCacheEntry> latestCache =
       new ConcurrentHashMap<>();
   private final ConcurrentMap<LatestCacheKey, CompletableFuture<Map<String, Object>>> inflight =
@@ -39,8 +42,11 @@ public class LatestReadingService {
 
   private record LatestCacheEntry(long expiresAtMillis, Map<String, Object> body) {}
 
-  public LatestReadingService(IngestionReadServiceGrpc.IngestionReadServiceBlockingStub ingestionStub) {
+  public LatestReadingService(
+      IngestionReadServiceGrpc.IngestionReadServiceBlockingStub ingestionStub,
+      @Value("${aquashield.grpc.deadline-ms:2500}") long grpcDeadlineMs) {
     this.ingestionStub = ingestionStub;
+    this.grpcDeadlineMs = grpcDeadlineMs;
   }
 
   public Map<String, Object> latestReadings(UUID projectId, List<UUID> pondIds) {
@@ -75,7 +81,8 @@ public class LatestReadingService {
 
     try {
       List<Map<String, Object>> readings = new ArrayList<>();
-      for (LatestReadingRow row : ingestionStub.getLatestReadings(request.build()).getReadingsList()) {
+      for (LatestReadingRow row : ingestionStub.withDeadlineAfter(grpcDeadlineMs, TimeUnit.MILLISECONDS)
+          .getLatestReadings(request.build()).getReadingsList()) {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("pond_id", row.getPondId());
         item.put("timestamp", row.getMeasuredAt());

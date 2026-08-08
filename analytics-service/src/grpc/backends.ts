@@ -52,9 +52,17 @@ interface GrpcTargets {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type AnyClient = any;
 
+const DEFAULT_DEADLINE_MS = 2500;
+
+function deadlineMs(): number {
+  const parsed = Number.parseInt(process.env.GRPC_DEADLINE_MS ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_DEADLINE_MS;
+}
+
 function unary<T>(client: AnyClient, method: string, request: unknown): Promise<T> {
   return new Promise((resolve, reject) => {
-    client[method](request, (err: grpc.ServiceError | null, resp: T) => {
+    client[method](request, { deadline: new Date(Date.now() + deadlineMs()) },
+      (err: grpc.ServiceError | null, resp: T) => {
       if (err) {
         reject(err);
       } else {
