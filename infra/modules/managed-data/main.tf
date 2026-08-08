@@ -84,7 +84,7 @@ locals {
     ingestion = {
       account_id = "aq-ingestion-dev"
       ksa_name   = "ingestion-service"
-      roles      = ["roles/cloudsql.client", "roles/pubsub.publisher", "roles/pubsub.subscriber", "roles/bigtable.user"]
+      roles      = ["roles/cloudsql.client", "roles/pubsub.publisher", "roles/pubsub.subscriber", "roles/bigtable.user", "roles/bigquery.jobUser"]
     }
     notification = {
       account_id = "aq-notification-dev"
@@ -423,4 +423,13 @@ resource "google_bigquery_dataset_iam_member" "analytics_reader" {
   dataset_id = google_bigquery_dataset.analytics[0].dataset_id
   role       = "roles/bigquery.dataViewer"
   member     = "serviceAccount:${google_service_account.runtime["analytics"].email}"
+}
+
+resource "google_bigquery_dataset_iam_member" "ingestion_analytics_reader" {
+  count = var.enable_bigquery ? 1 : 0
+
+  project    = var.project_id
+  dataset_id = google_bigquery_dataset.analytics[0].dataset_id
+  role       = "roles/bigquery.dataViewer"
+  member     = "serviceAccount:${google_service_account.runtime["ingestion"].email}"
 }

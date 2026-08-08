@@ -56,6 +56,7 @@ aquashield:
     catalogue-ttl: ${CACHE_CATALOGUE_TTL:PT1H}
     settings-ttl: ${CACHE_SETTINGS_TTL:PT15M}
   grpc:
+    deadline-ms: ${AQUASHIELD_GRPC_DEADLINE_MS:2500}
     ingestion:
       target: ${INGESTION_GRPC_TARGET:localhost:9095}
       in-process-name: ${INGESTION_GRPC_INPROCESS:}

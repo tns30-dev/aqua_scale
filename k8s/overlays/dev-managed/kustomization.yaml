@@ -47,13 +47,19 @@ patches:
       - op: replace
         path: /data/BIGTABLE_WRITE_ENABLED
         value: "true"
+      - op: add
+        path: /data/BIGQUERY_ENERGY_ENABLED
+        value: "true"
+      - op: add
+        path: /data/BIGQUERY_READINGS_TABLE
+        value: "readings"
   - target:
       kind: Deployment
       labelSelector: app.kubernetes.io/part-of=aquashield
     patch: |-
       - op: add
         path: /spec/template/metadata/annotations/aquashield.dev~1managed-runtime-revision
-        value: "2026-06-05-real-pubsub-v2"
+        value: "2026-08-09-telemetry-bigquery-energy-v1"
 
 replacements:
   - source:
@@ -228,6 +234,12 @@ replacements:
         fieldPaths: [data.BIGTABLE_PROJECT_ID]
       - select:
           kind: ConfigMap
+          name: ingestion-service-config
+        fieldPaths: [data.BIGQUERY_PROJECT_ID]
+        options:
+          create: true
+      - select:
+          kind: ConfigMap
           name: notification-service-config
         fieldPaths: [data.PUBSUB_PROJECT_ID]
       - select:
@@ -280,6 +292,12 @@ replacements:
       - select:
           kind: ConfigMap
           name: analytics-service-config
+        fieldPaths: [data.BIGQUERY_DATASET_ID]
+        options:
+          create: true
+      - select:
+          kind: ConfigMap
+          name: ingestion-service-config
         fieldPaths: [data.BIGQUERY_DATASET_ID]
         options:
           create: true

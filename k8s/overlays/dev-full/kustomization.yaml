@@ -309,13 +309,13 @@ patches:
       value: INGESTION_DB_PASSWORD
     - op: replace
       path: /spec/template/spec/containers/0/resources/requests/cpu
-      value: 50m
+      value: 100m
     - op: replace
       path: /spec/template/spec/containers/0/resources/requests/memory
       value: 384Mi
     - op: replace
       path: /spec/template/spec/containers/0/resources/limits/cpu
-      value: 500m
+      value: 1000m
     - op: replace
       path: /spec/template/spec/containers/0/resources/limits/memory
       value: 1536Mi
@@ -556,6 +556,9 @@ patches:
     - op: add
       path: /data/NOTIFICATION_GRPC_TARGET
       value: notification-service:9096
+    - op: add
+      path: /data/AQUASHIELD_GRPC_DEADLINE_MS
+      value: "10000"
   target:
     kind: ConfigMap
     name: project-service-config
@@ -569,6 +572,9 @@ patches:
     - op: add
       path: /data/SPRING_CLOUD_GCP_PUBSUB_EMULATOR_HOST
       value: pubsub-emulator:8085
+    - op: add
+      path: /data/AQUASHIELD_GRPC_DEADLINE_MS
+      value: "10000"
   target:
     kind: ConfigMap
     name: pond-service-config
@@ -601,6 +607,13 @@ patches:
   target:
     kind: ConfigMap
     name: ingestion-service-config
+- patch: |-
+    - op: add
+      path: /data/GRPC_DEADLINE_MS
+      value: "10000"
+  target:
+    kind: ConfigMap
+    name: analytics-service-config
 - patch: |-
     - op: add
       path: /data/DB_POOL_SIZE

@@ -11,12 +11,20 @@ public record IngestionProperties(
     Duration maxSkew,
     Duration catalogueRefresh,
     String telemetryStore,
-    Bigtable bigtable) {
+    Bigtable bigtable,
+    BigQuery bigquery) {
 
   public record Bigtable(
       String projectId,
       String instanceId,
       String tableName,
       boolean writeEnabled) {
+  }
+
+  public record BigQuery(
+      String projectId,
+      String datasetId,
+      String readingsTable,
+      boolean energyEnabled) {
   }
 }

@@ -54,6 +54,7 @@ aquashield:
   cache:
     pond-list-ttl: ${CACHE_POND_LIST_TTL:PT5M}
   grpc:
+    deadline-ms: ${AQUASHIELD_GRPC_DEADLINE_MS:2500}
     project:
       target: ${PROJECT_GRPC_TARGET:localhost:9092}
       in-process-name: ${PROJECT_GRPC_INPROCESS:}

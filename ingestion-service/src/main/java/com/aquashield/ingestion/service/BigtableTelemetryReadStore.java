@@ -4,6 +4,13 @@ import com.aquashield.ingestion.config.IngestionProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.gax.rpc.ServerStream;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.FieldValueList;
+import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.QueryParameterValue;
+import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.Filters;
 import com.google.cloud.bigtable.data.v2.models.Query;
@@ -11,6 +18,8 @@ import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.TableId;
 import jakarta.annotation.PreDestroy;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -37,9 +46,14 @@ import java.util.UUID;
     havingValue = "bigtable")
 public class BigtableTelemetryReadStore implements TelemetryReadStore {
 
+  private static final Logger log = LoggerFactory.getLogger(BigtableTelemetryReadStore.class);
+
   private final BigtableDataClient client;
+  private final BigQuery bigQuery;
   private final ObjectMapper mapper;
   private final String tableName;
+  private final boolean bigQueryEnergyEnabled;
+  private final String bigQueryReadingsTable;
 
   public BigtableTelemetryReadStore(IngestionProperties props, ObjectMapper mapper)
       throws IOException {
@@ -49,6 +63,21 @@ public class BigtableTelemetryReadStore implements TelemetryReadStore {
         required(bigtable.instanceId(), "aquashield.ingestion.bigtable.instance-id"));
     this.tableName = required(bigtable.tableName(), "aquashield.ingestion.bigtable.table-name");
     this.mapper = mapper;
+
+    IngestionProperties.BigQuery query = props.bigquery();
+    this.bigQueryEnergyEnabled = query != null && query.energyEnabled()
+        && hasText(query.projectId()) && hasText(query.datasetId()) && hasText(query.readingsTable());
+    if (bigQueryEnergyEnabled) {
+      this.bigQuery = BigQueryOptions.newBuilder()
+          .setProjectId(query.projectId())
+          .build()
+          .getService();
+      this.bigQueryReadingsTable = bigQueryTableRef(
+          query.projectId(), query.datasetId(), query.readingsTable());
+    } else {
+      this.bigQuery = null;
+      this.bigQueryReadingsTable = "";
+    }
   }
 
   @PreDestroy
@@ -71,6 +100,18 @@ public class BigtableTelemetryReadStore implements TelemetryReadStore {
   @Override
   public List<EnergyHour> findProjectElectricityHourly(UUID projectId, OffsetDateTime start,
                                                        OffsetDateTime end, ZoneId zone) {
+    if (bigQueryEnergyEnabled) {
+      try {
+        return findProjectElectricityHourlyFromBigQuery(projectId, start, end);
+      } catch (BigQueryException | InterruptedException e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
+        log.warn("BigQuery electricity aggregate failed project={} — falling back to Bigtable: {}",
+            projectId, e.toString());
+      }
+    }
+
     Map<Instant, Double> totals = new LinkedHashMap<>();
     for (Reading reading : readTimeRange(BigtableTelemetryCodec.projectPrefix(projectId), start, end)) {
       JsonNode electricity = reading.values().get("electricity");
@@ -84,6 +125,36 @@ public class BigtableTelemetryReadStore implements TelemetryReadStore {
         .sorted(Map.Entry.comparingByKey())
         .map(entry -> new EnergyHour(entry.getKey(), entry.getValue()))
         .toList();
+  }
+
+  private List<EnergyHour> findProjectElectricityHourlyFromBigQuery(
+      UUID projectId, OffsetDateTime start, OffsetDateTime end) throws InterruptedException {
+    String sql = """
+        select
+          timestamp_trunc(event_ts, hour) as hour_start,
+          sum(numeric_value) as kwh
+        from %s
+        where project_id = @projectId
+          and parameter_key = 'electricity'
+          and numeric_value is not null
+          and event_ts >= timestamp(@startIso)
+          and event_ts <= timestamp(@endIso)
+        group by hour_start
+        order by hour_start
+        """.formatted(bigQueryReadingsTable);
+    QueryJobConfiguration config = QueryJobConfiguration.newBuilder(sql)
+        .addNamedParameter("projectId", QueryParameterValue.string(projectId.toString()))
+        .addNamedParameter("startIso", QueryParameterValue.string(start.toInstant().toString()))
+        .addNamedParameter("endIso", QueryParameterValue.string(end.toInstant().toString()))
+        .build();
+    TableResult result = bigQuery.query(config);
+    List<EnergyHour> rows = new ArrayList<>();
+    for (FieldValueList row : result.iterateAll()) {
+      rows.add(new EnergyHour(
+          Instant.ofEpochMilli(row.get("hour_start").getTimestampValue() / 1000L),
+          row.get("kwh").isNull() ? 0.0 : row.get("kwh").getDoubleValue()));
+    }
+    return rows;
   }
 
   @Override
@@ -210,6 +281,25 @@ public class BigtableTelemetryReadStore implements TelemetryReadStore {
       throw new IllegalStateException(name + " is required when Bigtable telemetry is enabled");
     }
     return value;
+  }
+
+  private static boolean hasText(String value) {
+    return value != null && !value.isBlank();
+  }
+
+  private static String bigQueryTableRef(String projectId, String datasetId, String tableName) {
+    return "`%s.%s.%s`".formatted(
+        bigQueryIdentifier(projectId, "aquashield.ingestion.bigquery.project-id"),
+        bigQueryIdentifier(datasetId, "aquashield.ingestion.bigquery.dataset-id"),
+        bigQueryIdentifier(tableName, "aquashield.ingestion.bigquery.readings-table"));
+  }
+
+  private static String bigQueryIdentifier(String value, String name) {
+    String text = required(value, name);
+    if (!text.matches("[A-Za-z0-9_-]+")) {
+      throw new IllegalStateException(name + " contains unsupported characters");
+    }
+    return text;
   }
 
   private static Map<String, Integer> parameterOrder(Collection<String> parameters) {

@@ -53,6 +53,11 @@ aquashield:
       instance-id: ${BIGTABLE_INSTANCE_ID:}
       table-name: ${BIGTABLE_TABLE_NAME:telemetry_readings}
       write-enabled: ${BIGTABLE_WRITE_ENABLED:false}
+    bigquery:
+      project-id: ${BIGQUERY_PROJECT_ID:${PUBSUB_PROJECT_ID:aquashield-local}}
+      dataset-id: ${BIGQUERY_DATASET_ID:}
+      readings-table: ${BIGQUERY_READINGS_TABLE:readings}
+      energy-enabled: ${BIGQUERY_ENERGY_ENABLED:false}
   grpc:
     sensor:
       target: ${SENSOR_GRPC_TARGET:localhost:9093}
