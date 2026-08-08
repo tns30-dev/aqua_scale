@@ -669,7 +669,7 @@ images:
   newTag: b88b45f5a738
 - name: pond-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/pond-service/pond-service
-  newTag: 51eafd5cb65b
+  newTag: 42702daa1c2d
 - name: project-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/project-service/project-service
   newTag: 51eafd5cb65b
