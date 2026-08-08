@@ -663,7 +663,7 @@ images:
   newTag: b88b45f5a738
 - name: ingestion-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/ingestion-service/ingestion-service
-  newTag: 170fc1f0b4ce
+  newTag: c43396176163
 - name: notification-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/notification-service/notification-service
   newTag: b88b45f5a738
