@@ -663,16 +663,16 @@ images:
   newTag: b88b45f5a738
 - name: ingestion-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/ingestion-service/ingestion-service
-  newTag: b88b45f5a738
+  newTag: 51eafd5cb65b
 - name: notification-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/notification-service/notification-service
   newTag: b88b45f5a738
 - name: pond-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/pond-service/pond-service
-  newTag: f85dcebd8115
+  newTag: 51eafd5cb65b
 - name: project-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/project-service/project-service
-  newTag: f85dcebd8115
+  newTag: 51eafd5cb65b
 - name: realtime-gateway
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/realtime-gateway/realtime-gateway
   newTag: b88b45f5a738
