@@ -1,15 +1,15 @@
 package com.aquashield.pond;
 
-import com.aquashield.api.ingestion.v1.GetReadingWindowsRequest;
-import com.aquashield.api.ingestion.v1.GetReadingWindowsResponse;
+import com.aquashield.api.ingestion.v1.GetLatestReadingsRequest;
+import com.aquashield.api.ingestion.v1.GetLatestReadingsResponse;
 import com.aquashield.api.ingestion.v1.GetPondParameterBucketAveragesRequest;
 import com.aquashield.api.ingestion.v1.GetPondParameterBucketAveragesResponse;
 import com.aquashield.api.ingestion.v1.GetReadingsRequest;
 import com.aquashield.api.ingestion.v1.GetReadingsResponse;
 import com.aquashield.api.ingestion.v1.IngestionReadServiceGrpc;
+import com.aquashield.api.ingestion.v1.LatestReadingRow;
 import com.aquashield.api.ingestion.v1.PondParameterBucketAverage;
 import com.aquashield.api.ingestion.v1.ReadingRow;
-import com.aquashield.api.ingestion.v1.ReadingWindow;
 import com.aquashield.api.pond.v1.GetCurrentCycleRequest;
 import com.aquashield.api.pond.v1.GetPondRequest;
 import com.aquashield.api.pond.v1.GetPondSummaryRequest;
@@ -142,15 +142,17 @@ class PondApiIT {
     }
 
     @Override
-    public void getReadingWindows(GetReadingWindowsRequest req,
-                                  StreamObserver<GetReadingWindowsResponse> obs) {
-      GetReadingWindowsResponse.Builder resp = GetReadingWindowsResponse.newBuilder();
+    public void getLatestReadings(GetLatestReadingsRequest req,
+                                  StreamObserver<GetLatestReadingsResponse> obs) {
+      GetLatestReadingsResponse.Builder resp = GetLatestReadingsResponse.newBuilder();
       for (String id : req.getPondIdsList()) {
         List<ReadingRow> rows = READINGS.get(id);
         if (rows != null && !rows.isEmpty()) {
-          resp.addWindows(ReadingWindow.newBuilder().setPondId(id)
-              .setFirstAt(rows.get(0).getMeasuredAt())
-              .setLastAt(rows.get(rows.size() - 1).getMeasuredAt()));
+          ReadingRow latest = rows.get(rows.size() - 1);
+          resp.addReadings(LatestReadingRow.newBuilder()
+              .setPondId(id)
+              .setMeasuredAt(latest.getMeasuredAt())
+              .putAllValues(latest.getValuesMap()));
         }
       }
       obs.onNext(resp.build());
@@ -478,11 +480,11 @@ class PondApiIT {
       assertThat(data.get(14).get("seriesB").asDouble()).isEqualTo(0.4);
       assertThat(data.get(13).get("seriesA").asDouble()).isZero(); // empty bucket zero-fill
 
-      // options: reading windows now real (localized isoformat, +08:00 offset)
+      // options: latest readings provide a fast sensor-data flag without scanning windows.
       JsonNode options = call(base + "/ponds", HttpMethod.GET, null, member);
       JsonNode alpha = findPond(options.at("/body/ponds"), "Pond Alpha");
       assertThat(alpha.get("hasSensorData").asBoolean()).isTrue();
-      assertThat(alpha.get("firstReadingAt").asText()).isEqualTo("2026-06-03T14:00:00+08:00");
+      assertThat(alpha.get("firstReadingAt").isNull()).isTrue();
       assertThat(alpha.get("lastReadingAt").asText()).isEqualTo("2026-06-03T14:30:00+08:00");
       JsonNode beta = findPond(options.at("/body/ponds"), "Pond Beta");
       assertThat(beta.get("hasSensorData").asBoolean()).isFalse();
