@@ -76,7 +76,7 @@ metadata:
   name: cloudsql-bootstrap
   annotations:
     argocd.argoproj.io/sync-wave: "1"
-    argocd.argoproj.io/sync-options: Replace=true
+    argocd.argoproj.io/sync-options: Force=true,Replace=true
 spec:
   backoffLimit: 4
   template:
