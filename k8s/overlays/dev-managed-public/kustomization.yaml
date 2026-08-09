@@ -67,8 +67,14 @@ patches:
                 weight: 1
           - matches:
               - path:
-                  type: PathPrefix
+                  type: Exact
                   value: /
+              - path:
+                  type: Exact
+                  value: /robots.txt
+              - path:
+                  type: Exact
+                  value: /sitemap.xml
             backendRefs:
               - group: ""
                 kind: Service

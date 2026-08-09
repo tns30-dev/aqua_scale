@@ -13,6 +13,9 @@ spec:
             ports:
               - "8080"
             paths:
+              - /
+              - /robots.txt
+              - /sitemap.xml
               - /healthz
               - /api
               - /api/*
