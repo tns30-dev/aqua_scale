@@ -539,7 +539,7 @@ jobs:
         run: |
           set -euo pipefail
           test -f .github/workflows/deploy-handoff.yml
-          grep -q "Artifact Registry" .github/workflows/deploy-handoff.yml
+          grep -q "GAR_HOST" .github/workflows/deploy-handoff.yml
           grep -q "GCP_WORKLOAD_IDENTITY_PROVIDER" .github/workflows/deploy-handoff.yml
           grep -q "GITOPS_IMAGE_OVERLAY" .github/workflows/deploy-handoff.yml
           grep -q "kustomize edit set image" .github/workflows/deploy-handoff.yml
