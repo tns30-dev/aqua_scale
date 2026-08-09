@@ -39,6 +39,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p zap-output
+          chmod 0777 zap-output
           docker run --rm \
             -v "$PWD/zap-output:/zap/wrk/:rw" \
             ghcr.io/zaproxy/zaproxy:stable \
@@ -81,4 +82,4 @@ jobs:
           name: dast-evidence-zap-baseline
           path: zap-output/
           retention-days: 30
-          if-no-files-found: ignore
+          if-no-files-found: error
