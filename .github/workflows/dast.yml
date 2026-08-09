@@ -10,7 +10,7 @@ on:
       target_path:
         description: Target path to baseline scan
         required: true
-        default: /
+        default: /api/csrf
 
 permissions:
   contents: read

@@ -65,6 +65,16 @@ patches:
                 name: api-edge-proxy
                 port: 8080
                 weight: 1
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - group: ""
+                kind: Service
+                name: api-edge-proxy
+                port: 8080
+                weight: 1
   - target:
       kind: Deployment
       name: api-edge-proxy
