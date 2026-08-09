@@ -1,0 +1,255 @@
+{
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+                "setup GET /api/csrf status 200": {
+                    "path": "::setup GET /api/csrf status 200",
+                    "id": "3e4187ce677af35db0686844bb8f890e",
+                    "passes": 1,
+                    "fails": 0,
+                    "name": "setup GET /api/csrf status 200"
+                },
+                "setup csrf token present": {
+                    "fails": 0,
+                    "name": "setup csrf token present",
+                    "path": "::setup csrf token present",
+                    "id": "4d332d504bb5bf24934f8938155885c5",
+                    "passes": 1
+                },
+                "setup POST /api/auth/login status 200": {
+                    "path": "::setup POST /api/auth/login status 200",
+                    "id": "1309b19977933e840bbb140c33935e3d",
+                    "passes": 1,
+                    "fails": 0,
+                    "name": "setup POST /api/auth/login status 200"
+                },
+                "setup GET /api/auth/me status 200": {
+                    "id": "0cd93f9f364555cc03a36ab2abcbfe4a",
+                    "passes": 1,
+                    "fails": 0,
+                    "name": "setup GET /api/auth/me status 200",
+                    "path": "::setup GET /api/auth/me status 200"
+                },
+                "setup GET /api/ponds status 200": {
+                    "id": "7d672646448e273cdd48566d09c9735e",
+                    "passes": 1,
+                    "fails": 0,
+                    "name": "setup GET /api/ponds status 200",
+                    "path": "::setup GET /api/ponds status 200"
+                },
+                "setup GET /api/cycles status 200": {
+                    "id": "e36cd3fd71f4abc2ae6f2e1beef5355c",
+                    "passes": 1,
+                    "fails": 0,
+                    "name": "setup GET /api/cycles status 200",
+                    "path": "::setup GET /api/cycles status 200"
+                },
+                "C growth: summary status 200": {
+                    "id": "fabd15200a1b012540a5f5c4e135bc69",
+                    "passes": 20,
+                    "fails": 0,
+                    "name": "C growth: summary status 200",
+                    "path": "::C growth: summary status 200"
+                },
+                "C growth: charts status 200": {
+                    "id": "c2eeffa1f1df22592ddfbf7a009e9bb7",
+                    "passes": 20,
+                    "fails": 0,
+                    "name": "C growth: charts status 200",
+                    "path": "::C growth: charts status 200"
+                },
+                "C growth: pond comparison status 200": {
+                    "name": "C growth: pond comparison status 200",
+                    "path": "::C growth: pond comparison status 200",
+                    "id": "35f5a005cfea2488e8441b432575bbb6",
+                    "passes": 20,
+                    "fails": 0
+                },
+                "C growth: energy status 200": {
+                    "path": "::C growth: energy status 200",
+                    "id": "f8af69ac835ea5d38238e2304ea5c99c",
+                    "passes": 20,
+                    "fails": 0,
+                    "name": "C growth: energy status 200"
+                },
+                "C growth: feeding options status 200": {
+                    "id": "485f7759f39af355c190131b0468ef36",
+                    "passes": 20,
+                    "fails": 0,
+                    "name": "C growth: feeding options status 200",
+                    "path": "::C growth: feeding options status 200"
+                },
+                "C growth: feeding dashboard status 200": {
+                    "passes": 20,
+                    "fails": 0,
+                    "name": "C growth: feeding dashboard status 200",
+                    "path": "::C growth: feeding dashboard status 200",
+                    "id": "9ff89aeb9ffd2182985925a1438ca4af"
+                }
+            }
+    },
+    "metrics": {
+        "growth_charts_ms": {
+            "min": 254.93964,
+            "med": 261.9609105,
+            "max": 723.32859,
+            "p(90)": 611.4262550000001,
+            "p(95)": 645.7392998500001,
+            "avg": 387.91510084999993
+        },
+        "http_req_sending": {
+            "avg": 0.080523296,
+            "min": 0.042569,
+            "med": 0.073457,
+            "max": 0.18732,
+            "p(90)": 0.1150626,
+            "p(95)": 0.1258126
+        },
+        "growth_pond_comparison_ms": {
+            "max": 956.777165,
+            "p(90)": 791.3962036000001,
+            "p(95)": 896.7148276500001,
+            "avg": 363.25891375,
+            "min": 247.678223,
+            "med": 274.3474705
+        },
+        "http_req_duration": {
+            "avg": 385.59210923999996,
+            "min": 247.678223,
+            "med": 293.242267,
+            "max": 956.777165,
+            "p(90)": 608.1042652,
+            "p(95)": 707.6102757999997
+        },
+        "http_req_blocked": {
+            "avg": 0.177111232,
+            "min": 0.00023,
+            "med": 0.00034,
+            "max": 22.064352,
+            "p(90)": 0.0005516,
+            "p(95)": 0.000601
+        },
+        "checks": {
+            "passes": 126,
+            "fails": 0,
+            "value": 1
+        },
+        "growth_summary_ms": {
+            "p(95)": 352.2124742500001,
+            "avg": 287.2438988,
+            "min": 250.810465,
+            "med": 269.090253,
+            "max": 490.993609,
+            "p(90)": 344.2577083
+        },
+        "growth_energy_ms": {
+            "avg": 604.0824788,
+            "min": 523.667527,
+            "med": 589.6064220000001,
+            "max": 816.198505,
+            "p(90)": 661.2079436,
+            "p(95)": 725.634606
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 125,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "http_req_tls_handshaking": {
+            "avg": 0.055054824,
+            "min": 0,
+            "med": 0,
+            "max": 6.881853,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "vus_max": {
+            "value": 1,
+            "min": 1,
+            "max": 1
+        },
+        "growth_feeding_options_ms": {
+            "p(95)": 343.20215730000007,
+            "avg": 294.64094724999995,
+            "min": 267.604512,
+            "med": 283.776712,
+            "max": 405.484353,
+            "p(90)": 335.0178339
+        },
+        "iteration_duration": {
+            "min": 2101.759561,
+            "med": 2348.2774959999997,
+            "max": 5590.818891,
+            "p(90)": 2784.4913380000016,
+            "p(95)": 3800.991794150001,
+            "avg": 2597.2341298499996
+        },
+        "data_sent": {
+            "count": 18213,
+            "rate": 350.61600956272844
+        },
+        "iterations": {
+            "count": 20,
+            "rate": 0.38501730583948657
+        },
+        "http_req_receiving": {
+            "med": 3.74132,
+            "max": 54.093411,
+            "p(90)": 29.755544200000006,
+            "p(95)": 36.098290999999996,
+            "avg": 9.864629951999996,
+            "min": 0.080654
+        },
+        "http_req_waiting": {
+            "max": 955.77091,
+            "p(90)": 601.2935242000001,
+            "p(95)": 696.3739479999998,
+            "avg": 375.6469559920002,
+            "min": 247.378397,
+            "med": 287.994475
+        },
+        "http_req_connecting": {
+            "min": 0,
+            "med": 0,
+            "max": 2.912206,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.023297647999999997
+        },
+        "http_req_duration{expected_response:true}": {
+            "max": 956.777165,
+            "p(90)": 608.1042652,
+            "p(95)": 707.6102757999997,
+            "avg": 385.59210923999996,
+            "min": 247.678223,
+            "med": 293.242267
+        },
+        "data_received": {
+            "count": 1363923,
+            "rate": 26256.6979416255
+        },
+        "http_reqs": {
+            "count": 125,
+            "rate": 2.406358161496791
+        },
+        "vus": {
+            "min": 1,
+            "max": 1,
+            "value": 1
+        },
+        "growth_feeding_dashboard_ms": {
+            "avg": 364.90951110000003,
+            "min": 306.057411,
+            "med": 337.0018875,
+            "max": 623.327294,
+            "p(90)": 403.68985840000005,
+            "p(95)": 451.0922626500001
+        }
+    }
+}

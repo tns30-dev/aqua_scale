@@ -1,0 +1,186 @@
+{
+    "root_group": {
+        "checks": {
+            "setup GET /api/csrf status 200": {
+                "passes": 50,
+                "fails": 0,
+                "name": "setup GET /api/csrf status 200",
+                "path": "::setup GET /api/csrf status 200",
+                "id": "3e4187ce677af35db0686844bb8f890e"
+            },
+            "setup csrf token present": {
+                "passes": 50,
+                "fails": 0,
+                "name": "setup csrf token present",
+                "path": "::setup csrf token present",
+                "id": "4d332d504bb5bf24934f8938155885c5"
+            },
+            "setup POST /api/auth/login status 200": {
+                "passes": 50,
+                "fails": 0,
+                "name": "setup POST /api/auth/login status 200",
+                "path": "::setup POST /api/auth/login status 200",
+                "id": "1309b19977933e840bbb140c33935e3d"
+            },
+            "setup GET /api/auth/me status 200": {
+                "name": "setup GET /api/auth/me status 200",
+                "path": "::setup GET /api/auth/me status 200",
+                "id": "0cd93f9f364555cc03a36ab2abcbfe4a",
+                "passes": 50,
+                "fails": 0
+            },
+            "setup GET /api/ponds status 200": {
+                "id": "7d672646448e273cdd48566d09c9735e",
+                "passes": 50,
+                "fails": 0,
+                "name": "setup GET /api/ponds status 200",
+                "path": "::setup GET /api/ponds status 200"
+            },
+            "setup GET /api/cycles status 200": {
+                "id": "e36cd3fd71f4abc2ae6f2e1beef5355c",
+                "passes": 50,
+                "fails": 0,
+                "name": "setup GET /api/cycles status 200",
+                "path": "::setup GET /api/cycles status 200"
+            },
+            "B3 herd: pond comparison status 200": {
+                "fails": 0,
+                "name": "B3 herd: pond comparison status 200",
+                "path": "::B3 herd: pond comparison status 200",
+                "id": "808986fb46f69bc2e17b7b385d082631",
+                "passes": 6256
+            }
+        },
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {}
+    },
+    "metrics": {
+        "iteration_duration": {
+            "min": 234.162463,
+            "med": 710.2210005,
+            "max": 26001.830606,
+            "p(90)": 1238.618985,
+            "p(95)": 1477.28623825,
+            "avg": 961.7720456876627
+        },
+        "iterations": {
+            "count": 6256,
+            "rate": 51.8873795144506
+        },
+        "http_req_sending": {
+            "avg": 0.06050289409775612,
+            "min": 0.029775,
+            "med": 0.057521,
+            "max": 0.875578,
+            "p(90)": 0.07344,
+            "p(95)": 0.08293225
+        },
+        "data_received": {
+            "count": 87211505,
+            "rate": 723333.8327943424
+        },
+        "http_req_duration": {
+            "med": 712.1035045,
+            "max": 21351.336906,
+            "p(90)": 1274.1360085000001,
+            "p(95)": 1506.3337645000001,
+            "avg": 922.9840801311101,
+            "min": 224.583611,
+            "thresholds": {
+                "p(95)<2500": false
+            }
+        },
+        "vus": {
+            "value": 50,
+            "min": 50,
+            "max": 50
+        },
+        "http_reqs": {
+            "count": 6506,
+            "rate": 53.96088413059712
+        },
+        "vus_max": {
+            "value": 50,
+            "min": 50,
+            "max": 50
+        },
+        "http_req_duration{name:B3 herd: pond comparison}": {
+            "p(90)": 1216.1385845,
+            "p(95)": 1419.2535897500002,
+            "avg": 774.1159270209389,
+            "min": 233.860268,
+            "med": 708.3962615,
+            "max": 2789.208795,
+            "thresholds": {
+                "p(95)<4000": false
+            }
+        },
+        "http_req_connecting": {
+            "avg": 0.1465457119581924,
+            "min": 0,
+            "med": 0,
+            "max": 25.095262,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "data_sent": {
+            "count": 970913,
+            "rate": 8052.770349506678
+        },
+        "checks": {
+            "passes": 6556,
+            "fails": 0,
+            "value": 1
+        },
+        "http_req_receiving": {
+            "p(90)": 21.430825499999997,
+            "p(95)": 31.01570975,
+            "avg": 13.043434194282217,
+            "min": 0.028413,
+            "med": 9.6867315,
+            "max": 273.618213
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 6506,
+            "thresholds": {
+                "rate<0.05": false
+            },
+            "value": 0
+        },
+        "http_req_tls_handshaking": {
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.3443082350138334,
+            "min": 0,
+            "med": 0,
+            "max": 69.824402
+        },
+        "http_req_blocked": {
+            "p(90)": 0.000481,
+            "p(95)": 0.000551,
+            "avg": 1.5999661403320027,
+            "min": 0.00015,
+            "med": 0.000331,
+            "max": 231.789344
+        },
+        "http_req_duration{expected_response:true}": {
+            "avg": 922.9840801311101,
+            "min": 224.583611,
+            "med": 712.1035045,
+            "max": 21351.336906,
+            "p(90)": 1274.1360085000001,
+            "p(95)": 1506.3337645000001
+        },
+        "http_req_waiting": {
+            "med": 699.5067465,
+            "max": 21351.171336,
+            "p(90)": 1262.9461175000001,
+            "p(95)": 1496.746333,
+            "avg": 909.8801430427287,
+            "min": 223.875655
+        }
+    }
+}

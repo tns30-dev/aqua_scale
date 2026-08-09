@@ -6,7 +6,7 @@
 |---|---|---|
 | Test-case definition | Done | See `docs/evidence/performance/test_cases.md` |
 | Local Docker Compose results | Done | 50 concurrent users, 4,000,000+ readings, all p95 values under 3 sec |
-| Cloud-native results | Pending | GKE runtime and public Gateway are deployed; DNS/TLS update is still pending before the external k6 run |
+| Cloud-native results | Done | See `cloud_native_results.md`; GitHub k6 artifacts are stored under `artifacts/cloud-*` |
 
 ## Local Result Source
 
@@ -29,9 +29,7 @@ Pub/Sub drain: 400 / 400 rows stored in under 1 sec
 
 ## Cloud-Native Result Target
 
-Cloud-native results should be recorded after DNS points `api.aquashield.live`
-to the new GKE Gateway IP and the same k6 scenarios are run against the
-deployed microservice gateway.
+Cloud-native results were recorded against the deployed microservice gateway:
 
 Current target project:
 

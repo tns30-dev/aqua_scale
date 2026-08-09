@@ -24,9 +24,10 @@ for performance testing.
 | Service readiness | Done in `2026-08-08-gke-workload-rollout.md` |
 | Managed data reachability | Done through Cloud SQL bootstrap and service rollout smoke |
 | Istio/service mesh | Done in `2026-08-08-istio-mesh-rollout.md` |
+| Prometheus/Grafana monitoring | Done in `2026-08-09-prometheus-grafana-monitoring.md` |
 | Telemetry store correction | Done in `2026-08-09-telemetry-store-correction.md`; Cloud SQL telemetry tables cleared to 0 rows; 4M telemetry evidence loaded to Bigtable/BigQuery |
-| Public API edge | Gateway programmed; DNS/TLS pending in `2026-08-08-gke-workload-rollout.md` |
-| k6 target readiness | Pending until DNS/TLS is active |
+| Public API edge | Gateway programmed; `https://api.aquashield.live/api/csrf` returns `200` |
+| k6 target readiness | Done; cloud k6 results are in `../performance/cloud_native_results.md` |
 
 ## Runtime Target Decision
 

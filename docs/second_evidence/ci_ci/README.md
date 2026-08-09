@@ -1,9 +1,8 @@
 # Local CI/CD Evidence Index (2026-08-09)
 
 Local DevSecOps rehearsal against the Docker Compose stack (9 services + nginx
-gateway, ~8M-row Postgres). Plan: `local.md`. Owner: Claude (CI/CD duty);
-Codex owns cloud deployment (DNS/Istio/data) in parallel. The remote round
-re-runs this against `https://api.aquashield.live` once the cloud is stable.
+gateway, ~8M-row Postgres). Plan: `local.md`. The cloud-native round has also
+been captured against `https://api.aquashield.live`.
 
 ## Phase evidence
 
@@ -18,6 +17,14 @@ re-runs this against `https://api.aquashield.live` once the cloud is stable.
 | 6 Load + stress | load/stress/growth/websocket | `../performance/2026-08-09-local-k6-load-stress.md` | PASS |
 | 7 Resolution + rescan | fix + rescan | `2026-08-09-phase7-vuln-resolution-rescan.md` | PASS (CRITICAL fixed) |
 | 8 Compliance-as-code | IaC + git audit + regulatory | `2026-08-09-phase8-compliance-as-code.md` | PASS |
+
+## Cloud-native evidence
+
+| Area | File | Verdict |
+|---|---|---|
+| Remote CI/CD | `remote.md` | PASS |
+| Cloud DAST | `cloud_dast.md` | PASS, with header-hardening follow-up |
+| Cloud performance | `../performance/cloud_native_results.md` | PASS, all key p95 values under 3 sec |
 
 ## Raw artifacts (`artifacts/`)
 
@@ -72,12 +79,8 @@ Order for the DevSecOps presentation recording, drawing on this evidence:
 9. **Compliance as code** — Terraform/Kustomize validate + git audit trail
    (Phase 8).
 
-## Remote round (blocked on Codex "environment stable")
+## Remote round
 
-"Stable" = DNS → `34.54.25.36`, managed TLS ACTIVE, Istio sidecars healthy,
-Cloud SQL data presentable, login via `https://www.aquashield.live` CORS-clean.
-Then: `ci.yml` + `deploy-handoff.yml` end-to-end (GAR push via OIDC/WIF →
-Kustomize bump → Argo CD sync), ZAP DAST + k6 (load/stress/growth/websocket)
-vs the deployed API. Open item: **Argo CD is not yet installed** in the new
-cluster (Codex confirmed) — recommend installing it before the remote round so
-the CD demo shows a real GitOps sync, not only the handoff commit.
+The remote round is complete for the current cloud-native evidence target:
+DNS/TLS are active, Argo CD is installed and synced, cloud DAST has a saved ZAP
+artifact, and k6 load/stress/growth/websocket runs have saved GitHub artifacts.
