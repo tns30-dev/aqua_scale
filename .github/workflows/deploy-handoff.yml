@@ -1,8 +1,8 @@
-name: Container Release and Argo CD Handoff
+name: AquaShield CD Evidence - Artifact Registry, Argo CD and DAST
 
 on:
   workflow_run:
-    workflows: ["AquaShield DevSecOps CI/CD Evidence"]
+    workflows: ["AquaShield CI Evidence"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -11,6 +11,11 @@ on:
         description: Comma-separated services to release, or all. Defaults to Identity and Access Service.
         required: false
         default: identity-access-service
+      run_dast:
+        description: Run deployed frontend/API DAST after CD handoff
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -27,6 +32,9 @@ env:
   GCP_WORKLOAD_IDENTITY_PROVIDER: projects/652498179105/locations/global/workloadIdentityPools/github-actions/providers/github-actions
   GCP_SERVICE_ACCOUNT: aquashield-github-deployer@aquashield-ms-dev-20260808.iam.gserviceaccount.com
   GITOPS_IMAGE_OVERLAY: k8s/overlays/dev-full
+  DAST_FRONTEND_URL: ${{ vars.CD_DAST_FRONTEND_URL || 'https://www.aquashield.live' }}
+  DAST_API_URL: ${{ vars.CD_DAST_API_URL || 'https://api.aquashield.live' }}
+  DAST_SPIDER_MINUTES: ${{ vars.CD_DAST_SPIDER_MINUTES || '2' }}
 
 jobs:
   detect-changes:
@@ -35,6 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       any: ${{ steps.select.outputs.any }}
+      frontend: ${{ steps.select.outputs.frontend }}
       services: ${{ steps.select.outputs.services }}
       deploy-sha: ${{ steps.select.outputs.deploy-sha }}
       short-sha: ${{ steps.select.outputs.short-sha }}
@@ -52,8 +61,11 @@ jobs:
         run: |
           set -euo pipefail
 
+          FRONTEND_SELECTED=false
+
           service_label() {
             case "$1" in
+              frontend) echo "Frontend Web App" ;;
               identity-access-service) echo "Identity and Access Service" ;;
               project-service) echo "Project Service" ;;
               pond-service) echo "Pond Service" ;;
@@ -89,6 +101,7 @@ jobs:
           select_manual_services() {
             local raw="${INPUT_SERVICES:-identity-access-service}"
             if [ "$raw" = "all" ] || [ "$raw" = "all-services" ]; then
+              echo "__FRONTEND__"
               printf '%s\n' "${ALL_SERVICES[@]}"
               return
             fi
@@ -108,6 +121,11 @@ jobs:
                 fi
               done
             done
+            for item in "${requested[@]}"; do
+              if [ "$item" = "frontend" ] || [ "$item" = "frontend-web" ] || [ "$item" = "frontend-web-app" ]; then
+                echo "__FRONTEND__"
+              fi
+            done
             printf '%s\n' "${selected[@]}"
           }
 
@@ -117,6 +135,10 @@ jobs:
               changed="$(git diff --name-only HEAD^ HEAD)"
             else
               changed="$(git show --pretty='' --name-only HEAD)"
+            fi
+
+            if echo "$changed" | grep -Eq '^(frontend/|\.github/workflows/frontend-ci-cd\.yml$)'; then
+              echo "__FRONTEND__"
             fi
 
             if echo "$changed" | grep -Eq '^(common/|shared-api/|pom.xml$)'; then
@@ -132,10 +154,18 @@ jobs:
           }
 
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            mapfile -t selected < <(select_manual_services)
+            mapfile -t selected_raw < <(select_manual_services)
           else
-            mapfile -t selected < <(select_changed_services)
+            mapfile -t selected_raw < <(select_changed_services)
           fi
+          selected=()
+          for item in "${selected_raw[@]}"; do
+            if [ "$item" = "__FRONTEND__" ]; then
+              FRONTEND_SELECTED=true
+            else
+              selected+=("$item")
+            fi
+          done
 
           if [ "${#selected[@]}" -eq 0 ]; then
             echo "any=false" >> "$GITHUB_OUTPUT"
@@ -145,8 +175,12 @@ jobs:
             echo "any=true" >> "$GITHUB_OUTPUT"
             echo "services=$json" >> "$GITHUB_OUTPUT"
           fi
+          echo "frontend=$FRONTEND_SELECTED" >> "$GITHUB_OUTPUT"
 
           labels=()
+          if [ "$FRONTEND_SELECTED" = "true" ]; then
+            labels+=("$(service_label frontend)")
+          fi
           for service in "${selected[@]}"; do
             labels+=("$(service_label "$service")")
           done
@@ -162,6 +196,58 @@ jobs:
           echo "deploy-sha=$deploy_sha" >> "$GITHUB_OUTPUT"
           echo "short-sha=$short_sha" >> "$GITHUB_OUTPUT"
           echo "Selected services: $label_text"
+
+  frontend-deploy:
+    name: Deploy Frontend - Firebase Hosting
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.detect-changes.outputs.deploy-sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install locked frontend dependencies
+        run: npm ci
+
+      - name: Build Firebase hosting artifact
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://api.aquashield.live' }}
+          VITE_WS_BASE_URL: ${{ vars.VITE_WS_BASE_URL || 'wss://api.aquashield.live/ws' }}
+        run: npm run build
+
+      - id: creds
+        name: Check Firebase credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID || 'aquashield-ms-dev-20260808' }}
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ] && [ -n "$FIREBASE_PROJECT_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Firebase deploy skipped; configure FIREBASE_SERVICE_ACCOUNT and FIREBASE_PROJECT_ID."
+          fi
+
+      - name: Deploy Firebase Hosting live channel
+        if: steps.creds.outputs.enabled == 'true'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ vars.FIREBASE_PROJECT_ID || 'aquashield-ms-dev-20260808' }}
+          target: ${{ vars.FIREBASE_HOSTING_SITE }}
+          entryPoint: frontend
+          channelId: live
 
   build-push:
     name: Build, Scan & Push Image - ${{ matrix.service.name }}
@@ -238,7 +324,7 @@ jobs:
 
       - uses: imranismail/setup-kustomize@v2
         with:
-          kustomize-version: 5.4.3
+          kustomize-version: 5.8.1
 
       - name: Update Kubernetes image tags
         env:
@@ -268,3 +354,147 @@ jobs:
           fi
           git commit -m "chore(gitops): update dev images to ${SHORT_SHA} [skip ci]"
           git push origin HEAD:main
+
+  cd-summary:
+    name: CD Handoff Summary
+    needs: [detect-changes, frontend-deploy, build-push, gitops-update]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    outputs:
+      release-ready: ${{ steps.summary.outputs.release-ready }}
+    steps:
+      - id: summary
+        name: Summarize release handoff
+        run: |
+          set -euo pipefail
+          release_ready=true
+          for result in "${{ needs.detect-changes.result }}" "${{ needs.frontend-deploy.result }}" "${{ needs.build-push.result }}" "${{ needs.gitops-update.result }}"; do
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              release_ready=false
+            fi
+          done
+          echo "release-ready=${release_ready}" >> "$GITHUB_OUTPUT"
+          {
+            echo "## AquaShield CD Evidence"
+            echo
+            echo "| Stage | Result |"
+            echo "|---|---|"
+            echo "| Select release services | ${{ needs.detect-changes.result }} |"
+            echo "| Firebase frontend deploy | ${{ needs.frontend-deploy.result }} |"
+            echo "| Build, scan and push images | ${{ needs.build-push.result }} |"
+            echo "| GitOps image handoff | ${{ needs.gitops-update.result }} |"
+            echo
+            if [ "${{ needs.detect-changes.outputs.frontend }}" = "true" ] && [ "${{ needs.detect-changes.outputs.any }}" = "true" ]; then
+              echo "Frontend was deployed to Firebase and backend images were handed to Argo CD through \`${GITOPS_IMAGE_OVERLAY}\`."
+            elif [ "${{ needs.detect-changes.outputs.frontend }}" = "true" ]; then
+              echo "Frontend was deployed to Firebase; no backend image handoff was required."
+            elif [ "${{ needs.detect-changes.outputs.any }}" = "true" ]; then
+              echo "Backend images were handed to Argo CD through \`${GITOPS_IMAGE_OVERLAY}\`."
+            else
+              echo "No releaseable service image changed; deployed DAST still runs against the current live environment."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$release_ready" != "true" ]; then
+            exit 1
+          fi
+
+  dast:
+    name: DAST - Deployed Frontend and API OWASP ZAP
+    needs: cd-summary
+    if: always() && !cancelled() && needs.cd-summary.outputs.release-ready == 'true' && (github.event_name != 'workflow_dispatch' || inputs.run_dast)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run deployed frontend and API ZAP baselines
+        env:
+          FRONTEND_URL: ${{ env.DAST_FRONTEND_URL }}
+          API_URL: ${{ env.DAST_API_URL }}
+          SPIDER_MINUTES: ${{ env.DAST_SPIDER_MINUTES }}
+        run: |
+          set -euo pipefail
+          mkdir -p zap-output
+          chmod 0777 zap-output
+
+          run_zap() {
+            local name="$1"
+            local target="$2"
+            echo "::group::OWASP ZAP ${name}"
+            docker run --rm \
+              -v "$PWD/zap-output:/zap/wrk/:rw" \
+              ghcr.io/zaproxy/zaproxy:stable \
+              zap-baseline.py \
+                -t "$target" \
+                -m "$SPIDER_MINUTES" \
+                -J "${name}-zap-report.json" \
+                -r "${name}-zap-report.html" \
+                -w "${name}-zap-report.md" \
+                -I
+            echo "::endgroup::"
+          }
+
+          run_zap "frontend-web" "${FRONTEND_URL%/}/"
+          run_zap "backend-api" "${API_URL%/}/api/csrf"
+
+      - name: Summarize DAST result
+        if: always()
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          print("## CD DAST")
+          print("OWASP ZAP baseline scanned the deployed frontend and API edge after the CD handoff.")
+          print()
+
+          totals = Counter()
+          for report_path in sorted(Path("zap-output").glob("*-zap-report.json")):
+              with report_path.open(encoding="utf-8") as handle:
+                  report = json.load(handle)
+              for site in report.get("site", []):
+                  for alert in site.get("alerts", []):
+                      risk = alert.get("riskdesc", "Unknown").split()[0]
+                      totals[risk] += 1
+
+          print("| Severity | Count |")
+          print("|---|---:|")
+          for risk in ("High", "Medium", "Low", "Informational"):
+              print(f"| {risk} | {totals.get(risk, 0)} |")
+          PY
+
+      - name: Publish DAST evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CD Evidence - DAST Frontend and API
+          path: zap-output/
+          if-no-files-found: ignore
+          retention-days: 30
+
+  cd-final-summary:
+    name: CD Evidence Summary
+    needs: [cd-summary, dast]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish final CD evidence summary
+        run: |
+          {
+            echo "## AquaShield CD Final Summary"
+            echo
+            echo "| Stage | Result |"
+            echo "|---|---|"
+            echo "| Release handoff | ${{ needs.cd-summary.result }} |"
+            echo "| DAST deployed frontend/API | ${{ needs.dast.result }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          failed=0
+          for result in "${{ needs.cd-summary.result }}" "${{ needs.dast.result }}"; do
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              failed=1
+            fi
+          done
+          exit "$failed"

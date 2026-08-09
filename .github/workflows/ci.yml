@@ -1,28 +1,24 @@
-# AquaShield sequential DevSecOps evidence pipeline.
+# AquaShield sequential CI evidence pipeline.
 #
 # Branch policy:
-# - main/dev/test run this full CI evidence lane.
+# - main/dev/test run this CI evidence lane.
 # - load-test is intentionally excluded; .github/workflows/perf.yml owns the
 #   long k6 load/stress/growth/websocket evidence lane there.
-# - deploy-handoff.yml remains the real image-push/GitOps workflow after main CI.
+# - deploy-handoff.yml owns the CD lane after this workflow passes on main.
 
-name: AquaShield DevSecOps CI/CD Evidence
+name: AquaShield CI Evidence
 
 on:
   push:
     branches: [main, dev]
   pull_request:
+    branches: [main, dev, test]
   workflow_dispatch:
     inputs:
       service_scope:
         description: "Evidence scope: all, changed, or comma-separated service ids"
         required: false
         default: all
-      run_dast:
-        description: "Run live frontend/API DAST after the CI/CD gates"
-        required: false
-        type: boolean
-        default: true
 
 permissions:
   contents: read
@@ -34,9 +30,6 @@ concurrency:
 env:
   JAVA_VERSION: "21"
   NODE_VERSION: "22"
-  DAST_FRONTEND_URL: ${{ vars.CI_DAST_FRONTEND_URL || 'https://www.aquashield.live' }}
-  DAST_API_URL: ${{ vars.CI_DAST_API_URL || 'https://api.aquashield.live' }}
-  DAST_SPIDER_MINUTES: ${{ vars.CI_DAST_SPIDER_MINUTES || '2' }}
 
 jobs:
   scope:
@@ -527,107 +520,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
-  gitops-handoff:
-    name: 10 CD - Artifact Registry and Argo CD Handoff Gate
-    needs: compliance-as-code
-    if: always() && !cancelled()
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Validate deploy handoff workflow wiring
-        run: |
-          set -euo pipefail
-          test -f .github/workflows/deploy-handoff.yml
-          grep -q "GAR_HOST" .github/workflows/deploy-handoff.yml
-          grep -q "GCP_WORKLOAD_IDENTITY_PROVIDER" .github/workflows/deploy-handoff.yml
-          grep -q "GITOPS_IMAGE_OVERLAY" .github/workflows/deploy-handoff.yml
-          grep -q "kustomize edit set image" .github/workflows/deploy-handoff.yml
-
-          {
-            echo "## 10 CD handoff gate"
-            echo "- image push and GitOps mutation are owned by deploy-handoff.yml"
-            echo "- deploy-handoff.yml runs after successful main CI"
-            echo "- validated: Artifact Registry, WIF/OIDC, Kustomize image bump, Argo-ready overlay"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  dast:
-    name: 11 DAST - Frontend and API OWASP ZAP
-    needs: gitops-handoff
-    if: always() && !cancelled() && github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.run_dast)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run frontend and API ZAP baselines
-        env:
-          FRONTEND_URL: ${{ env.DAST_FRONTEND_URL }}
-          API_URL: ${{ env.DAST_API_URL }}
-          SPIDER_MINUTES: ${{ env.DAST_SPIDER_MINUTES }}
-        run: |
-          set -euo pipefail
-          mkdir -p zap-output
-          chmod 0777 zap-output
-
-          run_zap() {
-            local name="$1"
-            local target="$2"
-            echo "::group::OWASP ZAP ${name}"
-            docker run --rm \
-              -v "$PWD/zap-output:/zap/wrk/:rw" \
-              ghcr.io/zaproxy/zaproxy:stable \
-              zap-baseline.py \
-                -t "$target" \
-                -m "$SPIDER_MINUTES" \
-                -J "${name}-zap-report.json" \
-                -r "${name}-zap-report.html" \
-                -w "${name}-zap-report.md" \
-                -I
-            echo "::endgroup::"
-          }
-
-          run_zap "frontend-web" "${FRONTEND_URL%/}/"
-          run_zap "backend-api" "${API_URL%/}/api/csrf"
-
-      - name: Summarize DAST result
-        if: always()
-        run: |
-          set -euo pipefail
-          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import json
-          from collections import Counter
-          from pathlib import Path
-
-          print("## 11 DAST")
-          print("OWASP ZAP baseline scanned the deployed frontend and API edge.")
-          print()
-
-          totals = Counter()
-          for report_path in sorted(Path("zap-output").glob("*-zap-report.json")):
-              with report_path.open(encoding="utf-8") as handle:
-                  report = json.load(handle)
-              for site in report.get("site", []):
-                  for alert in site.get("alerts", []):
-                      risk = alert.get("riskdesc", "Unknown").split()[0]
-                      totals[risk] += 1
-
-          print("| Severity | Count |")
-          print("|---|---:|")
-          for risk in ("High", "Medium", "Low", "Informational"):
-              print(f"| {risk} | {totals.get(risk, 0)} |")
-          PY
-
-      - name: Publish DAST evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: DAST Evidence - Frontend and API
-          path: zap-output/
-          if-no-files-found: ignore
-          retention-days: 30
-
   ci-summary:
-    name: 12 CI/CD Evidence Summary
+    name: 10 CI Evidence Summary
     needs:
       - scope
       - frontend-quality
@@ -638,17 +532,15 @@ jobs:
       - dependency-sbom
       - container-management
       - compliance-as-code
-      - gitops-handoff
-      - dast
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Publish sequential CI/CD evidence summary
+      - name: Publish sequential CI evidence summary
         env:
           SELECTED_SERVICES: ${{ needs.scope.outputs.selected-labels }}
         run: |
           {
-            echo "## AquaShield DevSecOps CI/CD Evidence"
+            echo "## AquaShield CI Evidence"
             echo
             echo "| Stage | Result |"
             echo "|---|---|"
@@ -661,8 +553,6 @@ jobs:
             echo "| 07 Trivy dependencies and SBOM | ${{ needs.dependency-sbom.result }} |"
             echo "| 08 Container build/inspect/Trivy | ${{ needs.container-management.result }} |"
             echo "| 09 Compliance as Code | ${{ needs.compliance-as-code.result }} |"
-            echo "| 10 CD handoff gate | ${{ needs.gitops-handoff.result }} |"
-            echo "| 11 DAST frontend/API | ${{ needs.dast.result }} |"
             echo
             echo "Selected workloads: ${SELECTED_SERVICES:-none}"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -677,9 +567,7 @@ jobs:
             "${{ needs.secret-scan.result }}" \
             "${{ needs.dependency-sbom.result }}" \
             "${{ needs.container-management.result }}" \
-            "${{ needs.compliance-as-code.result }}" \
-            "${{ needs.gitops-handoff.result }}" \
-            "${{ needs.dast.result }}"; do
+            "${{ needs.compliance-as-code.result }}"; do
             if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
               failed=1
             fi
