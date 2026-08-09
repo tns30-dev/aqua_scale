@@ -1,7 +1,8 @@
 # AquaShield sequential CI evidence pipeline.
 #
 # Branch policy:
-# - main/dev/test run this CI evidence lane.
+# - main/dev/test run this CI evidence lane against changed workloads.
+# - manual workflow_dispatch defaults to all workloads for full evidence capture.
 # - load-test is intentionally excluded; .github/workflows/perf.yml owns the
 #   long k6 load/stress/growth/websocket evidence lane there.
 # - deploy-handoff.yml owns the CD lane after this workflow passes on main.
@@ -104,10 +105,8 @@ jobs:
 
           if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
             mode="${INPUT_SCOPE:-all}"
-          elif [ "${EVENT_NAME}" = "pull_request" ]; then
-            mode="changed"
           else
-            mode="all"
+            mode="changed"
           fi
 
           selected_java=()
