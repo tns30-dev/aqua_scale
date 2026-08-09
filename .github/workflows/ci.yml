@@ -1,10 +1,12 @@
-# AquaShield path-aware CI (spec: cooking_tracker/main/ci.md)
-# Monorepo discipline: a commit touching only one service builds/tests/scans ONLY that
-# service; shared modules (common/, shared-api/, root pom) fan out to every Java service.
-# Image PUSH + GitOps handoff are a separate workflow (needs Artifact Registry + OIDC/WIF
-# from the cloud foundation). TODO(security): pin actions to commit SHAs before cloud go-live.
+# AquaShield sequential DevSecOps evidence pipeline.
+#
+# Branch policy:
+# - main/dev/test run this full CI evidence lane.
+# - load-test is intentionally excluded; .github/workflows/perf.yml owns the
+#   long k6 load/stress/growth/websocket evidence lane there.
+# - deploy-handoff.yml remains the real image-push/GitOps workflow after main CI.
 
-name: Backend Service CI - Build, Test & Security
+name: AquaShield DevSecOps CI/CD Evidence
 
 on:
   push:
@@ -13,64 +15,68 @@ on:
   workflow_dispatch:
     inputs:
       service_scope:
-        description: "Evidence scope: changed, all, or comma-separated service ids"
+        description: "Evidence scope: all, changed, or comma-separated service ids"
         required: false
-        default: changed
+        default: all
+      run_dast:
+        description: "Run live frontend/API DAST after the CI/CD gates"
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: devsecops-ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  JAVA_VERSION: "21"
+  NODE_VERSION: "22"
+  DAST_FRONTEND_URL: ${{ vars.CI_DAST_FRONTEND_URL || 'https://www.aquashield.live' }}
+  DAST_API_URL: ${{ vars.CI_DAST_API_URL || 'https://api.aquashield.live' }}
+  DAST_SPIDER_MINUTES: ${{ vars.CI_DAST_SPIDER_MINUTES || '2' }}
+
 jobs:
-  detect-changes:
-    name: Select Changed Backend Services
+  scope:
+    name: 01 Scope - Select Frontend and Backend Workloads
     runs-on: ubuntu-latest
     outputs:
-      java-matrix: ${{ steps.matrix.outputs.java }}
-      any-java: ${{ steps.matrix.outputs.any }}
-      any-analytics: ${{ steps.matrix.outputs.analytics }}
-      selected-labels: ${{ steps.matrix.outputs.selected-labels }}
+      frontend: ${{ steps.scope.outputs.frontend }}
+      analytics: ${{ steps.scope.outputs.analytics }}
+      any-java: ${{ steps.scope.outputs.any-java }}
+      any-container: ${{ steps.scope.outputs.any-container }}
+      java-matrix: ${{ steps.scope.outputs.java-matrix }}
+      container-matrix: ${{ steps.scope.outputs.container-matrix }}
+      selected-labels: ${{ steps.scope.outputs.selected-labels }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            shared:
-              - 'common/**'
-              - 'shared-api/**'
-              - 'pom.xml'
-            identity-access-service: ['identity-access-service/**']
-            project-service: ['project-service/**']
-            sensor-service: ['sensor-service/**']
-            ingestion-service: ['ingestion-service/**']
-            notification-service: ['notification-service/**']
-            realtime-gateway: ['realtime-gateway/**']
-            pond-service: ['pond-service/**']
-            audit-service: ['audit-service/**']
-            # analytics is TS but consumes the shared-api protos — proto changes fan out
-            analytics:
-              - 'analytics-service/**'
-              - 'shared-api/src/main/proto/**'
-      - id: matrix
-        name: Select backend services
+
+      - id: scope
+        name: Resolve evidence scope
         env:
           EVENT_NAME: ${{ github.event_name }}
-          INPUT_SCOPE: ${{ inputs.service_scope }}
-          SHARED: ${{ steps.filter.outputs.shared }}
-          ANALYTICS_CHANGED: ${{ steps.filter.outputs.analytics }}
-          CHANGES: ${{ toJSON(steps.filter.outputs) }}
+          INPUT_SCOPE: ${{ inputs.service_scope || '' }}
         run: |
-          JAVA_SERVICES=(identity-access-service project-service sensor-service ingestion-service notification-service realtime-gateway pond-service audit-service)
-          ALL_SERVICES=("${JAVA_SERVICES[@]}" analytics-service)
+          set -euo pipefail
+
+          JAVA_SERVICES=(
+            identity-access-service
+            project-service
+            sensor-service
+            ingestion-service
+            notification-service
+            realtime-gateway
+            pond-service
+            audit-service
+          )
 
           service_label() {
             case "$1" in
+              frontend) echo "Frontend Web App" ;;
               identity-access-service) echo "Identity and Access Service" ;;
               project-service) echo "Project Service" ;;
               sensor-service) echo "Sensor Service" ;;
@@ -85,283 +91,598 @@ jobs:
           }
 
           service_json() {
-            jq -n \
+            jq -nc \
               --arg id "$1" \
               --arg name "$(service_label "$1")" \
-              '{id: $id, name: $name}'
+              --arg dockerfile "$1/Dockerfile" \
+              '{id: $id, name: $name, dockerfile: $dockerfile}'
           }
 
-          selected_from_input() {
-            local raw="${INPUT_SCOPE:-changed}"
-            if [ "$raw" = "all" ] || [ "$raw" = "all-backend" ] || [ "$raw" = "all-services" ]; then
-              printf '%s\n' "${ALL_SERVICES[@]}"
+          changed_files() {
+            if [ "${EVENT_NAME}" = "pull_request" ] && [ -n "${GITHUB_BASE_REF:-}" ]; then
+              git fetch --no-tags --depth=1 origin "${GITHUB_BASE_REF}" >/dev/null 2>&1 || true
+              git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD" 2>/dev/null || git show --pretty='' --name-only HEAD
+            elif git rev-parse HEAD^ >/dev/null 2>&1; then
+              git diff --name-only HEAD^ HEAD
+            else
+              git show --pretty='' --name-only HEAD
+            fi
+          }
+
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            mode="${INPUT_SCOPE:-all}"
+          elif [ "${EVENT_NAME}" = "pull_request" ]; then
+            mode="changed"
+          else
+            mode="all"
+          fi
+
+          selected_java=()
+          selected_analytics=false
+          selected_frontend=false
+
+          select_all() {
+            selected_java=("${JAVA_SERVICES[@]}")
+            selected_analytics=true
+            selected_frontend=true
+          }
+
+          select_changed() {
+            local changed
+            changed="$(changed_files)"
+
+            if echo "$changed" | grep -Eq '^(frontend/|\.github/workflows/(ci|frontend-ci-cd)\.yml$)'; then
+              selected_frontend=true
+            fi
+
+            if echo "$changed" | grep -Eq '^(common/|shared-api/|pom.xml$)'; then
+              selected_java=("${JAVA_SERVICES[@]}")
+              selected_analytics=true
               return
             fi
 
-            local requested=()
-            IFS=',' read -ra parts <<< "$raw"
-            for item in "${parts[@]}"; do
-              item="$(echo "$item" | xargs)"
-              [ -n "$item" ] && requested+=("$item")
-            done
+            if echo "$changed" | grep -Eq '^(analytics-service/|shared-api/src/main/proto/)'; then
+              selected_analytics=true
+            fi
 
-            for service in "${ALL_SERVICES[@]}"; do
-              for item in "${requested[@]}"; do
-                if [ "$service" = "$item" ]; then
-                  echo "$service"
-                fi
-              done
+            for service in "${JAVA_SERVICES[@]}"; do
+              if echo "$changed" | grep -Eq "^${service}/"; then
+                selected_java+=("$service")
+              fi
             done
           }
 
-          SELECTED=()
-          ANALYTICS_SELECTED="$ANALYTICS_CHANGED"
-
-          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "${INPUT_SCOPE:-changed}" != "changed" ]; then
-            mapfile -t REQUESTED < <(selected_from_input)
-            ANALYTICS_SELECTED=false
-            for s in "${REQUESTED[@]}"; do
-              if [ "$s" = "analytics-service" ]; then
-                ANALYTICS_SELECTED=true
-              else
-                SELECTED+=("$s")
-              fi
+          select_requested() {
+            local raw="$1"
+            IFS=',' read -ra requested <<< "$raw"
+            for item in "${requested[@]}"; do
+              item="$(echo "$item" | xargs)"
+              case "$item" in
+                frontend|frontend-web|frontend-web-app) selected_frontend=true ;;
+                analytics|analytics-service) selected_analytics=true ;;
+                all|all-services|all-backend) select_all ;;
+                *)
+                  for service in "${JAVA_SERVICES[@]}"; do
+                    if [ "$service" = "$item" ]; then
+                      selected_java+=("$service")
+                    fi
+                  done
+                  ;;
+              esac
             done
-          else
-            for s in "${JAVA_SERVICES[@]}"; do
-              flag=$(echo "$CHANGES" | jq -r --arg k "$s" '.[$k] // "false"')
-              if [ "$SHARED" = "true" ] || [ "$flag" = "true" ]; then
-                SELECTED+=("$s")
-              fi
-            done
-          fi
+          }
 
-          if [ ${#SELECTED[@]} -eq 0 ]; then
-            echo "java=[]" >> "$GITHUB_OUTPUT"
-            echo "any=false" >> "$GITHUB_OUTPUT"
-          else
-            json="$(for s in "${SELECTED[@]}"; do service_json "$s"; done | jq -s -c .)"
-            echo "java=$json" >> "$GITHUB_OUTPUT"
-            echo "any=true" >> "$GITHUB_OUTPUT"
-          fi
+          case "$mode" in
+            all|all-services|all-backend) select_all ;;
+            changed) select_changed ;;
+            *) select_requested "$mode" ;;
+          esac
 
-          LABELS=()
-          for s in "${SELECTED[@]}"; do
-            LABELS+=("$(service_label "$s")")
+          mapfile -t selected_java < <(printf '%s\n' "${selected_java[@]}" | awk 'NF && !seen[$0]++')
+
+          java_json="$(for service in "${selected_java[@]}"; do service_json "$service"; done | jq -sc .)"
+
+          container_items=("${selected_java[@]}")
+          if [ "$selected_analytics" = "true" ]; then
+            container_items+=(analytics-service)
+          fi
+          container_json="$(for service in "${container_items[@]}"; do service_json "$service"; done | jq -sc .)"
+
+          labels=()
+          if [ "$selected_frontend" = "true" ]; then
+            labels+=("$(service_label frontend)")
+          fi
+          for service in "${selected_java[@]}"; do
+            labels+=("$(service_label "$service")")
           done
-          if [ "$ANALYTICS_SELECTED" = "true" ]; then
-            LABELS+=("$(service_label analytics-service)")
+          if [ "$selected_analytics" = "true" ]; then
+            labels+=("$(service_label analytics-service)")
           fi
-          if [ ${#LABELS[@]} -eq 0 ]; then
+          if [ ${#labels[@]} -eq 0 ]; then
             label_text="none"
           else
-            printf -v label_text "%s, " "${LABELS[@]}"
+            printf -v label_text "%s, " "${labels[@]}"
             label_text="${label_text%, }"
           fi
-          echo "analytics=$ANALYTICS_SELECTED" >> "$GITHUB_OUTPUT"
-          echo "selected-labels=$label_text" >> "$GITHUB_OUTPUT"
-          echo "Selected services: $label_text"
 
-  # ---------- build + unit + integration tests (Testcontainers) per changed service ----------
-  java-verify:
-    name: Backend Build & Test - ${{ matrix.service.name }}
-    needs: detect-changes
-    if: needs.detect-changes.outputs.any-java == 'true'
+          echo "frontend=$selected_frontend" >> "$GITHUB_OUTPUT"
+          echo "analytics=$selected_analytics" >> "$GITHUB_OUTPUT"
+          echo "any-java=$([ ${#selected_java[@]} -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "any-container=$([ ${#container_items[@]} -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "java-matrix=$java_json" >> "$GITHUB_OUTPUT"
+          echo "container-matrix=$container_json" >> "$GITHUB_OUTPUT"
+          echo "selected-labels=$label_text" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## 01 Scope"
+            echo "- mode: ${mode}"
+            echo "- selected workloads: ${label_text}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  frontend-quality:
+    name: 02 Frontend - Type, Unit, Integration and Build
+    needs: scope
+    if: always() && needs.scope.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc -b --pretty false
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit and integration tests
+        run: npm run test -- --run
+
+      - name: Build Firebase hosting artifact
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://api.aquashield.live' }}
+          VITE_WS_BASE_URL: ${{ vars.VITE_WS_BASE_URL || 'wss://api.aquashield.live/ws' }}
+        run: npm run build
+
+      - name: Publish frontend evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Frontend Evidence - Type Unit Integration Build
+          path: |
+            frontend/dist/
+            frontend/coverage/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  backend-quality:
+    name: 03 Backend - Type, Unit and Integration - ${{ matrix.service.name }}
+    needs: [scope, frontend-quality]
+    if: always() && needs.scope.outputs.any-java == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        service: ${{ fromJSON(needs.detect-changes.outputs.java-matrix) }}
+        service: ${{ fromJSON(needs.scope.outputs.java-matrix) }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: ${{ env.JAVA_VERSION }}
           cache: maven
-      - name: Run unit and integration tests
+
+      - name: Maven type, unit and integration evidence
         run: mvn -B -ntp -pl ${{ matrix.service.id }} -am verify
-      - name: Publish test evidence
+
+      - name: Publish backend test evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Test Evidence - ${{ matrix.service.name }}
+          name: Backend Test Evidence - ${{ matrix.service.name }}
           path: |
             ${{ matrix.service.id }}/target/surefire-reports/
             ${{ matrix.service.id }}/target/failsafe-reports/
+          if-no-files-found: ignore
           retention-days: 14
 
-  # ---------- analytics-service (TypeScript) — typecheck + vitest + container ----------
-  analytics-verify:
-    name: Analytics Service Build & Test
-    needs: detect-changes
-    if: needs.detect-changes.outputs.any-analytics == 'true'
+  analytics-quality:
+    name: 04 Backend Analytics - Type, Unit and Integration
+    needs: [scope, backend-quality]
+    if: always() && needs.scope.outputs.analytics == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: analytics-service
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: analytics-service/package-lock.json
+
       - name: Install locked dependencies
         run: npm ci
-      - name: Typecheck and build
+
+      - name: Type check
+        run: npm run lint
+
+      - name: Build
         run: npm run build
-      - name: Run analytics tests
+
+      - name: Unit and integration tests
         run: npm test
-      - name: Audit production dependencies
+
+      - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
 
-  analytics-container:
-    name: Analytics Container Build & Scan
-    needs: [detect-changes, analytics-verify]
-    if: needs.detect-changes.outputs.any-analytics == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build analytics image
-        run: docker build -f analytics-service/Dockerfile -t analytics-service:${{ github.sha }} .
-      - name: Scan analytics image
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          scan-type: image
-          image-ref: analytics-service:${{ github.sha }}
-          severity: CRITICAL
-          exit-code: '1'
-          ignore-unfixed: true
-
-  # ---------- security gates (repo-wide; always run — they ARE the evidence) ----------
-  secret-scan:
-    name: Secret Scan - Gitleaks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Run secret scan
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   sast:
-    name: Static Security Scan - Semgrep
+    name: 05 SAST - Frontend and Backend Semgrep
+    needs: [frontend-quality, backend-quality, analytics-quality]
+    if: always() && !cancelled()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Run static application security test
         run: |
+          set -euo pipefail
           pip install --quiet semgrep
-          semgrep scan --config p/java --config p/security-audit \
-            --error --json --output semgrep-report.json || SEMGREP_EXIT=$?
-          semgrep scan --config p/java --config p/security-audit --text || true
+          semgrep scan \
+            --config p/java \
+            --config p/javascript \
+            --config p/typescript \
+            --config p/security-audit \
+            --json \
+            --output semgrep-report.json
+          semgrep scan \
+            --config p/java \
+            --config p/security-audit \
+            --error \
+            --json \
+            --output semgrep-gated-report.json || SEMGREP_EXIT=$?
+          semgrep scan \
+            --config p/java \
+            --config p/security-audit \
+            --text || true
           exit ${SEMGREP_EXIT:-0}
+
       - name: Publish SAST evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Security Evidence - Semgrep SAST Report
-          path: semgrep-report.json
+          path: |
+            semgrep-report.json
+            semgrep-gated-report.json
+          if-no-files-found: ignore
           retention-days: 30
 
-  sca-and-secrets-fs:
-    name: Dependency and Config Scan - Trivy
+  secret-scan:
+    name: 06 Secrets - Gitleaks
+    needs: sast
+    if: always() && !cancelled()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Scan dependencies and configuration
-        # gate on CRITICAL (zero after the Boot 3.5.14 + tomcat 10.1.55 hardening);
-        # HIGH is reported in the json artifact — ratchet the gate once HIGHs are burned down
+        with:
+          fetch-depth: 0
+
+      - name: Run secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-sbom:
+    name: 07 Trivy Dependencies and SBOM
+    needs: secret-scan
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Trivy filesystem gate
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
           severity: CRITICAL
-          exit-code: '1'
+          exit-code: "1"
           ignore-unfixed: true
           format: table
-      - name: Generate dependency scan evidence
+
+      - name: Generate Trivy filesystem evidence
         if: always()
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
           severity: CRITICAL,HIGH,MEDIUM
-          exit-code: '0'
+          exit-code: "0"
+          ignore-unfixed: true
           format: json
           output: trivy-fs-report.json
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: Security Evidence - Trivy Filesystem Report
-          path: trivy-fs-report.json
-          retention-days: 30
 
-  sbom:
-    name: Software Bill of Materials - CycloneDX
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
-      - name: Generate CycloneDX SBOM
+      - name: Generate backend SBOM
         run: mvn -B -ntp -DskipTests org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom
-      - uses: actions/upload-artifact@v4
+
+      - name: Publish dependency and SBOM evidence
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: Security Evidence - CycloneDX SBOM
-          path: target/bom.*
+          name: Security Evidence - Trivy FS and CycloneDX SBOM
+          path: |
+            trivy-fs-report.json
+            target/bom.*
+          if-no-files-found: ignore
           retention-days: 30
 
-  # ---------- container build + image scan per changed service (no push yet) ----------
-  container:
-    name: Container Build & Image Scan - ${{ matrix.service.name }}
-    needs: [detect-changes, java-verify]
-    if: needs.detect-changes.outputs.any-java == 'true'
+  container-management:
+    name: 08 Container - Build, Inspect and Trivy - ${{ matrix.service.name }}
+    needs: [scope, dependency-sbom]
+    if: always() && needs.scope.outputs.any-container == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        service: ${{ fromJSON(needs.detect-changes.outputs.java-matrix) }}
+        service: ${{ fromJSON(needs.scope.outputs.container-matrix) }}
     steps:
       - uses: actions/checkout@v4
-      - name: Build service image
-        run: docker build -f ${{ matrix.service.id }}/Dockerfile -t ${{ matrix.service.id }}:${{ github.sha }} .
-      - name: Scan service image
+
+      - name: Build container image
+        run: docker build -f ${{ matrix.service.dockerfile }} -t ${{ matrix.service.id }}:${{ github.sha }} .
+
+      - name: Inspect container image
+        run: docker image inspect ${{ matrix.service.id }}:${{ github.sha }} > image-inspect-${{ matrix.service.id }}.json
+
+      - name: Trivy image gate
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: ${{ matrix.service.id }}:${{ github.sha }}
           severity: CRITICAL
-          exit-code: '1'
+          exit-code: "1"
           ignore-unfixed: true
-      # push to Artifact Registry + Kustomize tag bump land in deploy-handoff.yml
-      # once the cloud foundation (registry + OIDC/WIF) exists.
+
+      - name: Generate Trivy image evidence
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ matrix.service.id }}:${{ github.sha }}
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: "0"
+          ignore-unfixed: true
+          format: json
+          output: trivy-image-${{ matrix.service.id }}.json
+
+      - name: Publish container evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Container Evidence - ${{ matrix.service.name }}
+          path: |
+            image-inspect-${{ matrix.service.id }}.json
+            trivy-image-${{ matrix.service.id }}.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  compliance-as-code:
+    name: 09 Compliance as Code - Terraform and Kustomize
+    needs: container-management
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - uses: imranismail/setup-kustomize@v2
+        with:
+          kustomize-version: 5.4.3
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive infra
+
+      - name: Terraform validate
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/environments/dev init -backend=false
+          terraform -chdir=infra/environments/dev validate
+
+      - name: Kustomize render check
+        run: |
+          set -euo pipefail
+          mkdir -p compliance-evidence
+          kustomize build k8s/overlays/performance-managed-public > compliance-evidence/kustomize-performance-managed-public.yaml
+          kustomize build k8s/overlays/dev-full > compliance-evidence/kustomize-dev-full.yaml
+
+      - name: Publish compliance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Compliance Evidence - Terraform Kustomize
+          path: compliance-evidence/
+          if-no-files-found: ignore
+          retention-days: 30
+
+  gitops-handoff:
+    name: 10 CD - Artifact Registry and Argo CD Handoff Gate
+    needs: compliance-as-code
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate deploy handoff workflow wiring
+        run: |
+          set -euo pipefail
+          test -f .github/workflows/deploy-handoff.yml
+          grep -q "Artifact Registry" .github/workflows/deploy-handoff.yml
+          grep -q "GCP_WORKLOAD_IDENTITY_PROVIDER" .github/workflows/deploy-handoff.yml
+          grep -q "GITOPS_IMAGE_OVERLAY" .github/workflows/deploy-handoff.yml
+          grep -q "kustomize edit set image" .github/workflows/deploy-handoff.yml
+
+          {
+            echo "## 10 CD handoff gate"
+            echo "- image push and GitOps mutation are owned by deploy-handoff.yml"
+            echo "- deploy-handoff.yml runs after successful main CI"
+            echo "- validated: Artifact Registry, WIF/OIDC, Kustomize image bump, Argo-ready overlay"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  dast:
+    name: 11 DAST - Frontend and API OWASP ZAP
+    needs: gitops-handoff
+    if: always() && !cancelled() && github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.run_dast)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run frontend and API ZAP baselines
+        env:
+          FRONTEND_URL: ${{ env.DAST_FRONTEND_URL }}
+          API_URL: ${{ env.DAST_API_URL }}
+          SPIDER_MINUTES: ${{ env.DAST_SPIDER_MINUTES }}
+        run: |
+          set -euo pipefail
+          mkdir -p zap-output
+          chmod 0777 zap-output
+
+          run_zap() {
+            local name="$1"
+            local target="$2"
+            echo "::group::OWASP ZAP ${name}"
+            docker run --rm \
+              -v "$PWD/zap-output:/zap/wrk/:rw" \
+              ghcr.io/zaproxy/zaproxy:stable \
+              zap-baseline.py \
+                -t "$target" \
+                -m "$SPIDER_MINUTES" \
+                -J "${name}-zap-report.json" \
+                -r "${name}-zap-report.html" \
+                -w "${name}-zap-report.md" \
+                -I
+            echo "::endgroup::"
+          }
+
+          run_zap "frontend-web" "${FRONTEND_URL%/}/"
+          run_zap "backend-api" "${API_URL%/}/api/csrf"
+
+      - name: Summarize DAST result
+        if: always()
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          print("## 11 DAST")
+          print("OWASP ZAP baseline scanned the deployed frontend and API edge.")
+          print()
+
+          totals = Counter()
+          for report_path in sorted(Path("zap-output").glob("*-zap-report.json")):
+              with report_path.open(encoding="utf-8") as handle:
+                  report = json.load(handle)
+              for site in report.get("site", []):
+                  for alert in site.get("alerts", []):
+                      risk = alert.get("riskdesc", "Unknown").split()[0]
+                      totals[risk] += 1
+
+          print("| Severity | Count |")
+          print("|---|---:|")
+          for risk in ("High", "Medium", "Low", "Informational"):
+              print(f"| {risk} | {totals.get(risk, 0)} |")
+          PY
+
+      - name: Publish DAST evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DAST Evidence - Frontend and API
+          path: zap-output/
+          if-no-files-found: ignore
+          retention-days: 30
 
   ci-summary:
-    name: CI Evidence
-    needs: [detect-changes, java-verify, analytics-verify, analytics-container, secret-scan, sast, sca-and-secrets-fs, sbom, container]
+    name: 12 CI/CD Evidence Summary
+    needs:
+      - scope
+      - frontend-quality
+      - backend-quality
+      - analytics-quality
+      - sast
+      - secret-scan
+      - dependency-sbom
+      - container-management
+      - compliance-as-code
+      - gitops-handoff
+      - dast
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Publish CI evidence
+      - name: Publish sequential CI/CD evidence summary
         env:
-          SELECTED_SERVICES: ${{ needs.detect-changes.outputs.selected-labels }}
+          SELECTED_SERVICES: ${{ needs.scope.outputs.selected-labels }}
         run: |
           {
-            echo "## CI Evidence"
-            echo "- selected services: ${SELECTED_SERVICES:-none}"
-            echo "- backend build and tests: ${{ needs.java-verify.result }}"
-            echo "- analytics build and tests: ${{ needs.analytics-verify.result }}"
-            echo "- analytics container scan: ${{ needs.analytics-container.result }}"
-            echo "- secret scan: ${{ needs.secret-scan.result }}"
-            echo "- static security scan: ${{ needs.sast.result }}"
-            echo "- dependency and config scan: ${{ needs.sca-and-secrets-fs.result }}"
-            echo "- software bill of materials: ${{ needs.sbom.result }}"
-            echo "- backend container build and scan: ${{ needs.container.result }}"
+            echo "## AquaShield DevSecOps CI/CD Evidence"
+            echo
+            echo "| Stage | Result |"
+            echo "|---|---|"
+            echo "| 01 Scope | ${{ needs.scope.result }} |"
+            echo "| 02 Frontend type/unit/integration/build | ${{ needs.frontend-quality.result }} |"
+            echo "| 03 Backend type/unit/integration | ${{ needs.backend-quality.result }} |"
+            echo "| 04 Analytics type/unit/integration | ${{ needs.analytics-quality.result }} |"
+            echo "| 05 SAST | ${{ needs.sast.result }} |"
+            echo "| 06 Secrets | ${{ needs.secret-scan.result }} |"
+            echo "| 07 Trivy dependencies and SBOM | ${{ needs.dependency-sbom.result }} |"
+            echo "| 08 Container build/inspect/Trivy | ${{ needs.container-management.result }} |"
+            echo "| 09 Compliance as Code | ${{ needs.compliance-as-code.result }} |"
+            echo "| 10 CD handoff gate | ${{ needs.gitops-handoff.result }} |"
+            echo "| 11 DAST frontend/API | ${{ needs.dast.result }} |"
+            echo
+            echo "Selected workloads: ${SELECTED_SERVICES:-none}"
           } >> "$GITHUB_STEP_SUMMARY"
+
+          failed=0
+          for result in \
+            "${{ needs.scope.result }}" \
+            "${{ needs.frontend-quality.result }}" \
+            "${{ needs.backend-quality.result }}" \
+            "${{ needs.analytics-quality.result }}" \
+            "${{ needs.sast.result }}" \
+            "${{ needs.secret-scan.result }}" \
+            "${{ needs.dependency-sbom.result }}" \
+            "${{ needs.container-management.result }}" \
+            "${{ needs.compliance-as-code.result }}" \
+            "${{ needs.gitops-handoff.result }}" \
+            "${{ needs.dast.result }}"; do
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              failed=1
+            fi
+          done
+
+          exit "$failed"

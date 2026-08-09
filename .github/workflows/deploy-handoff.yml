@@ -2,7 +2,7 @@ name: Container Release and Argo CD Handoff
 
 on:
   workflow_run:
-    workflows: ["Backend Service CI - Build, Test & Security"]
+    workflows: ["AquaShield DevSecOps CI/CD Evidence"]
     types: [completed]
     branches: [main]
   workflow_dispatch:

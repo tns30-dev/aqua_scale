@@ -1,6 +1,8 @@
 import { AlertCircle, AlertTriangle, CheckCircle, X } from "lucide-react";
 import { clsx } from "clsx";
 import type { Alert } from "../../types";
+import { usePondStore } from "../../stores/pondStore";
+import { pondLabel } from "../../utils/pondLabel";
 
 interface AlertBannerProps {
   alert: Alert;
@@ -11,6 +13,8 @@ interface AlertBannerProps {
 export function AlertBanner({ alert, onResolve, resolving = false }: AlertBannerProps) {
   const isCritical = alert.severity === "critical";
   const eventTime = alert.readingTimestamp ?? alert.timestamp;
+  const ponds = usePondStore((s) => s.ponds);
+  const pondLabelText = pondLabel(alert.pondName, alert.pondId, ponds);
 
   return (
     <div
@@ -42,7 +46,7 @@ export function AlertBanner({ alert, onResolve, resolving = false }: AlertBanner
               })}
             >
               {resolving ? "Resolved: " : isCritical ? "Action Required: " : "Monitor Condition: "}
-              {resolving && alert.pondId ? `${alert.pondName} - ${alert.message}` : alert.message}
+              {resolving && alert.pondId ? `${pondLabelText} - ${alert.message}` : alert.message}
             </p>
             <p
               className={clsx("mt-1 text-xs", {
@@ -51,7 +55,7 @@ export function AlertBanner({ alert, onResolve, resolving = false }: AlertBanner
                 "text-yellow-600": !resolving && !isCritical,
               })}
             >
-              {alert.pondId ? `${alert.pondName} - ` : ""}
+              {alert.pondId ? `${pondLabelText} - ` : ""}
               {new Date(eventTime).toLocaleString()}
             </p>
           </div>

@@ -1,9 +1,10 @@
 import { clsx } from 'clsx';
 import { AlertCircle, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { usePondStore } from '../../stores/pondStore';
+import { pondLabel } from '../../utils/pondLabel';
 
 export function GlobalAlertToasts() {
-  const { activeAlerts, removeAlert } = usePondStore();
+  const { activeAlerts, removeAlert, ponds } = usePondStore();
 
   if (activeAlerts.length === 0) {
     return null;
@@ -55,8 +56,8 @@ export function GlobalAlertToasts() {
                 })}
               >
                 {isResolved
-                  ? `${alert.pondName} - ${alert.parameter} returned to normal range`
-                  : `${alert.pondName} - ${alert.message}`}
+                  ? `${pondLabel(alert.pondName, alert.pondId, ponds)} - ${alert.parameter} returned to normal range`
+                  : `${pondLabel(alert.pondName, alert.pondId, ponds)} - ${alert.message}`}
               </p>
 
               <p className="text-xs text-gray-500 mt-1">
