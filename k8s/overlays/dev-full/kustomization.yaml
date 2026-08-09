@@ -654,28 +654,28 @@ patches:
 images:
 - name: analytics-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/analytics-service/analytics-service
-  newTag: 2ab3e1d606ad
+  newTag: e6e473c8bad5
 - name: audit-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/audit-service/audit-service
-  newTag: 2ab3e1d606ad
+  newTag: e6e473c8bad5
 - name: identity-access-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/identity-access-service/identity-access-service
-  newTag: 2ab3e1d606ad
+  newTag: e6e473c8bad5
 - name: ingestion-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/ingestion-service/ingestion-service
-  newTag: 2ab3e1d606ad
+  newTag: e6e473c8bad5
 - name: notification-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/notification-service/notification-service
-  newTag: 2ab3e1d606ad
+  newTag: e6e473c8bad5
 - name: pond-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/pond-service/pond-service
-  newTag: 2ab3e1d606ad
+  newTag: e6e473c8bad5
 - name: project-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/project-service/project-service
-  newTag: 2ab3e1d606ad
+  newTag: e6e473c8bad5
 - name: realtime-gateway
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/realtime-gateway/realtime-gateway
-  newTag: 2ab3e1d606ad
+  newTag: e6e473c8bad5
 - name: sensor-service
   newName: asia-southeast1-docker.pkg.dev/aquashield-ms-dev-20260808/sensor-service/sensor-service
-  newTag: 2ab3e1d606ad
+  newTag: e6e473c8bad5
