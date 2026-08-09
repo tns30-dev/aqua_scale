@@ -31,6 +31,10 @@ env:
   GAR_HOST: asia-southeast1-docker.pkg.dev
   GCP_WORKLOAD_IDENTITY_PROVIDER: projects/652498179105/locations/global/workloadIdentityPools/github-actions/providers/github-actions
   GCP_SERVICE_ACCOUNT: aquashield-github-deployer@aquashield-ms-dev-20260808.iam.gserviceaccount.com
+  GKE_CLUSTER_NAME: aquashield-dev-gke
+  GKE_CLUSTER_LOCATION: asia-southeast1-a
+  ARGO_APP_NAME: aquashield-dev
+  ARGO_APP_PATH: k8s/overlays/performance-managed-public
   GITOPS_IMAGE_OVERLAY: k8s/overlays/dev-full
   DAST_FRONTEND_URL: ${{ vars.CD_DAST_FRONTEND_URL || 'https://www.aquashield.live' }}
   DAST_API_URL: ${{ vars.CD_DAST_API_URL || 'https://api.aquashield.live' }}
@@ -38,7 +42,7 @@ env:
 
 jobs:
   detect-changes:
-    name: Select Services for Release
+    name: 01 Select Services for Release
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     outputs:
@@ -137,6 +141,12 @@ jobs:
               changed="$(git show --pretty='' --name-only HEAD)"
             fi
 
+            if echo "$changed" | grep -Eq '^\.github/workflows/deploy-handoff\.yml$'; then
+              echo "__FRONTEND__"
+              printf '%s\n' "${ALL_SERVICES[@]}"
+              return
+            fi
+
             if echo "$changed" | grep -Eq '^(frontend/|\.github/workflows/frontend-ci-cd\.yml$)'; then
               echo "__FRONTEND__"
             fi
@@ -198,7 +208,7 @@ jobs:
           echo "Selected services: $label_text"
 
   frontend-deploy:
-    name: Deploy Frontend - Firebase Hosting
+    name: 02 Deploy Frontend - Firebase Hosting
     needs: detect-changes
     if: needs.detect-changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
@@ -250,7 +260,7 @@ jobs:
           channelId: live
 
   build-push:
-    name: Build, Scan & Push Image - ${{ matrix.service.name }}
+    name: 03 Build, Scan & Push Image - ${{ matrix.service.name }}
     needs: detect-changes
     if: needs.detect-changes.outputs.any == 'true'
     runs-on: ubuntu-latest
@@ -312,7 +322,7 @@ jobs:
           echo "- ${SERVICE_NAME}: ${image}:${DEPLOY_SHA}" >> "$GITHUB_STEP_SUMMARY"
 
   gitops-update:
-    name: Update Kubernetes Manifests for Argo CD
+    name: 04 Update Kubernetes Manifests for Argo CD
     needs: [detect-changes, build-push]
     if: needs.detect-changes.outputs.any == 'true'
     runs-on: ubuntu-latest
@@ -355,9 +365,79 @@ jobs:
           git commit -m "chore(gitops): update dev images to ${SHORT_SHA} [skip ci]"
           git push origin HEAD:main
 
+  argo-verify:
+    name: 05 Verify Argo CD Sync and GKE Rollout
+    needs: [detect-changes, gitops-update]
+    if: needs.detect-changes.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER_NAME }}
+          location: ${{ env.GKE_CLUSTER_LOCATION }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Wait for Argo CD sync and selected rollouts
+        env:
+          SERVICES: ${{ needs.detect-changes.outputs.services }}
+        run: |
+          set -euo pipefail
+
+          kubectl -n argocd annotate application "${ARGO_APP_NAME}" \
+            argocd.argoproj.io/refresh=hard --overwrite
+
+          status=""
+          health=""
+          path=""
+          revision=""
+          for attempt in $(seq 1 30); do
+            status="$(kubectl -n argocd get application "${ARGO_APP_NAME}" -o jsonpath='{.status.sync.status}')"
+            health="$(kubectl -n argocd get application "${ARGO_APP_NAME}" -o jsonpath='{.status.health.status}')"
+            path="$(kubectl -n argocd get application "${ARGO_APP_NAME}" -o jsonpath='{.spec.source.path}')"
+            revision="$(kubectl -n argocd get application "${ARGO_APP_NAME}" -o jsonpath='{.status.sync.revision}')"
+            echo "Attempt ${attempt}: sync=${status}, health=${health}, path=${path}, revision=${revision}"
+            if [ "$status" = "Synced" ] && [ "$health" = "Healthy" ]; then
+              break
+            fi
+            sleep 20
+          done
+
+          if [ "$path" != "$ARGO_APP_PATH" ]; then
+            echo "::warning::Argo application path is ${path}; expected ${ARGO_APP_PATH}."
+          fi
+          if [ "$status" != "Synced" ] || [ "$health" != "Healthy" ]; then
+            echo "::error::Argo CD did not become Synced/Healthy in time."
+            exit 1
+          fi
+
+          for service in $(echo "$SERVICES" | jq -r '.[].id'); do
+            if kubectl -n aquashield-dev get deployment "$service" >/dev/null 2>&1; then
+              kubectl -n aquashield-dev rollout status "deployment/${service}" --timeout=180s
+            fi
+          done
+
+          {
+            echo "## Argo CD Sync Evidence"
+            echo
+            echo "| Item | Value |"
+            echo "|---|---|"
+            echo "| Application | \`${ARGO_APP_NAME}\` |"
+            echo "| Watched overlay | \`${path}\` |"
+            echo "| Image tag source overlay | \`${GITOPS_IMAGE_OVERLAY}\` |"
+            echo "| Sync status | ${status} |"
+            echo "| Health status | ${health} |"
+            echo "| Synced revision | \`${revision}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   cd-summary:
-    name: CD Handoff Summary
-    needs: [detect-changes, frontend-deploy, build-push, gitops-update]
+    name: 06 CD Handoff Summary
+    needs: [detect-changes, frontend-deploy, build-push, gitops-update, argo-verify]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     outputs:
@@ -368,7 +448,7 @@ jobs:
         run: |
           set -euo pipefail
           release_ready=true
-          for result in "${{ needs.detect-changes.result }}" "${{ needs.frontend-deploy.result }}" "${{ needs.build-push.result }}" "${{ needs.gitops-update.result }}"; do
+          for result in "${{ needs.detect-changes.result }}" "${{ needs.frontend-deploy.result }}" "${{ needs.build-push.result }}" "${{ needs.gitops-update.result }}" "${{ needs.argo-verify.result }}"; do
             if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
               release_ready=false
             fi
@@ -383,13 +463,14 @@ jobs:
             echo "| Firebase frontend deploy | ${{ needs.frontend-deploy.result }} |"
             echo "| Build, scan and push images | ${{ needs.build-push.result }} |"
             echo "| GitOps image handoff | ${{ needs.gitops-update.result }} |"
+            echo "| Argo CD sync and GKE rollout | ${{ needs.argo-verify.result }} |"
             echo
             if [ "${{ needs.detect-changes.outputs.frontend }}" = "true" ] && [ "${{ needs.detect-changes.outputs.any }}" = "true" ]; then
-              echo "Frontend was deployed to Firebase and backend images were handed to Argo CD through \`${GITOPS_IMAGE_OVERLAY}\`."
+              echo "Frontend was deployed to Firebase. Backend images were updated in \`${GITOPS_IMAGE_OVERLAY}\`, which is inherited by the live Argo CD overlay \`${ARGO_APP_PATH}\`."
             elif [ "${{ needs.detect-changes.outputs.frontend }}" = "true" ]; then
               echo "Frontend was deployed to Firebase; no backend image handoff was required."
             elif [ "${{ needs.detect-changes.outputs.any }}" = "true" ]; then
-              echo "Backend images were handed to Argo CD through \`${GITOPS_IMAGE_OVERLAY}\`."
+              echo "Backend images were updated in \`${GITOPS_IMAGE_OVERLAY}\`, which is inherited by the live Argo CD overlay \`${ARGO_APP_PATH}\`."
             else
               echo "No releaseable service image changed; deployed DAST still runs against the current live environment."
             fi
@@ -400,7 +481,7 @@ jobs:
           fi
 
   dast:
-    name: DAST - Deployed Frontend and API OWASP ZAP
+    name: 07 DAST - Deployed Frontend and API OWASP ZAP
     needs: cd-summary
     if: always() && !cancelled() && needs.cd-summary.outputs.release-ready == 'true' && (github.event_name != 'workflow_dispatch' || inputs.run_dast)
     runs-on: ubuntu-latest
@@ -475,7 +556,7 @@ jobs:
           retention-days: 30
 
   cd-final-summary:
-    name: CD Evidence Summary
+    name: 08 CD Evidence Summary
     needs: [cd-summary, dast]
     if: always()
     runs-on: ubuntu-latest
