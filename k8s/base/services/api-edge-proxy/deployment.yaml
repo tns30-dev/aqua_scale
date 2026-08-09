@@ -14,7 +14,7 @@ spec:
         app.kubernetes.io/component: api-edge
         app.kubernetes.io/part-of: aquashield
       annotations:
-        config.aquashield.dev/api-edge-proxy-config-version: "2026-08-09-security-headers-v1"
+        config.aquashield.dev/api-edge-proxy-config-version: "2026-08-09-security-headers-v2"
         sidecar.istio.io/proxyCPU: 25m
         sidecar.istio.io/proxyMemory: 64Mi
         sidecar.istio.io/proxyCPULimit: 250m
