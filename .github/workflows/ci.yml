@@ -23,6 +23,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: devsecops-ci-${{ github.ref }}
