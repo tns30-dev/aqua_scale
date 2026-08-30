@@ -9,6 +9,8 @@ paths = [
   '''common/src/test/java/com/aquashield/common/security/PayloadHmacTest\.java''',
   # evidence transcripts may quote test tokens/signatures
   '''docs/evidence/.*''',
+  # temporary CI security-scan evidence fixture; not application runtime code
+  '''security-evidence/.*''',
 ]
 regexes = [
   # local-dev compose placeholders (documented as local-only)
